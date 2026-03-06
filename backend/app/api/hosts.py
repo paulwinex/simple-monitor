@@ -1,14 +1,40 @@
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import HostServiceDep
-from app.api.dto import (
-    HostRegisterRequest, HostRegisterResponse,
-    HostConfigResponse, ConfigVersionResponse,
-    HostConfigUpdateRequest
+from app.shemas import (
+    HostRegisterRequest,
+    HostRegisterResponse,
+    HostConfigResponse,
+    ConfigVersionResponse,
+    HostConfigUpdateRequest,
+    HostWithDevicesOut
 )
 
-
 router = APIRouter(prefix="/hosts", tags=["hosts"])
+
+@router.get("", response_model=list[HostWithDevicesOut])
+async def list_hosts_with_devices(
+    service: HostServiceDep
+):
+    hosts = await service.get_all_hosts_with_devices()
+    return [
+        HostWithDevicesOut(
+            host_id=host.host_id,
+            registered_at=host.registered_at,
+            last_seen=host.last_seen,
+            devices=[
+                {
+                    "name": device.name,
+                    "type": device.type,
+                    "label": device.label,
+                    "enabled": bool(device.enabled),
+                    "details": device.details or {}
+                }
+                for device in host.devices
+            ]
+        )
+        for host in hosts
+    ]
 
 
 @router.post("/register", response_model=HostRegisterResponse)
@@ -16,7 +42,6 @@ async def register_host(
     payload: HostRegisterRequest,
     service: HostServiceDep
 ):
-    """Register a new host or update existing one."""
     await service.register_host(payload.host_id, payload.collectors)
     return HostRegisterResponse(host_id=payload.host_id, registered=True)
 
@@ -26,7 +51,6 @@ async def get_host_config(
     host_id: str,
     service: HostServiceDep
 ):
-    """Get full configuration for a host."""
     config = await service.get_host_config(host_id)
     if not config:
         return HostConfigResponse(host_id=host_id, version=0, collectors={})
@@ -42,7 +66,6 @@ async def get_config_version(
     host_id: str,
     service: HostServiceDep
 ):
-    """Get configuration version for change detection."""
     version = await service.get_config_version(host_id)
     return ConfigVersionResponse(version=version)
 
@@ -53,10 +76,8 @@ async def update_host_config(
     payload: HostConfigUpdateRequest,
     service: HostServiceDep
 ):
-    """Update host configuration (called by frontend dashboard)."""
     if not await service.host_exists(host_id):
         raise HTTPException(status_code=404, detail="Host not found")
-    
     config = await service.update_host_config(host_id, payload.collectors)
     return HostConfigResponse(
         host_id=host_id,

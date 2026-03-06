@@ -1,8 +1,9 @@
 import time
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.services.base import BaseService
-from app.persistence.models import Host, HostConfig
+from app.persistence.models import Host, HostConfig, Device
 
 
 class HostService(BaseService):
@@ -94,3 +95,13 @@ class HostService(BaseService):
         stmt = select(Host).where(Host.host_id == host_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def get_all_hosts_with_devices(self) -> list[Host]:
+        """Get all hosts with their devices eagerly loaded."""
+        stmt = (
+            select(Host)
+            .options(joinedload(Host.devices))
+            .order_by(Host.registered_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())

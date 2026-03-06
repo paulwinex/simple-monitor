@@ -9,21 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 class SchedulerManager:
-    """Manages background jobs for resampling and retention cleanup."""
-    
     def __init__(
-        self,
-        resample_minute_interval: int = 60,
-        resample_hourly_interval: int = 3600
-    ):
+            self,
+            resample_minute_interval: int = 60,
+            resample_hourly_interval: int = 3600
+        ):
         self.scheduler = AsyncIOScheduler()
         self.resample_minute_interval = resample_minute_interval
         self.resample_hourly_interval = resample_hourly_interval
     
     def start(self):
-        """Start the scheduler with all jobs."""
-        # Resampling jobs - run at fixed intervals
-        # Minute resampling runs every minute
         self.scheduler.add_job(
             self._run_minute_resample,
             'interval',
@@ -31,7 +26,6 @@ class SchedulerManager:
             id='resample_minute'
         )
         
-        # Hourly resampling runs every hour
         self.scheduler.add_job(
             self._run_hourly_resample,
             'interval',
@@ -39,27 +33,24 @@ class SchedulerManager:
             id='resample_hourly'
         )
 
-        # Daily resampling runs once per day (at 1 AM)
         self.scheduler.add_job(
             self._run_daily_resample,
             'cron',
-            hour=1,  # 1 AM daily
+            hour=1,
             id='resample_daily'
         )
 
-        # Retention jobs - run at 3 AM daily
         self.scheduler.add_job(
             self._run_retention_cleanup,
             'cron',
-            hour=3,  # 3 AM daily
+            hour=3,
             id='retention_cleanup'
         )
         
         self.scheduler.start()
-        logger.info("Scheduler started with jobs: resample_minute, resample_hourly, resample_daily, retention_cleanup")
+        logger.info("Scheduler started")
     
     async def _run_minute_resample(self):
-        """Run minute resampling at fixed interval."""
         logger.debug("Running minute resample job")
         async with get_session_context() as session:
             service = ResampleService(session)
@@ -68,7 +59,6 @@ class SchedulerManager:
             logger.debug(f"Minute resample completed: {count} aggregates")
     
     async def _run_hourly_resample(self):
-        """Run hourly resampling at fixed interval."""
         logger.debug("Running hourly resample job")
         async with get_session_context() as session:
             service = ResampleService(session)
@@ -77,7 +67,6 @@ class SchedulerManager:
             logger.debug(f"Hourly resample completed: {count} aggregates")
 
     async def _run_daily_resample(self):
-        """Run daily resampling at fixed interval (once per day)."""
         logger.debug("Running daily resample job")
         async with get_session_context() as session:
             service = ResampleService(session)
@@ -86,7 +75,6 @@ class SchedulerManager:
             logger.debug(f"Daily resample completed: {count} aggregates")
 
     async def _run_retention_cleanup(self):
-        """Run retention cleanup - only deletes resampled data."""
         logger.debug("Running retention cleanup job")
         async with get_session_context() as session:
             service = RetentionService(session)
@@ -95,6 +83,5 @@ class SchedulerManager:
             logger.debug(f"Retention cleanup completed: {raw_deleted} raw, {hourly_deleted} hourly deleted")
     
     def shutdown(self):
-        """Shutdown the scheduler."""
         self.scheduler.shutdown()
         logger.info("Scheduler shutdown")

@@ -11,7 +11,6 @@ async def list_host_devices(
     host_id: str,
     service: DeviceServiceDep
 ):
-    """List all devices for a host."""
     return await service.list_devices(host_id)
 
 
@@ -21,7 +20,6 @@ async def get_device(
     device_id: str,
     service: DeviceServiceDep
 ):
-    """Get a specific device."""
     device = await service.get_device(host_id, device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -34,7 +32,6 @@ async def delete_device(
     device_id: str,
     service: DeviceServiceDep
 ):
-    """Delete a device and all its metrics."""
     deleted = await service.delete_device(host_id, device_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Device not found")

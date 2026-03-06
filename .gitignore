@@ -20,3 +20,4 @@ Thumbs.db
 _tmp/
 backend/data/
 uv.lock
+docker-compose.override.yml

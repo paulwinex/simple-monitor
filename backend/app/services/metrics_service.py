@@ -3,7 +3,7 @@ from sqlalchemy import select
 
 from app.services.base import BaseService
 from app.persistence.models import Device, Host, RawMetric
-from app.api.dto import BatchIngestRequest, MetricOut
+from app.shemas import BatchIngestRequest, MetricOut
 
 
 class MetricsService(BaseService):

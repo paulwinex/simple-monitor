@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Query
 
 from app.api.deps import MetricsServiceDep
-from app.api.dto import BatchIngestRequest, IngestResponse
-from app.services import MetricsService
+from app.shemas import BatchIngestRequest, IngestResponse
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
