@@ -1,9 +1,48 @@
-FROM python:3.11-slim
+FROM python:3.14-slim AS builder
 
-WORKDIR /app
-RUN pip install uv
-COPY pyproject.toml .
-RUN uv sync --no-dev
-COPY app/ ./app/
+ENV PATH="/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_CACHE_DIR=/root/.cache/uv \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_NO_MANAGED_PYTHON=1 \
+    UV_PROJECT_ENVIRONMENT=/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_REQUIRE_HASHES=0 \
+    UV_VERIFY_HASHES=1 \
+    VIRTUAL_ENV=/venv
+
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /backend
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv venv $VIRTUAL_ENV && \
+    uv sync --no-install-project --no-editable
+
+FROM python:3.14-slim AS production-image
+
+ENV TZ=Europe/Moscow
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+
+ENV PATH="/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/venv \
+    PYTHONPATH="/backend"
+
+WORKDIR /backend
+COPY --link --from=builder /venv /venv
+COPY ./app /backend/app
 EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "--host", "0.0.0.0", "--port", "8000", "app.main:app"]
+RUN chmod +x /backend/app/start.sh
+ENTRYPOINT ["/backend/app/start.sh"]
+
