@@ -259,7 +259,7 @@ class ResampleState(Base):
 
     level: Mapped[str] = mapped_column(String, primary_key=True)  # 'minute', 'hour', 'daily'
     last_ts: Mapped[int] = mapped_column(Integer, default=0)
-    
+
     @classmethod
     async def get_last_ts(cls, session, level: str) -> int:
         """Get last processed timestamp for a level."""
@@ -267,15 +267,38 @@ class ResampleState(Base):
         result = await session.execute(stmt)
         row = result.scalar_one_or_none()
         return row if row is not None else 0
-    
+
     @classmethod
     async def set_last_ts(cls, session, level: str, ts: int):
         """Set last processed timestamp for a level."""
         stmt = select(cls).where(cls.level == level)
         result = await session.execute(stmt)
         row = result.scalar_one_or_none()
-        
+
         if row:
             row.last_ts = ts
         else:
             session.add(cls(level=level, last_ts=ts))
+
+
+class Dashboard(Base):
+    """
+    Dashboard configuration - independent from hosts.
+    Can contain widgets from any host.
+    """
+    __tablename__ = "dashboards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, default="My Dashboard")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    layout: Mapped[list] = mapped_column(JSON, default=list)  # vue-grid-layout state
+    widgets: Mapped[list] = mapped_column(JSON, default=list)  # widget configurations
+    created_at: Mapped[int] = mapped_column(Integer)
+    updated_at: Mapped[int] = mapped_column(Integer)
+
+    @classmethod
+    async def get_default(cls, session) -> "Dashboard | None":
+        """Get the default dashboard (first one)."""
+        stmt = select(cls).order_by(cls.id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()

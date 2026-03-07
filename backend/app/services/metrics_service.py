@@ -3,7 +3,18 @@ from sqlalchemy import select
 
 from app.services.base import BaseService
 from app.persistence.models import Device, Host, RawMetric
-from app.shemas import BatchIngestRequest, MetricOut
+from app.shemas import (
+    BatchIngestRequest,
+    MetricOut,
+    MetricQueryRequest,
+    MetricQueryResult,
+    BatchQueryRequest,
+    BatchQueryResponse,
+    LatestQueryRequest,
+    LatestQueryResult,
+    BatchLatestRequest,
+    BatchLatestResponse,
+)
 
 
 class MetricsService(BaseService):
@@ -194,6 +205,62 @@ class MetricsService(BaseService):
         stmt = select(RawMetric.name).where(
             RawMetric.device_id == device_id
         ).distinct()
-        
+
         result = await self.session.execute(stmt)
         return [row[0] for row in result.fetchall()]
+
+    # =========================================================================
+    # Batch Query Methods
+    # =========================================================================
+
+    async def query_metrics_batch(
+        self,
+        payload: BatchQueryRequest
+    ) -> BatchQueryResponse:
+        """Query multiple metrics in one request."""
+        results = []
+
+        for query in payload.queries:
+            # Use provided timestamps or defaults
+            start_ts = query.start_ts or 0
+            end_ts = query.end_ts or int(time.time())
+
+            data = await self.query_metrics(
+                host_id=payload.host_id,
+                device_id=query.device_id,
+                name=query.name,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                table=query.table.value,
+                limit=query.limit
+            )
+
+            results.append(MetricQueryResult(
+                device_id=query.device_id,
+                name=query.name,
+                data=data
+            ))
+
+        return BatchQueryResponse(results=results)
+
+    async def query_latest_batch(
+        self,
+        payload: BatchLatestRequest
+    ) -> BatchLatestResponse:
+        """Query latest values for multiple metrics in one request."""
+        results = []
+
+        for query in payload.queries:
+            data = await self.query_latest(
+                host_id=payload.host_id,
+                device_id=query.device_id,
+                name=query.name
+            )
+
+            results.append(LatestQueryResult(
+                device_id=query.device_id,
+                name=query.name,
+                data=data
+            ))
+
+        return BatchLatestResponse(results=results)

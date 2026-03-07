@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.persistence import init_db
-from app.api import metrics_router, hosts_router, devices_router
+from app.api import metrics_router, hosts_router, devices_router, dashboards_router
 from app.scheduler import SchedulerManager
 
 
@@ -53,6 +53,7 @@ app.add_middleware(
 app.include_router(metrics_router, prefix="/api/v1")
 app.include_router(hosts_router, prefix="/api/v1")
 app.include_router(devices_router, prefix="/api/v1")
+app.include_router(dashboards_router, prefix="/api/v1")
 
 
 @app.get("/health")

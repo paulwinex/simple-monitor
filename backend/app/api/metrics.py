@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Query
 
 from app.api.deps import MetricsServiceDep
-from app.shemas import BatchIngestRequest, IngestResponse
+from app.shemas import (
+    BatchIngestRequest,
+    IngestResponse,
+    BatchQueryRequest,
+    BatchQueryResponse,
+    BatchLatestRequest,
+    BatchLatestResponse,
+)
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
@@ -61,3 +68,21 @@ async def list_devices(
 ):
     """List all devices for a host."""
     return await service.list_devices(host_id)
+
+
+@router.post("/query/batch", response_model=BatchQueryResponse)
+async def query_metrics_batch(
+    payload: BatchQueryRequest,
+    service: MetricsServiceDep
+):
+    """Query multiple metrics in one request."""
+    return await service.query_metrics_batch(payload)
+
+
+@router.post("/query/latest/batch", response_model=BatchLatestResponse)
+async def query_latest_batch(
+    payload: BatchLatestRequest,
+    service: MetricsServiceDep
+):
+    """Get latest values for multiple metrics in one request."""
+    return await service.query_latest_batch(payload)
