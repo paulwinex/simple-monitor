@@ -1,6 +1,6 @@
 [project]
 name = "backend"
-version = "1.0.0"
+version = "0.0.1"
 description = "Smart Monitor Backend API"
 requires-python = ">=3.14,<3.15"
 dependencies = [
@@ -14,9 +14,20 @@ dependencies = [
     "apscheduler>=3.10.4",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.26.0",
+]
+
 [tool.uv]
 package = false
 
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"

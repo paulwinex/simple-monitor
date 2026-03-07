@@ -44,3 +44,31 @@ client:
     uv run --package client python -m sm_client
 
 
+# Test commands
+# Build test image
+[working-directory: 'backend']
+test-build:
+    docker compose -f docker-compose.testing.yml build --progress=plain
+
+# Run tests in Docker
+[working-directory: 'backend']
+test:
+    docker compose -f docker-compose.testing.yml up --abort-on-container-exit
+
+# Build and run tests
+[working-directory: 'backend']
+test-run:
+    docker compose -f docker-compose.testing.yml build --progress=plain
+    docker compose -f docker-compose.testing.yml up --abort-on-container-exit
+
+# Stop test containers
+[working-directory: 'backend']
+test-down:
+    docker compose -f docker-compose.testing.yml down
+
+# Clean test containers
+[working-directory: 'backend']
+test-clean:
+    docker compose -f docker-compose.testing.yml down -v --remove-orphans
+
+

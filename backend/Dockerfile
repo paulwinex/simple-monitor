@@ -1,5 +1,7 @@
 FROM python:3.14-slim AS builder
 
+ARG INSTALL_DEV=false
+
 ENV PATH="/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -18,10 +20,15 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /backend
 
+COPY pyproject.toml .
+
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv venv $VIRTUAL_ENV && \
-    uv sync --no-install-project --no-editable
+    if [ "$INSTALL_DEV" = "true" ]; then \
+        uv sync --no-editable --group dev; \
+    else \
+        uv sync --no-editable --no-group dev; \
+    fi
 
 FROM python:3.14-slim AS production-image
 
@@ -45,4 +52,27 @@ COPY ./app /backend/app
 EXPOSE 8000
 RUN chmod +x /backend/app/start.sh
 ENTRYPOINT ["/backend/app/start.sh"]
+
+FROM python:3.14-slim AS testing-image
+
+ENV TZ=Europe/Moscow
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/venv \
+    PYTHONPATH="/backend" \
+    TESTING=true
+
+WORKDIR /backend
+COPY --link --from=builder /venv /venv
+COPY ./app /backend/app
+COPY ./tests /backend/tests
+
+RUN chmod +x /backend/app/start-testing.sh
+ENTRYPOINT ["/backend/app/start-testing.sh"]
 

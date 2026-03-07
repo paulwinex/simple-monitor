@@ -1,0 +1,43 @@
+services:
+  backend:
+    image: sm-backend:testing
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing-image
+      args:
+        INSTALL_DEV: "true"
+    container_name: sm-backend-testing
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      SMART_MONITOR_DB_HOST: "sm-db-testing"
+      SMART_MONITOR_DB_USER: "test"
+      SMART_MONITOR_DB_PASSWORD: "test"
+      SMART_MONITOR_DB_NAME: "test"
+      TESTING: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: sm-db-testing
+    environment:
+      POSTGRES_USER: "test"
+      POSTGRES_PASSWORD: "test"
+      POSTGRES_DB: "test"
+    expose:
+      - 5432
+    tmpfs:
+      - /var/lib/postgresql/data
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 3s
