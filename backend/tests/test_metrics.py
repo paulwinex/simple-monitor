@@ -1,4 +1,3 @@
-"""Tests for metrics API endpoints."""
 import time
 import pytest
 from fastapi import status
@@ -6,11 +5,8 @@ from httpx import AsyncClient
 
 
 class TestMetricsAPI:
-    """Tests for metrics ingestion and querying endpoints."""
-
     @pytest.fixture
     def sample_metrics_payload(self):
-        """Sample metrics payload for testing."""
         now = int(time.time())
         return {
             "host_id": "test-host-metrics",
@@ -41,7 +37,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_ingest_metrics(self, client: AsyncClient, sample_metrics_payload):
-        """Test metrics ingestion."""
         resp = await client.post("/api/v1/metrics/ingest", json=sample_metrics_payload)
         assert resp.status_code == status.HTTP_200_OK
         data = resp.json()
@@ -49,7 +44,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_ingest_empty_metrics(self, client: AsyncClient):
-        """Test ingesting empty metrics list."""
         payload = {
             "host_id": "test-host-empty",
             "metrics": []
@@ -61,12 +55,9 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_query_metrics(self, client: AsyncClient, sample_metrics_payload):
-        """Test querying metrics."""
-        # Ingest metrics first
         await client.post("/api/v1/metrics/ingest", json=sample_metrics_payload)
 
         now = int(time.time())
-        # Query metrics
         params = {
             "host_id": "test-host-metrics",
             "device_id": "cpu0",
@@ -86,7 +77,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_query_metrics_nonexistent_host(self, client: AsyncClient):
-        """Test querying metrics for non-existent host."""
         now = int(time.time())
         params = {
             "host_id": "non-existent-host",
@@ -104,8 +94,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_query_latest(self, client: AsyncClient, sample_metrics_payload):
-        """Test querying latest metric value."""
-        # Ingest metrics first
         await client.post("/api/v1/metrics/ingest", json=sample_metrics_payload)
 
         params = {
@@ -122,7 +110,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_query_latest_nonexistent(self, client: AsyncClient):
-        """Test querying latest metric for non-existent device."""
         params = {
             "host_id": "test-host-metrics",
             "device_id": "non-existent",
@@ -135,8 +122,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_list_devices(self, client: AsyncClient, sample_metrics_payload):
-        """Test listing devices for a host."""
-        # Ingest metrics first (creates devices)
         await client.post("/api/v1/metrics/ingest", json=sample_metrics_payload)
 
         params = {"host_id": "test-host-metrics"}
@@ -153,8 +138,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_query_metrics_batch(self, client: AsyncClient, sample_metrics_payload):
-        """Test batch metrics query."""
-        # Ingest metrics first
         await client.post("/api/v1/metrics/ingest", json=sample_metrics_payload)
 
         now = int(time.time())
@@ -187,8 +170,6 @@ class TestMetricsAPI:
 
     @pytest.mark.asyncio
     async def test_query_latest_batch(self, client: AsyncClient, sample_metrics_payload):
-        """Test batch latest metrics query."""
-        # Ingest metrics first
         await client.post("/api/v1/metrics/ingest", json=sample_metrics_payload)
 
         payload = {

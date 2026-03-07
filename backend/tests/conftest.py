@@ -1,4 +1,3 @@
-"""Test configuration and fixtures."""
 from typing import AsyncGenerator
 
 import pytest
@@ -14,7 +13,6 @@ from app.config import Settings
 
 @pytest.fixture(scope="session")
 def test_settings() -> Settings:
-    """Create test settings with test database configuration."""
     return Settings(
         DB_NAME="test",
         DB_USER="test",
@@ -32,7 +30,6 @@ def test_settings() -> Settings:
 
 @pytest_asyncio.fixture(scope="function")
 async def async_db_session(test_settings: Settings) -> AsyncGenerator[AsyncSession, None]:
-    """Create async database session for test app."""
     engine = create_async_engine(
         test_settings.DATABASE_URL,
         echo=False,
@@ -65,7 +62,6 @@ async def test_app(
     async_db_session: AsyncSession,
     test_settings: Settings,
 ) -> AsyncGenerator[FastAPI, None]:
-    """Create test app with overridden dependencies."""
     from app.main import app
 
     async def get_test_session() -> AsyncGenerator[AsyncSession, None]:
@@ -80,7 +76,6 @@ async def test_app(
 
 @pytest_asyncio.fixture(scope="function")
 async def client(test_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
-    """Create HTTP client for testing."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://localhost") as http_client:
         yield http_client
