@@ -5,29 +5,12 @@
         <span class="widget-title">{{ title }}</span>
         <div class="header-actions">
           <q-btn
-            v-if="!isEditing"
             flat
             dense
             size="sm"
-            icon="edit"
-            @click="toggleEditMode"
+            icon="add"
+            @click="showAddWidget = true"
           />
-          <template v-else>
-            <q-btn
-              flat
-              dense
-              size="sm"
-              icon="add"
-              @click="showAddWidget = true"
-            />
-            <q-btn
-              flat
-              dense
-              size="sm"
-              icon="check"
-              @click="toggleEditMode"
-            />
-          </template>
         </div>
       </div>
     </template>
@@ -37,8 +20,8 @@
           v-model:layout="internalLayout"
           :col-num="12"
           :row-height="25"
-          :is-draggable="isEditing"
-          :is-resizable="isEditing"
+          :is-draggable="true"
+          :is-resizable="true"
           :vertical-compact="true"
           :use-css-transforms="true"
           :prevent-collision="true"
@@ -55,27 +38,38 @@
             :min-w="item.minW || 2"
             :min-h="item.minH || 2"
             :i="item.i"
-            :static="!isEditing"
           >
-            <component :is="renderWidget(getWidget(item.i))" />
+            <div class="widget-content-wrapper">
+              <component :is="renderWidget(getWidget(item.i))" />
+              <div class="widget-remove">
+                <q-btn
+                  flat
+                  dense
+                  size="xs"
+                  icon="close"
+                  @click.stop="removeWidget(item.i)"
+                  title="Remove"
+                />
+              </div>
+            </div>
           </GridItem>
         </GridLayout>
 
-        <div v-if="isEditing && internalLayout.length === 0" class="empty-state">
+        <div v-if="internalLayout.length === 0" class="empty-state">
           <div class="text-center text-caption">
-            Click Add to add widgets
+            Drop widgets here or click +
           </div>
         </div>
       </div>
     </template>
   </BaseWidget>
-  
+
   <q-dialog v-model="showAddWidget">
     <q-card style="min-width: 300px">
       <q-card-section>
         <div class="text-h6">Add Widget</div>
       </q-card-section>
-      
+
       <q-card-section class="q-pt-none">
         <q-select
           v-model="selectedWidgetType"
@@ -85,7 +79,7 @@
           dense
         />
       </q-card-section>
-      
+
       <q-card-actions align="right">
         <q-btn flat label="Cancel" color="primary" v-close-popup />
         <q-btn flat label="Add" color="primary" @click="addInternalWidget" />
@@ -130,15 +124,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:layout': [layout: InternalLayoutItem[]]
   'update:children': [children: InternalWidget[]]
-  'add-widget': [widget: InternalWidget]
-  'toggle-edit': []
 }>()
 
 const internalLayout = ref<InternalLayoutItem[]>([])
 const internalWidgets = ref<InternalWidget[]>([])
 const showAddWidget = ref(false)
 const selectedWidgetType = ref('number')
-const isEditing = ref(false)
 
 const widgetTypes = ['number', 'chart']
 
@@ -161,14 +152,9 @@ function getWidget(id: string): InternalWidget | undefined {
   return internalWidgets.value.find(w => w.id === id)
 }
 
-function toggleEditMode() {
-  isEditing.value = !isEditing.value
-  emit('toggle-edit')
-}
-
 function renderWidget(widget: InternalWidget | undefined) {
   if (!widget) return null
-  
+
   const commonProps = {
     title: widget.title,
     showHeader: !!widget.title,
@@ -176,68 +162,68 @@ function renderWidget(widget: InternalWidget | undefined) {
     loading: false,
     error: null
   }
-  
+
   if (widget.type === 'number') {
     return h(NumberWidget, {
       ...commonProps,
       value: widget.data?.value ?? 0
     })
   }
-  
+
   if (widget.type === 'chart') {
     return h(ChartWidget, {
       ...commonProps,
       data: widget.data?.data ?? []
     })
   }
-  
+
   return null
 }
 
 function addInternalWidget() {
   widgetCounter++
   const widgetId = `${props.containerId || 'container'}-widget-${widgetCounter}`
-  
+
   const newWidget: InternalWidget = {
     id: widgetId,
     type: selectedWidgetType.value,
     title: `Widget ${widgetCounter}`,
-    options: selectedWidgetType.value === 'number' 
+    options: selectedWidgetType.value === 'number'
       ? { decimals: 1, suffix: '', color: '#4CAF50' }
       : { timeRange: '1h', showLegend: false, smooth: true, colors: ['#2196F3'], fill: true },
     data: selectedWidgetType.value === 'number'
       ? { value: Math.random() * 100 }
       : { data: [] }
   }
-  
+
   internalWidgets.value.push(newWidget)
   emit('update:children', internalWidgets.value)
-  
+
   // Auto-place widget
   const itemW = 4
   const itemH = 4
   let x = 0
   let y = 0
   let placed = false
-  
+
   for (let row = 0; row < 20 && !placed; row++) {
     for (let col = 0; col < 12 && !placed; col += itemW) {
       x = col
       y = row * itemH
-      
+
       const overlaps = internalLayout.value.some(item =>
         x < item.x + item.w &&
         x + itemW > item.x &&
         y < item.y + item.h &&
         y + itemH > item.y
       )
-      
+
       if (!overlaps) {
         placed = true
       }
     }
   }
-  
+
   const newLayout: InternalLayoutItem = {
     i: widgetId,
     x,
@@ -247,10 +233,10 @@ function addInternalWidget() {
     minW: 3,
     minH: 3
   }
-  
+
   internalLayout.value.push(newLayout)
   emit('update:layout', internalLayout.value)
-  
+
   showAddWidget.value = false
 }
 
@@ -259,14 +245,16 @@ function onLayoutUpdated(newLayout: InternalLayoutItem[]) {
   emit('update:layout', newLayout)
 }
 
-// Expose methods for external drag-and-drop
+function removeWidget(widgetId: string) {
+  internalWidgets.value = internalWidgets.value.filter(w => w.id !== widgetId)
+  internalLayout.value = internalLayout.value.filter(l => l.i !== widgetId)
+
+  emit('update:children', internalWidgets.value)
+  emit('update:layout', internalLayout.value)
+}
+
+// Expose methods
 defineExpose({
-  addWidget: (widget: InternalWidget, layout: InternalLayoutItem) => {
-    internalWidgets.value.push(widget)
-    internalLayout.value.push(layout)
-    emit('update:children', internalWidgets.value)
-    emit('update:layout', internalLayout.value)
-  },
   getLayout: () => internalLayout.value,
   getWidgets: () => internalWidgets.value
 })
@@ -295,7 +283,6 @@ defineExpose({
 .internal-grid {
   flex: 1;
   min-height: 0;
-  overflow: visible;
 }
 
 .empty-state {
@@ -304,6 +291,28 @@ defineExpose({
   left: 50%;
   transform: translate(-50%, -50%);
   opacity: 0.5;
+}
+
+.widget-content-wrapper {
+  height: 100%;
+  position: relative;
+}
+
+.widget-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+.widget-content-wrapper:hover .widget-remove {
+  opacity: 1;
 }
 
 /* Dark theme for internal grid items */
