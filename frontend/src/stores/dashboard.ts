@@ -176,21 +176,26 @@ export const useDashboardStore = defineStore('dashboard', () => {
     console.log('[DashboardStore] widget:', widget)
     console.log('[DashboardStore] parentId:', parentId)
     console.log('[DashboardStore] Current widgets count:', widgets.value.length)
-    
+
     if (parentId) {
       // Add to container widget
       console.log('[DashboardStore] Looking for parent with id:', parentId)
-      const parent = widgets.value.find(w => w.id === parentId)
-      console.log('[DashboardStore] Parent found:', parent ? 'yes' : 'no')
-      
-      if (parent && parent.children && parent.childLayout) {
-        console.log('[DashboardStore] Parent has children and childLayout')
-        widget.id = `${parentId}-${parent.children.length}`
-        console.log('[DashboardStore] New widget id:', widget.id)
-        parent.children.push(widget)
-        console.log('[DashboardStore] Widget pushed to parent.children, new count:', parent.children.length)
+      const parentIndex = widgets.value.findIndex(w => w.id === parentId)
+      console.log('[DashboardStore] Parent index:', parentIndex)
 
-        // Auto-place in container grid
+      if (parentIndex !== -1) {
+        const parent = widgets.value[parentIndex]
+        
+        // Initialize children and childLayout if not present
+        const children = parent.children ? [...parent.children] : []
+        const childLayout = parent.childLayout ? [...parent.childLayout] : []
+
+        widget.id = `${parentId}-${children.length}`
+        console.log('[DashboardStore] New widget id:', widget.id)
+        children.push(widget)
+        console.log('[DashboardStore] Widget pushed to children, new count:', children.length)
+
+        // Auto-place in container grid - always place, even if it goes beyond visible area
         const containerWidth = 12
         const itemW = 6
         const itemH = 6
@@ -199,12 +204,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
         let y = 0
         let placed = false
 
-        for (let row = 0; row < 10 && !placed; row++) {
+        // Try to find a non-overlapping position
+        for (let row = 0; row < 100 && !placed; row++) {
           for (let col = 0; col < containerWidth && !placed; col += itemW) {
             x = col
             y = row * itemH
 
-            const overlaps = parent.childLayout.some(item =>
+            const overlaps = childLayout.some(item =>
               x < item.x + item.w &&
               x + itemW > item.x &&
               y < item.y + item.h &&
@@ -217,19 +223,32 @@ export const useDashboardStore = defineStore('dashboard', () => {
           }
         }
 
+        // If no position found (shouldn't happen), place at the end
+        if (!placed) {
+          const maxRow = Math.max(...childLayout.map(item => Math.floor(item.y / itemH)), -1)
+          y = (maxRow + 1) * itemH
+          x = 0
+        }
+
         console.log('[DashboardStore] Placing widget at x:', x, 'y:', y)
-        parent.childLayout.push({
+        childLayout.push({
           i: widget.id,
           x,
           y,
           w: itemW,
           h: itemH
         })
-        console.log('[DashboardStore] Layout item added, new count:', parent.childLayout.length)
+        console.log('[DashboardStore] Layout item added, new count:', childLayout.length)
+
+        // Update parent widget with new children and childLayout
+        widgets.value[parentIndex] = {
+          ...parent,
+          children,
+          childLayout
+        }
+        console.log('[DashboardStore] Parent widget updated')
       } else {
-        console.log('[DashboardStore] Parent missing children or childLayout')
-        console.log('[DashboardStore] parent.children:', parent?.children)
-        console.log('[DashboardStore] parent.childLayout:', parent?.childLayout)
+        console.log('[DashboardStore] Parent not found')
       }
     } else {
       // Add to main dashboard
@@ -285,7 +304,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
   function updateWidget(id: string, config: Partial<WidgetConfig>) {
     const index = widgets.value.findIndex(w => w.id === id)
     if (index !== -1) {
-      widgets.value[index] = { ...widgets.value[index], ...config }
+      const oldWidget = widgets.value[index]
+      widgets.value[index] = { ...oldWidget, ...config }
+      console.log('[DashboardStore] updateWidget:', id, 'config:', config)
+      console.log('[DashboardStore] Updated widget:', widgets.value[index])
+    } else {
+      console.warn('[DashboardStore] Widget not found:', id)
     }
   }
 

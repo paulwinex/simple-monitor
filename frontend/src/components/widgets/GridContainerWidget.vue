@@ -106,6 +106,7 @@
 import { ref, h, watch, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
+import { useDashboardStore } from 'stores/dashboard'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
 import AddWidgetDialog from './AddWidgetDialog.vue'
@@ -138,6 +139,7 @@ const props = defineProps<{
 }>()
 
 const $q = useQuasar()
+const dashboardStore = useDashboardStore()
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 const emit = defineEmits<{
@@ -155,30 +157,37 @@ const editingWidget = ref<InternalWidget | null>(null)
 
 console.log('[GridContainerWidget] containerId:', props.containerId)
 
-// Watch for external changes to children and layout
-watch(() => props.children, (newChildren) => {
-  console.log('[GridContainerWidget] children changed:', newChildren?.length)
-  if (newChildren && newChildren.length > 0) {
-    internalWidgets.value = newChildren
-  }
-}, { immediate: true })
+// Get parent widget from store
+const parentWidget = computed(() => {
+  if (!props.containerId) return null
+  return dashboardStore.getWidget(props.containerId)
+})
 
-watch(() => props.childLayout, (newLayout) => {
-  console.log('[GridContainerWidget] childLayout changed:', newLayout?.length)
-  if (newLayout && newLayout.length > 0) {
-    internalLayout.value = newLayout
+// Watch for changes in parent widget from store - this is the primary source
+watch(() => parentWidget.value, (newParent) => {
+  console.log('[GridContainerWidget] parentWidget changed:', newParent ? 'yes' : 'no')
+  if (newParent) {
+    if (newParent.children && newParent.children.length > 0) {
+      internalWidgets.value = JSON.parse(JSON.stringify(newParent.children)) as InternalWidget[]
+      console.log('[GridContainerWidget] Updated internalWidgets:', internalWidgets.value.length)
+    } else {
+      internalWidgets.value = []
+      console.log('[GridContainerWidget] Cleared internalWidgets')
+    }
+    if (newParent.childLayout && newParent.childLayout.length > 0) {
+      internalLayout.value = JSON.parse(JSON.stringify(newParent.childLayout))
+      console.log('[GridContainerWidget] Updated internalLayout:', internalLayout.value.length)
+    } else {
+      internalLayout.value = []
+      console.log('[GridContainerWidget] Cleared internalLayout')
+    }
   }
-}, { immediate: true })
+}, { immediate: true, deep: true })
 
 function onDialogUpdate(value: boolean) {
   console.log('[GridContainerWidget] Dialog updated, value:', value)
-  if (!value) {
-    // Dialog closed, emit updates to parent
-    console.log('[GridContainerWidget] Emitting children:', internalWidgets.value)
-    console.log('[GridContainerWidget] Emitting layout:', internalLayout.value)
-    emit('update:children', internalWidgets.value)
-    emit('update:layout', internalLayout.value)
-  }
+  // No need to emit - data is already in store via dashboardStore.addWidget
+  // Just close the dialog
 }
 
 function getWidget(id: string): InternalWidget | undefined {
@@ -225,21 +234,35 @@ function updateInternalWidget(updatedWidget: InternalWidget) {
   const index = internalWidgets.value.findIndex(w => w.id === updatedWidget.id)
   if (index !== -1) {
     internalWidgets.value[index] = updatedWidget
-    emit('update:children', internalWidgets.value)
+    // Update in store
+    if (props.containerId) {
+      dashboardStore.updateWidget(props.containerId, { children: internalWidgets.value })
+      dashboardStore.saveDashboard()
+    }
   }
 }
 
 function onLayoutUpdated(newLayout: InternalLayoutItem[]) {
   internalLayout.value = newLayout
-  emit('update:layout', newLayout)
+  // Update in store
+  if (props.containerId) {
+    dashboardStore.updateWidget(props.containerId, { childLayout: newLayout })
+    dashboardStore.saveDashboard()
+  }
 }
 
 function removeWidget(widgetId: string) {
   internalWidgets.value = internalWidgets.value.filter(w => w.id !== widgetId)
   internalLayout.value = internalLayout.value.filter(l => l.i !== widgetId)
 
-  emit('update:children', internalWidgets.value)
-  emit('update:layout', internalLayout.value)
+  // Update in store
+  if (props.containerId) {
+    dashboardStore.updateWidget(props.containerId, { 
+      children: internalWidgets.value,
+      childLayout: internalLayout.value
+    })
+    dashboardStore.saveDashboard()
+  }
 }
 
 function editContainer() {

@@ -162,7 +162,7 @@ function createWidget() {
   console.log('[AddWidgetDialog] parentId:', props.parentId)
   console.log('[AddWidgetDialog] widgetTitle:', widgetTitle.value)
   console.log('[AddWidgetDialog] widgetOptions:', widgetOptions.value)
-  
+
   const newWidget: WidgetConfig = {
     id: `widget-${Date.now()}`,
     type: selectedType.value,
@@ -197,10 +197,16 @@ function createWidget() {
 
   console.log('[AddWidgetDialog] newWidget:', newWidget)
   console.log('[AddWidgetDialog] Calling dashboardStore.addWidget with parentId:', props.parentId)
-  
+
   dashboardStore.addWidget(newWidget, props.parentId)
-  
+
   console.log('[AddWidgetDialog] Widget added successfully')
+
+  // Save to backend if added to container (to persist the change)
+  if (props.parentId) {
+    console.log('[AddWidgetDialog] Saving dashboard to persist container widget')
+    dashboardStore.saveDashboard()
+  }
 
   // Reset and close
   resetForm()

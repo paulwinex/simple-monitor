@@ -85,11 +85,13 @@ function renderWidget(widget: any) {
       showHeader: !!widget.title,
       'onUpdate:layout': (newLayout: any[]) => {
         console.log('[IndexPage] GridContainer layout updated:', newLayout)
-        widget.childLayout = newLayout
+        // Update widget in store with new childLayout
+        updateContainerWidget(widget.id, { childLayout: newLayout })
       },
       'onUpdate:children': (newChildren: any[]) => {
         console.log('[IndexPage] GridContainer children updated:', newChildren)
-        widget.children = newChildren
+        // Update widget in store with new children
+        updateContainerWidget(widget.id, { children: newChildren })
       },
       'onEdit-container': (containerId: string) => {
         console.log('[IndexPage] Edit container:', containerId)
@@ -119,6 +121,11 @@ function openEditWidget(widgetId: string) {
 
 function updateWidget(updatedWidget: WidgetConfig) {
   dashboardStore.updateWidget(updatedWidget.id, updatedWidget)
+  dashboardStore.saveDashboard()
+}
+
+function updateContainerWidget(containerId: string, updates: Partial<WidgetConfig>) {
+  dashboardStore.updateWidget(containerId, updates)
   dashboardStore.saveDashboard()
 }
 </script>
