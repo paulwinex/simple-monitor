@@ -375,8 +375,12 @@ defineExpose({
 }
 
 .widget-actions .q-btn {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
+}
+
+.widget-actions .q-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Dark theme for internal grid items */
