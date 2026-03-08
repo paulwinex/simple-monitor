@@ -1,13 +1,13 @@
 services:
   backend:
-    image: sm-backend:testing
+    image: sm-app:testing
     build:
       context: .
       dockerfile: Dockerfile
       target: testing-image
       args:
         INSTALL_DEV: "true"
-    container_name: sm-backend-testing
+    container_name: sm-app-testing
     ports:
       - "8000:8000"
     env_file:

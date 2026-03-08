@@ -1,8 +1,11 @@
 
 services:
   backend:
-    build: .
-    container_name: sm-backend
+    image: sm-app
+    build:
+      context: .
+      target: production-image
+    container_name: sm-app
     env_file:
       - ../.env
     ports:
@@ -12,9 +15,6 @@ services:
         condition: service_healthy
     environment:
       SMART_MONITOR_DB_HOST: "sm-db"
-#    entrypoint: ["sleep", "infinity"]
-#    volumes:
-#      - ./data:/app/app
 
   postgres:
     image: postgres:17-alpine
