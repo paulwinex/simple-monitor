@@ -2,9 +2,10 @@
 import { onMounted, computed, h } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
-import { useDashboardStore } from 'stores/dashboard'
+import { useDashboardStore, WIDGET_MIN_SIZES } from 'stores/dashboard'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
+import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
@@ -41,9 +42,19 @@ function getWidget(id: string) {
   return dashboardStore.widgets.find(w => w.id === id)
 }
 
+function getMinWidth(widget: any): number {
+  if (!widget) return 2
+  return WIDGET_MIN_SIZES[widget.type]?.minW || 2
+}
+
+function getMinHeight(widget: any): number {
+  if (!widget) return 2
+  return WIDGET_MIN_SIZES[widget.type]?.minH || 2
+}
+
 function renderWidget(widget: any) {
   if (!widget) return null
-  
+
   const commonProps = {
     title: widget.title,
     showHeader: !!widget.title,
@@ -51,21 +62,36 @@ function renderWidget(widget: any) {
     loading: false,
     error: null
   }
-  
+
   if (widget.type === 'number') {
     return h(NumberWidget, {
       ...commonProps,
       value: widget.data?.value ?? null
     })
   }
-  
+
   if (widget.type === 'chart') {
     return h(ChartWidget, {
       ...commonProps,
       data: widget.data?.data ?? []
     })
   }
-  
+
+  if (widget.type === 'gridContainer') {
+    return h(GridContainerWidget, {
+      ...commonProps,
+      containerId: widget.id,
+      children: widget.children || [],
+      childLayout: widget.childLayout || [],
+      'onUpdate:layout': (newLayout: any[]) => {
+        widget.childLayout = newLayout
+      },
+      'onUpdate:children': (newChildren: any[]) => {
+        widget.children = newChildren
+      }
+    })
+  }
+
   return null
 }
 </script>
@@ -102,6 +128,8 @@ function renderWidget(widget: any) {
           :y="item.y"
           :w="item.w"
           :h="item.h"
+          :min-w="item.minW || getMinWidth(getWidget(item.i))"
+          :min-h="item.minH || getMinHeight(getWidget(item.i))"
           :i="item.i"
           @resize="resizeEvent"
           @move="moveEvent"

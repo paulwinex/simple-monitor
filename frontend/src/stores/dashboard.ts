@@ -5,19 +5,24 @@ export interface WidgetConfig {
   id: string
   type: string
   title?: string
-  hostId: string
-  deviceId: string
-  sensors: { name: string; table: string }[]
+  hostId?: string
+  deviceId?: string
+  sensors?: { name: string; table: string }[]
   options: Record<string, any>
   refreshInterval: number
+  data?: any
+  // For container widgets
+  children?: WidgetConfig[]
+  childLayout?: GridLayoutItem[]
 }
 
-export interface NumberWidgetData {
-  value: number | null
-}
-
-export interface ChartWidgetData {
-  data: { timestamp: number; value: number }[]
+// Minimum sizes for each widget type
+export const WIDGET_MIN_SIZES: Record<string, { minW: number; minH: number }> = {
+  number: { minW: 2, minH: 2 },
+  chart: { minW: 4, minH: 4 },
+  bar: { minW: 3, minH: 3 },
+  pie: { minW: 3, minH: 3 },
+  gridContainer: { minW: 6, minH: 6 }
 }
 
 export interface GridLayoutItem {
@@ -76,18 +81,19 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
   // Заглушка с текущими данными
   return {
     layout: [
-      { x: 0, y: 0, w: 2, h: 2, i: '0', static: false, title: 'CPU Usage' },
-      { x: 2, y: 0, w: 2, h: 3, i: '1', static: false, title: undefined },
-      { x: 4, y: 0, w: 4, h: 4, i: '2', static: false, title: 'CPU History' },
-      { x: 8, y: 0, w: 4, h: 4, i: '3', static: false, title: undefined },
-      { x: 0, y: 2, w: 2, h: 3, i: '4', static: false, title: undefined },
-      { x: 2, y: 3, w: 2, h: 2, i: '5', static: false, title: 'RAM' }
+      { x: 0, y: 0, w: 2, h: 2, i: '0', static: false, title: 'CPU Usage', minW: 2, minH: 2 },
+      { x: 2, y: 0, w: 2, h: 3, i: '1', static: false, title: undefined, minW: 2, minH: 2 },
+      { x: 4, y: 0, w: 4, h: 4, i: '2', static: false, title: 'CPU History', minW: 4, minH: 4 },
+      { x: 8, y: 0, w: 4, h: 4, i: '3', static: false, title: undefined, minW: 4, minH: 4 },
+      { x: 0, y: 2, w: 2, h: 3, i: '4', static: false, title: undefined, minW: 2, minH: 2 },
+      { x: 2, y: 3, w: 2, h: 2, i: '5', static: false, title: 'RAM', minW: 2, minH: 2 },
+      { x: 0, y: 5, w: 6, h: 6, i: '6', static: false, title: 'Server Room', minW: 6, minH: 6 }
     ],
     widgets: [
       {
         id: '0',
         type: 'number',
-        title: '',
+        title: 'CPU Usage',
         hostId: 'host-1',
         deviceId: 'cpu',
         sensors: [{ name: 'usage_percent', table: 'raw' }],
@@ -146,6 +152,35 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
         options: { decimals: 1, suffix: ' GB', color: '#00BCD4' },
         refreshInterval: 5000,
         data: { value: 10.8 }
+      },
+      {
+        id: '6',
+        type: 'gridContainer',
+        title: 'Server Room',
+        options: {},
+        refreshInterval: 0,
+        children: [
+          {
+            id: '6-0',
+            type: 'number',
+            title: 'Temp',
+            options: { decimals: 0, suffix: '°C', color: '#FF5722' },
+            refreshInterval: 10000,
+            data: { value: 24 }
+          },
+          {
+            id: '6-1',
+            type: 'number',
+            title: 'Humidity',
+            options: { decimals: 0, suffix: '%', color: '#2196F3' },
+            refreshInterval: 10000,
+            data: { value: 45 }
+          }
+        ],
+        childLayout: [
+          { i: '6-0', x: 0, y: 0, w: 6, h: 6, minW: 3, minH: 3 },
+          { i: '6-1', x: 6, y: 0, w: 6, h: 6, minW: 3, minH: 3 }
+        ]
       }
     ],
     gridOptions: DEFAULT_GRID_OPTIONS
