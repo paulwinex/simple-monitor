@@ -2,7 +2,7 @@
 import { onMounted, computed, h, ref } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
-import { useDashboardStore, WIDGET_MIN_SIZES } from 'stores/dashboard'
+import { useDashboardStore } from 'stores/dashboard'
 import { useUIStore } from 'stores/ui'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
@@ -48,16 +48,6 @@ function layoutUpdatedEvent(newLayout: any[]) {
 
 function getWidget(id: string) {
   return dashboardStore.widgets.find(w => w.id === id)
-}
-
-function getMinWidth(widget: any): number {
-  if (!widget) return 2
-  return WIDGET_MIN_SIZES[widget.type]?.minW || 2
-}
-
-function getMinHeight(widget: any): number {
-  if (!widget) return 2
-  return WIDGET_MIN_SIZES[widget.type]?.minH || 2
 }
 
 function renderWidget(widget: any) {
@@ -167,8 +157,6 @@ function updateWidget(updatedWidget: WidgetConfig) {
           :y="item.y"
           :w="item.w"
           :h="item.h"
-          :min-w="item.minW || getMinWidth(getWidget(item.i))"
-          :min-h="item.minH || getMinHeight(getWidget(item.i))"
           :i="item.i"
           :static="!isEditMode"
           @resize="resizeEvent"

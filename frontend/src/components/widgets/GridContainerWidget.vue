@@ -50,8 +50,6 @@
             :y="item.y"
             :w="item.w"
             :h="item.h"
-            :min-w="item.minW || 2"
-            :min-h="item.minH || 2"
             :i="item.i"
           >
             <div class="widget-content-wrapper">
@@ -128,8 +126,6 @@ interface InternalLayoutItem {
   y: number
   w: number
   h: number
-  minW?: number
-  minH?: number
 }
 
 const props = defineProps<{
@@ -365,7 +361,7 @@ defineExpose({
 .widget-actions {
   position: absolute;
   top: 4px;
-  right: 4px;
+  left: 4px;
   z-index: 100;
   display: flex;
   gap: 4px;

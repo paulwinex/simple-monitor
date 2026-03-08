@@ -1,12 +1,12 @@
 .DS_Store
 .thumbs.db
 node_modules
-
+.yarn/
 # Quasar core related directories
 .quasar
 /dist
 /quasar.config.*.temporary.compiled*
-
+.pnp*
 # Cordova related directories and files
 /src-cordova/node_modules
 /src-cordova/platforms

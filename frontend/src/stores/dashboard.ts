@@ -16,15 +16,6 @@ export interface DashboardState {
   gridOptions: GridOptions
 }
 
-// Minimum sizes for each widget type
-export const WIDGET_MIN_SIZES: Record<string, { minW: number; minH: number }> = {
-  number: { minW: 2, minH: 2 },
-  chart: { minW: 4, minH: 4 },
-  bar: { minW: 3, minH: 3 },
-  pie: { minW: 3, minH: 3 },
-  gridContainer: { minW: 6, minH: 6 }
-}
-
 const DEFAULT_GRID_OPTIONS: GridOptions = {
   colNum: 12,
   rowHeight: 30,
@@ -165,9 +156,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
           x,
           y,
           w: itemW,
-          h: itemH,
-          minW: WIDGET_MIN_SIZES[widget.type]?.minW || 2,
-          minH: WIDGET_MIN_SIZES[widget.type]?.minH || 2
+          h: itemH
         })
         console.log('[DashboardStore] Layout item added, new count:', parent.childLayout.length)
       } else {
@@ -212,8 +201,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         y,
         w: itemW,
         h: itemH,
-        minW: WIDGET_MIN_SIZES[widget.type]?.minW || 2,
-        minH: WIDGET_MIN_SIZES[widget.type]?.minH || 2,
         title: widget.title
       })
     }
