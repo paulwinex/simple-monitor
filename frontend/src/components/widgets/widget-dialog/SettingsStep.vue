@@ -56,20 +56,41 @@ const emit = defineEmits<{
 
 const localTitle = ref(props.title)
 const localOptions = ref<Record<string, any>>({ ...props.options })
+const isSyncing = ref(false)
 
+// Emit changes to parent (only if not syncing from parent)
 watch(localTitle, (newVal) => {
-  emit('update:title', newVal)
+  if (!isSyncing.value) {
+    emit('update:title', newVal)
+  }
 })
 
 watch(localOptions, (newVal) => {
-  emit('update:options', { ...newVal })
-}, { deep: true })
+  if (!isSyncing.value) {
+    emit('update:options', JSON.parse(JSON.stringify(newVal)))
+  }
+}, { deep: true, flush: 'post' })
 
+// Sync with parent changes (only if different)
 watch(() => props.title, (newVal) => {
-  localTitle.value = newVal
+  if (newVal !== localTitle.value) {
+    isSyncing.value = true
+    localTitle.value = newVal
+    isSyncing.value = false
+  }
 })
 
 watch(() => props.options, (newVal) => {
-  localOptions.value = { ...newVal }
-}, { deep: true })
+  // Only update if values are different (shallow comparison)
+  const currentKeys = Object.keys(localOptions.value)
+  const newKeys = Object.keys(newVal)
+  const hasChanged = currentKeys.length !== newKeys.length ||
+    currentKeys.some(key => localOptions.value[key] !== newVal[key])
+
+  if (hasChanged) {
+    isSyncing.value = true
+    localOptions.value = { ...newVal }
+    isSyncing.value = false
+  }
+})
 </script>

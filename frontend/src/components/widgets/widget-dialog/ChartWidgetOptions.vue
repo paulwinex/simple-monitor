@@ -54,6 +54,8 @@ const localOptions = ref<Record<string, any>>({
   colors: props.modelValue?.colors ?? ['#2196F3']
 })
 
+const isSyncing = ref(false)
+
 const colorsString = computed({
   get: () => localOptions.value.colors?.join(', ') || '',
   set: (val: string) => {
@@ -61,19 +63,34 @@ const colorsString = computed({
   }
 })
 
+// Emit changes to parent (only if not syncing from parent)
 watch(localOptions, (newVal) => {
-  emit('update:modelValue', { ...newVal })
-}, { deep: true })
+  if (!isSyncing.value) {
+    emit('update:modelValue', { ...newVal })
+  }
+}, { deep: true, flush: 'post' })
 
+// Sync with parent changes
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    localOptions.value = {
-      timeRange: newVal.timeRange ?? '1h',
-      showLegend: newVal.showLegend ?? false,
-      smooth: newVal.smooth ?? true,
-      fill: newVal.fill ?? true,
-      colors: newVal.colors ?? ['#2196F3']
+    const hasChanged = 
+      localOptions.value.timeRange !== newVal.timeRange ||
+      localOptions.value.showLegend !== newVal.showLegend ||
+      localOptions.value.smooth !== newVal.smooth ||
+      localOptions.value.fill !== newVal.fill ||
+      JSON.stringify(localOptions.value.colors) !== JSON.stringify(newVal.colors)
+    
+    if (hasChanged) {
+      isSyncing.value = true
+      localOptions.value = {
+        timeRange: newVal.timeRange ?? '1h',
+        showLegend: newVal.showLegend ?? false,
+        smooth: newVal.smooth ?? true,
+        fill: newVal.fill ?? true,
+        colors: newVal.colors ?? ['#2196F3']
+      }
+      isSyncing.value = false
     }
   }
-}, { deep: true })
+})
 </script>

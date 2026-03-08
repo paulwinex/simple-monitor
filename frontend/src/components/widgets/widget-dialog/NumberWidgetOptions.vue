@@ -60,18 +60,34 @@ const localOptions = ref<Record<string, any>>({
   color: props.modelValue?.color ?? '#4CAF50'
 })
 
-watch(localOptions, (newVal) => {
-  emit('update:modelValue', { ...newVal })
-}, { deep: true })
+const isSyncing = ref(false)
 
+// Emit changes to parent (only if not syncing from parent)
+watch(localOptions, (newVal) => {
+  if (!isSyncing.value) {
+    emit('update:modelValue', { ...newVal })
+  }
+}, { deep: true, flush: 'post' })
+
+// Sync with parent changes
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    localOptions.value = {
-      decimals: newVal.decimals ?? 1,
-      suffix: newVal.suffix ?? '',
-      prefix: newVal.prefix ?? '',
-      color: newVal.color ?? '#4CAF50'
+    const hasChanged = 
+      localOptions.value.decimals !== newVal.decimals ||
+      localOptions.value.suffix !== newVal.suffix ||
+      localOptions.value.prefix !== newVal.prefix ||
+      localOptions.value.color !== newVal.color
+    
+    if (hasChanged) {
+      isSyncing.value = true
+      localOptions.value = {
+        decimals: newVal.decimals ?? 1,
+        suffix: newVal.suffix ?? '',
+        prefix: newVal.prefix ?? '',
+        color: newVal.color ?? '#4CAF50'
+      }
+      isSyncing.value = false
     }
   }
-}, { deep: true })
+})
 </script>
