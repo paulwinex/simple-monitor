@@ -1,34 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-export interface WidgetConfig {
-  id: string
-  type: string
-  title?: string
-  hostId?: string
-  deviceId?: string
-  sensors?: { name: string; table: string }[]
-  options: Record<string, any>
-  refreshInterval: number
-  data?: any
-  // For container widgets
-  children?: WidgetConfig[]
-  childLayout?: GridLayoutItem[]
-}
-
-export interface GridLayoutItem {
-  i: string
-  x: number
-  y: number
-  w: number
-  h: number
-  minW?: number
-  minH?: number
-  maxW?: number
-  maxH?: number
-  static?: boolean
-  title?: string
-}
+import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts } from 'src/services/api'
+import type { GridLayoutItem, WidgetConfig, DashboardConfig } from 'src/components/models'
+import type { HostWithDevices } from 'src/services/api'
 
 export interface GridOptions {
   colNum: number
@@ -57,140 +31,36 @@ const DEFAULT_GRID_OPTIONS: GridOptions = {
   verticalCompact: true
 }
 
-// API заглушка - в будущем будет реальный вызов к бэкенду
 async function fetchDashboardFromApi(): Promise<DashboardState> {
-  // TODO: заменить на реальный API вызов
-  // const response = await api.get('/api/v1/dashboards/default')
-  // return response.data.dashboard
-  
-  const now = Math.floor(Date.now() / 1000)
-  const hourAgo = now - 3600
-  
-  // Генерация тестовых данных для графика
-  const generateChartData = (baseValue: number, variance: number) => {
-    const data = []
-    for (let i = 0; i < 60; i++) {
-      data.push({
-        timestamp: hourAgo + i * 60,
-        value: baseValue + Math.sin(i / 10) * variance + Math.random() * variance
-      })
+  try {
+    const response = await getDefaultDashboard()
+    const dashboard = response.dashboard
+    
+    return {
+      layout: dashboard.layout,
+      widgets: dashboard.widgets,
+      gridOptions: DEFAULT_GRID_OPTIONS
     }
-    return data
-  }
-  
-  // Заглушка с текущими данными
-  return {
-    layout: [
-      { x: 0, y: 0, w: 2, h: 2, i: '0', static: false, title: 'CPU Usage', minW: 2, minH: 2 },
-      { x: 2, y: 0, w: 2, h: 3, i: '1', static: false, title: undefined, minW: 2, minH: 2 },
-      { x: 4, y: 0, w: 4, h: 4, i: '2', static: false, title: 'CPU History', minW: 4, minH: 4 },
-      { x: 8, y: 0, w: 4, h: 4, i: '3', static: false, title: undefined, minW: 4, minH: 4 },
-      { x: 0, y: 2, w: 2, h: 3, i: '4', static: false, title: undefined, minW: 2, minH: 2 },
-      { x: 2, y: 3, w: 2, h: 2, i: '5', static: false, title: 'RAM', minW: 2, minH: 2 },
-      { x: 0, y: 5, w: 6, h: 6, i: '6', static: false, title: 'Server Room', minW: 6, minH: 6 }
-    ],
-    widgets: [
-      {
-        id: '0',
-        type: 'number',
-        title: 'CPU Usage',
-        hostId: 'host-1',
-        deviceId: 'cpu',
-        sensors: [{ name: 'usage_percent', table: 'raw' }],
-        options: { decimals: 1, suffix: '%', color: '#4CAF50' },
-        refreshInterval: 5000,
-        data: { value: 42.5 }
-      },
-      {
-        id: '1',
-        type: 'number',
-        hostId: 'host-1',
-        deviceId: 'ram',
-        sensors: [{ name: 'used_percent', table: 'raw' }],
-        options: { decimals: 1, suffix: '%', color: '#2196F3' },
-        refreshInterval: 5000,
-        data: { value: 67.3 }
-      },
-      {
-        id: '2',
-        type: 'chart',
-        title: 'CPU History',
-        hostId: 'host-1',
-        deviceId: 'cpu',
-        sensors: [{ name: 'usage_percent', table: 'raw' }],
-        options: { timeRange: '1h', showLegend: false, smooth: true, colors: ['#4CAF50'], fill: true },
-        refreshInterval: 10000,
-        data: { data: generateChartData(45, 15) }
-      },
-      {
-        id: '3',
-        type: 'chart',
-        hostId: 'host-1',
-        deviceId: 'network',
-        sensors: [{ name: 'bytes_sent', table: 'raw' }],
-        options: { timeRange: '1h', showLegend: false, smooth: true, colors: ['#9C27B0'], fill: true },
-        refreshInterval: 10000,
-        data: { data: generateChartData(1000000, 200000) }
-      },
-      {
-        id: '4',
-        type: 'number',
-        hostId: 'host-1',
-        deviceId: 'cpu',
-        sensors: [{ name: 'temperature', table: 'raw' }],
-        options: { decimals: 0, suffix: '°C', color: '#FF5722' },
-        refreshInterval: 10000,
-        data: { value: 52 }
-      },
-      {
-        id: '5',
-        type: 'number',
-        title: 'RAM',
-        hostId: 'host-1',
-        deviceId: 'ram',
-        sensors: [{ name: 'used_gb', table: 'raw' }],
-        options: { decimals: 1, suffix: ' GB', color: '#00BCD4' },
-        refreshInterval: 5000,
-        data: { value: 10.8 }
-      },
-      {
-        id: '6',
-        type: 'gridContainer',
-        title: 'Server Room',
-        options: {},
-        refreshInterval: 0,
-        children: [
-          {
-            id: '6-0',
-            type: 'number',
-            title: 'Temp',
-            options: { decimals: 0, suffix: '°C', color: '#FF5722' },
-            refreshInterval: 10000,
-            data: { value: 24 }
-          },
-          {
-            id: '6-1',
-            type: 'number',
-            title: 'Humidity',
-            options: { decimals: 0, suffix: '%', color: '#2196F3' },
-            refreshInterval: 10000,
-            data: { value: 45 }
-          }
-        ],
-        childLayout: [
-          { i: '6-0', x: 0, y: 0, w: 6, h: 6, minW: 3, minH: 3 },
-          { i: '6-1', x: 6, y: 0, w: 6, h: 6, minW: 3, minH: 3 }
-        ]
-      }
-    ],
-    gridOptions: DEFAULT_GRID_OPTIONS
+  } catch (error) {
+    console.error('Failed to load dashboard from API, using empty layout:', error)
+    // Return empty dashboard if API fails
+    return {
+      layout: [],
+      widgets: [],
+      gridOptions: DEFAULT_GRID_OPTIONS
+    }
   }
 }
 
 async function saveDashboardToApi(state: DashboardState): Promise<void> {
-  // TODO: заменить на реальный API вызов
-  // await api.put('/api/v1/dashboards/default', { dashboard: state })
-  console.log('Saving dashboard:', state)
+  await saveDashboardApi('default', {
+    id: null,
+    name: 'default',
+    version: 1,
+    layout: state.layout,
+    widgets: state.widgets,
+    updated_at: Math.floor(Date.now() / 1000)
+  })
 }
 
 export const useDashboardStore = defineStore('dashboard', () => {
@@ -199,9 +69,19 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const gridOptions = ref<GridOptions>({ ...DEFAULT_GRID_OPTIONS })
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const hosts = ref<HostWithDevices[]>([])
 
   const isLoading = computed(() => loading.value)
   const hasError = computed(() => error.value !== null)
+
+  async function loadHosts() {
+    try {
+      hosts.value = await getHosts()
+    } catch (err) {
+      console.error('Failed to load hosts:', err)
+      hosts.value = []
+    }
+  }
 
   async function loadDashboard() {
     loading.value = true
@@ -233,46 +113,110 @@ export const useDashboardStore = defineStore('dashboard', () => {
     gridOptions.value = { ...gridOptions.value, ...options }
   }
 
-  function addWidget(widget: WidgetConfig) {
-    widgets.value.push(widget)
+  function addWidget(widget: WidgetConfig, parentId?: string) {
+    console.log('[DashboardStore] addWidget called')
+    console.log('[DashboardStore] widget:', widget)
+    console.log('[DashboardStore] parentId:', parentId)
+    console.log('[DashboardStore] Current widgets count:', widgets.value.length)
+    
+    if (parentId) {
+      // Add to container widget
+      console.log('[DashboardStore] Looking for parent with id:', parentId)
+      const parent = widgets.value.find(w => w.id === parentId)
+      console.log('[DashboardStore] Parent found:', parent ? 'yes' : 'no')
+      
+      if (parent && parent.children && parent.childLayout) {
+        console.log('[DashboardStore] Parent has children and childLayout')
+        widget.id = `${parentId}-${parent.children.length}`
+        console.log('[DashboardStore] New widget id:', widget.id)
+        parent.children.push(widget)
+        console.log('[DashboardStore] Widget pushed to parent.children, new count:', parent.children.length)
 
-    // Auto-place widget in next available slot
-    const gridWidth = 12
-    const itemW = widget.type === 'gridContainer' ? 6 : 4
-    const itemH = widget.type === 'gridContainer' ? 6 : 4
+        // Auto-place in container grid
+        const containerWidth = 12
+        const itemW = 6
+        const itemH = 6
 
-    let x = 0
-    let y = 0
-    let placed = false
+        let x = 0
+        let y = 0
+        let placed = false
 
-    for (let row = 0; row < 100 && !placed; row++) {
-      for (let col = 0; col < gridWidth && !placed; col += itemW) {
-        x = col
-        y = row * itemH
+        for (let row = 0; row < 10 && !placed; row++) {
+          for (let col = 0; col < containerWidth && !placed; col += itemW) {
+            x = col
+            y = row * itemH
 
-        const overlaps = layout.value.some(item =>
-          x < item.x + item.w &&
-          x + itemW > item.x &&
-          y < item.y + item.h &&
-          y + itemH > item.y
-        )
+            const overlaps = parent.childLayout.some(item =>
+              x < item.x + item.w &&
+              x + itemW > item.x &&
+              y < item.y + item.h &&
+              y + itemH > item.y
+            )
 
-        if (!overlaps) {
-          placed = true
+            if (!overlaps) {
+              placed = true
+            }
+          }
+        }
+
+        console.log('[DashboardStore] Placing widget at x:', x, 'y:', y)
+        parent.childLayout.push({
+          i: widget.id,
+          x,
+          y,
+          w: itemW,
+          h: itemH,
+          minW: WIDGET_MIN_SIZES[widget.type]?.minW || 2,
+          minH: WIDGET_MIN_SIZES[widget.type]?.minH || 2
+        })
+        console.log('[DashboardStore] Layout item added, new count:', parent.childLayout.length)
+      } else {
+        console.log('[DashboardStore] Parent missing children or childLayout')
+        console.log('[DashboardStore] parent.children:', parent?.children)
+        console.log('[DashboardStore] parent.childLayout:', parent?.childLayout)
+      }
+    } else {
+      // Add to main dashboard
+      widgets.value.push(widget)
+
+      // Auto-place widget in next available slot
+      const gridWidth = 12
+      const itemW = widget.type === 'gridContainer' ? 6 : 4
+      const itemH = widget.type === 'gridContainer' ? 6 : 4
+
+      let x = 0
+      let y = 0
+      let placed = false
+
+      for (let row = 0; row < 100 && !placed; row++) {
+        for (let col = 0; col < gridWidth && !placed; col += itemW) {
+          x = col
+          y = row * itemH
+
+          const overlaps = layout.value.some(item =>
+            x < item.x + item.w &&
+            x + itemW > item.x &&
+            y < item.y + item.h &&
+            y + itemH > item.y
+          )
+
+          if (!overlaps) {
+            placed = true
+          }
         }
       }
-    }
 
-    layout.value.push({
-      i: widget.id,
-      x,
-      y,
-      w: itemW,
-      h: itemH,
-      minW: WIDGET_MIN_SIZES[widget.type]?.minW || 2,
-      minH: WIDGET_MIN_SIZES[widget.type]?.minH || 2,
-      title: widget.title
-    })
+      layout.value.push({
+        i: widget.id,
+        x,
+        y,
+        w: itemW,
+        h: itemH,
+        minW: WIDGET_MIN_SIZES[widget.type]?.minW || 2,
+        minH: WIDGET_MIN_SIZES[widget.type]?.minH || 2,
+        title: widget.title
+      })
+    }
   }
 
   function removeWidget(id: string) {
@@ -295,21 +239,40 @@ export const useDashboardStore = defineStore('dashboard', () => {
     return widgets.value.find(w => w.id === id)
   }
 
+  function getAvailableWidgetTypes(parentType?: string): { value: string; label: string }[] {
+    const allTypes = [
+      { value: 'number', label: 'Number' },
+      { value: 'chart', label: 'Chart' },
+      { value: 'bar', label: 'Bar Chart' },
+      { value: 'pie', label: 'Pie Chart' }
+    ]
+    
+    // GridContainer cannot be nested inside another GridContainer
+    if (parentType !== 'gridContainer') {
+      allTypes.push({ value: 'gridContainer', label: 'Grid Container' })
+    }
+    
+    return allTypes
+  }
+
   return {
     layout,
     widgets,
     gridOptions,
     loading,
     error,
+    hosts,
     isLoading,
     hasError,
     loadDashboard,
     saveDashboard,
+    loadHosts,
     addWidget,
     removeWidget,
     updateLayout,
     updateWidget,
     updateGridOptions,
-    getWidget
+    getWidget,
+    getAvailableWidgetTypes
   }
 })

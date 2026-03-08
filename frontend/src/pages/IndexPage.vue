@@ -7,6 +7,8 @@ import { useUIStore } from 'stores/ui'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
+import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
+import type { WidgetConfig } from 'src/components/models'
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
@@ -15,6 +17,9 @@ const uiStore = useUIStore()
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
+
+const showEditWidget = ref(false)
+const editingWidget = ref<WidgetConfig | null>(null)
 
 onMounted(() => {
   dashboardStore.loadDashboard()
@@ -89,10 +94,20 @@ function renderWidget(widget: any) {
       isEditing: isEditMode.value,
       showHeader: !!widget.title,
       'onUpdate:layout': (newLayout: any[]) => {
+        console.log('[IndexPage] GridContainer layout updated:', newLayout)
         widget.childLayout = newLayout
       },
       'onUpdate:children': (newChildren: any[]) => {
+        console.log('[IndexPage] GridContainer children updated:', newChildren)
         widget.children = newChildren
+      },
+      'onEdit-container': (containerId: string) => {
+        console.log('[IndexPage] Edit container:', containerId)
+        openEditWidget(containerId)
+      },
+      'onRemove-container': (containerId: string) => {
+        console.log('[IndexPage] Remove container:', containerId)
+        removeWidget(containerId)
       }
     })
   }
@@ -102,6 +117,19 @@ function renderWidget(widget: any) {
 
 function removeWidget(widgetId: string) {
   dashboardStore.removeWidget(widgetId)
+}
+
+function openEditWidget(widgetId: string) {
+  const widget = getWidget(widgetId)
+  if (widget) {
+    editingWidget.value = { ...widget }
+    showEditWidget.value = true
+  }
+}
+
+function updateWidget(updatedWidget: WidgetConfig) {
+  dashboardStore.updateWidget(updatedWidget.id, updatedWidget)
+  dashboardStore.saveDashboard()
 }
 </script>
 
@@ -150,7 +178,15 @@ function removeWidget(widgetId: string) {
         >
           <div class="widget-wrapper">
             <component :is="renderWidget(getWidget(item.i))" />
-            <div v-if="isEditMode && getWidget(item.i)?.type !== 'gridContainer'" class="widget-delete">
+            <div v-if="isEditMode && getWidget(item.i)?.type !== 'gridContainer'" class="widget-actions">
+              <q-btn
+                flat
+                dense
+                round
+                size="sm"
+                icon="edit"
+                @click.stop="openEditWidget(item.i)"
+              />
               <q-btn
                 flat
                 dense
@@ -164,6 +200,13 @@ function removeWidget(widgetId: string) {
         </GridItem>
       </GridLayout>
     </div>
+
+    <!-- Edit Widget Dialog -->
+    <EditWidgetDialog
+      v-model="showEditWidget"
+      :widget="editingWidget"
+      @update:widget="updateWidget"
+    />
   </q-page>
 </template>
 
@@ -219,12 +262,24 @@ function removeWidget(widgetId: string) {
   position: relative;
 }
 
-.widget-delete {
+.widget-actions {
   position: absolute;
   top: 4px;
   right: 4px;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50px;
+  padding: 4px;
+}
+
+.widget-actions .q-btn {
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
+}
+
+.widget-actions .q-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 </style>

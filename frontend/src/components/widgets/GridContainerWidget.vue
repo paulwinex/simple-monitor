@@ -1,8 +1,10 @@
 <template>
   <div class="grid-container-outer" :class="{ 'dark-theme': isDark }">
-    <div class="grid-container-header" :class="{ 'dark-theme': isDark }">
+    <div v-if="showHeader && title" class="grid-container-header" :class="{ 'dark-theme': isDark }">
       <span class="widget-title">{{ title }}</span>
-      <div v-if="isEditing" class="header-actions">
+    </div>
+    <div class="grid-container-widget">
+      <div v-if="isEditing" class="container-actions">
         <q-btn
           flat
           dense
@@ -11,22 +13,25 @@
           icon="add"
           @click="showAddWidget = true"
         />
-      </div>
-    </div>
-    <div class="grid-container-widget">
-      <!-- Add button in corner when no title -->
-      <div v-if="!showHeader && isEditing" class="corner-add-btn">
         <q-btn
           flat
           dense
           round
           size="sm"
-          icon="add"
-          @click="showAddWidget = true"
+          icon="edit"
+          @click="editContainer"
+        />
+        <q-btn
+          flat
+          dense
+          round
+          size="sm"
+          icon="close"
+          @click="removeContainer"
         />
       </div>
 
-        <GridLayout
+      <GridLayout
           v-model:layout="internalLayout"
           :col-num="12"
           :row-height="25"
@@ -51,7 +56,16 @@
           >
             <div class="widget-content-wrapper">
               <component :is="renderWidget(getWidget(item.i))" />
-              <div v-if="isEditing" class="widget-remove">
+              <div v-if="isEditing" class="widget-actions">
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="xs"
+                  icon="edit"
+                  @click.stop="editWidget(item.i)"
+                  title="Edit"
+                />
                 <q-btn
                   flat
                   dense
@@ -74,28 +88,20 @@
     </div>
   </div>
 
-  <q-dialog v-model="showAddWidget">
-    <q-card style="min-width: 300px">
-      <q-card-section>
-        <div class="text-h6">Add Widget</div>
-      </q-card-section>
+  <!-- Add Widget Dialog -->
+  <add-widget-dialog
+    v-model="showAddWidget"
+    parent-type="gridContainer"
+    :parent-id="containerId"
+    @update:model-value="onDialogUpdate"
+  />
 
-      <q-card-section class="q-pt-none">
-        <q-select
-          v-model="selectedWidgetType"
-          :options="widgetTypes"
-          label="Widget Type"
-          outlined
-          dense
-        />
-      </q-card-section>
-
-      <q-card-actions align="right">
-        <q-btn flat label="Cancel" color="primary" v-close-popup />
-        <q-btn flat label="Add" color="primary" @click="addInternalWidget" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+  <!-- Edit Widget Dialog -->
+  <edit-widget-dialog
+    v-model="showEditWidget"
+    :widget="editingWidget"
+    @update:widget="updateInternalWidget"
+  />
 </template>
 
 <script setup lang="ts">
@@ -104,6 +110,9 @@ import { useQuasar } from 'quasar'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
+import AddWidgetDialog from './AddWidgetDialog.vue'
+import EditWidgetDialog from './EditWidgetDialog.vue'
+import type { WidgetConfig } from 'src/components/models'
 
 interface InternalWidget {
   id: string
@@ -138,29 +147,43 @@ const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 const emit = defineEmits<{
   'update:layout': [layout: InternalLayoutItem[]]
   'update:children': [children: InternalWidget[]]
+  'edit-container': [containerId: string]
+  'remove-container': [containerId: string]
 }>()
 
 const internalLayout = ref<InternalLayoutItem[]>([])
 const internalWidgets = ref<InternalWidget[]>([])
 const showAddWidget = ref(false)
-const selectedWidgetType = ref('number')
+const showEditWidget = ref(false)
+const editingWidget = ref<InternalWidget | null>(null)
 
-const widgetTypes = ['number', 'chart']
-
-let widgetCounter = 0
+console.log('[GridContainerWidget] containerId:', props.containerId)
 
 // Watch for external changes to children and layout
 watch(() => props.children, (newChildren) => {
+  console.log('[GridContainerWidget] children changed:', newChildren?.length)
   if (newChildren && newChildren.length > 0) {
     internalWidgets.value = newChildren
   }
 }, { immediate: true })
 
 watch(() => props.childLayout, (newLayout) => {
+  console.log('[GridContainerWidget] childLayout changed:', newLayout?.length)
   if (newLayout && newLayout.length > 0) {
     internalLayout.value = newLayout
   }
 }, { immediate: true })
+
+function onDialogUpdate(value: boolean) {
+  console.log('[GridContainerWidget] Dialog updated, value:', value)
+  if (!value) {
+    // Dialog closed, emit updates to parent
+    console.log('[GridContainerWidget] Emitting children:', internalWidgets.value)
+    console.log('[GridContainerWidget] Emitting layout:', internalLayout.value)
+    emit('update:children', internalWidgets.value)
+    emit('update:layout', internalLayout.value)
+  }
+}
 
 function getWidget(id: string): InternalWidget | undefined {
   return internalWidgets.value.find(w => w.id === id)
@@ -194,64 +217,20 @@ function renderWidget(widget: InternalWidget | undefined) {
   return null
 }
 
-function addInternalWidget() {
-  widgetCounter++
-  const widgetId = `${props.containerId || 'container'}-widget-${widgetCounter}`
-
-  const newWidget: InternalWidget = {
-    id: widgetId,
-    type: selectedWidgetType.value,
-    title: `Widget ${widgetCounter}`,
-    options: selectedWidgetType.value === 'number'
-      ? { decimals: 1, suffix: '', color: '#4CAF50' }
-      : { timeRange: '1h', showLegend: false, smooth: true, colors: ['#2196F3'], fill: true },
-    data: selectedWidgetType.value === 'number'
-      ? { value: Math.random() * 100 }
-      : { data: [] }
+function editWidget(widgetId: string) {
+  const widget = getWidget(widgetId)
+  if (widget) {
+    editingWidget.value = { ...widget }
+    showEditWidget.value = true
   }
+}
 
-  internalWidgets.value.push(newWidget)
-  emit('update:children', internalWidgets.value)
-
-  // Auto-place widget
-  const itemW = 4
-  const itemH = 4
-  let x = 0
-  let y = 0
-  let placed = false
-
-  for (let row = 0; row < 20 && !placed; row++) {
-    for (let col = 0; col < 12 && !placed; col += itemW) {
-      x = col
-      y = row * itemH
-
-      const overlaps = internalLayout.value.some(item =>
-        x < item.x + item.w &&
-        x + itemW > item.x &&
-        y < item.y + item.h &&
-        y + itemH > item.y
-      )
-
-      if (!overlaps) {
-        placed = true
-      }
-    }
+function updateInternalWidget(updatedWidget: InternalWidget) {
+  const index = internalWidgets.value.findIndex(w => w.id === updatedWidget.id)
+  if (index !== -1) {
+    internalWidgets.value[index] = updatedWidget
+    emit('update:children', internalWidgets.value)
   }
-
-  const newLayout: InternalLayoutItem = {
-    i: widgetId,
-    x,
-    y,
-    w: itemW,
-    h: itemH,
-    minW: 3,
-    minH: 3
-  }
-
-  internalLayout.value.push(newLayout)
-  emit('update:layout', internalLayout.value)
-
-  showAddWidget.value = false
 }
 
 function onLayoutUpdated(newLayout: InternalLayoutItem[]) {
@@ -265,6 +244,18 @@ function removeWidget(widgetId: string) {
 
   emit('update:children', internalWidgets.value)
   emit('update:layout', internalLayout.value)
+}
+
+function editContainer() {
+  console.log('[GridContainerWidget] editContainer called')
+  // Emit event to parent to open edit dialog for this container
+  emit('edit-container', props.containerId)
+}
+
+function removeContainer() {
+  console.log('[GridContainerWidget] removeContainer called')
+  // Emit event to parent to remove this container
+  emit('remove-container', props.containerId)
 }
 
 // Expose methods
@@ -326,12 +317,6 @@ defineExpose({
   font-size: 14px;
 }
 
-.header-actions {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
 .grid-container-widget {
   flex: 1;
   position: relative;
@@ -339,13 +324,25 @@ defineExpose({
   overflow: hidden;
 }
 
-.corner-add-btn {
+.container-actions {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 100;
+  display: flex;
+  gap: 4px;
   background: rgba(0, 0, 0, 0.3);
+  border-radius: 50px;
+  padding: 4px;
+}
+
+.container-actions .q-btn {
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
+}
+
+.container-actions .q-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .internal-grid {
@@ -365,11 +362,19 @@ defineExpose({
   position: relative;
 }
 
-.widget-remove {
+.widget-actions {
   position: absolute;
   top: 4px;
   right: 4px;
   z-index: 100;
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50px;
+  padding: 4px;
+}
+
+.widget-actions .q-btn {
   background: rgba(0, 0, 0, 0.5);
   border-radius: 50%;
 }
