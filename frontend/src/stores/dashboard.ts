@@ -4,12 +4,20 @@ import { ref, computed } from 'vue'
 export interface WidgetConfig {
   id: string
   type: string
-  title: string
+  title?: string
   hostId: string
   deviceId: string
   sensors: { name: string; table: string }[]
   options: Record<string, any>
   refreshInterval: number
+}
+
+export interface NumberWidgetData {
+  value: number | null
+}
+
+export interface ChartWidgetData {
+  data: { timestamp: number; value: number }[]
 }
 
 export interface GridLayoutItem {
@@ -50,93 +58,94 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
   // const response = await api.get('/api/v1/dashboards/default')
   // return response.data.dashboard
 
+  const now = Math.floor(Date.now() / 1000)
+  const hourAgo = now - 3600
+
+  // Генерация тестовых данных для графика
+  const generateChartData = (baseValue: number, variance: number) => {
+    const data = []
+    for (let i = 0; i < 60; i++) {
+      data.push({
+        timestamp: hourAgo + i * 60,
+        value: baseValue + Math.sin(i / 10) * variance + Math.random() * variance
+      })
+    }
+    return data
+  }
+
   // Заглушка с текущими данными
   return {
     layout: [
       { x: 0, y: 0, w: 2, h: 2, i: '0', static: false, title: 'CPU Usage' },
-      { x: 2, y: 0, w: 2, h: 4, i: '1', static: true, title: 'Memory' },
-      { x: 4, y: 0, w: 2, h: 5, i: '2', static: false, title: 'Disk I/O' },
-      { x: 6, y: 0, w: 2, h: 3, i: '3', static: false, title: 'Network' },
-      { x: 8, y: 0, w: 2, h: 3, i: '4', static: false, title: 'Temperature' },
-      { x: 10, y: 0, w: 2, h: 3, i: '5', static: false, title: 'Fans' },
-      { x: 0, y: 5, w: 2, h: 5, i: '6', static: false, title: 'Uptime' },
-      { x: 2, y: 5, w: 2, h: 5, i: '7', static: false, title: 'Load Average' },
-      { x: 4, y: 5, w: 2, h: 5, i: '8', static: false, title: 'Processes' },
-      { x: 6, y: 3, w: 2, h: 4, i: '9', static: true, title: 'Storage' },
-      { x: 8, y: 4, w: 2, h: 4, i: '10', static: false, title: 'ZFS Pool' },
-      { x: 10, y: 4, w: 2, h: 4, i: '11', static: false, title: 'Docker' },
-      { x: 0, y: 10, w: 2, h: 5, i: '12', static: false, title: 'Battery' },
-      { x: 2, y: 10, w: 2, h: 5, i: '13', static: false, title: 'Power' },
-      { x: 4, y: 8, w: 2, h: 4, i: '14', static: false, title: 'GPU' },
-      { x: 6, y: 8, w: 2, h: 4, i: '15', static: false, title: 'VMs' },
-      { x: 8, y: 10, w: 2, h: 5, i: '16', static: false, title: 'Containers' },
-      { x: 10, y: 4, w: 2, h: 2, i: '17', static: false, title: 'Services' },
-      { x: 0, y: 9, w: 2, h: 3, i: '18', static: false, title: 'Alerts' },
-      { x: 2, y: 6, w: 2, h: 2, i: '19', static: false, title: 'Logs' }
+      { x: 2, y: 0, w: 2, h: 3, i: '1', static: false, title: undefined },
+      { x: 4, y: 0, w: 4, h: 4, i: '2', static: false, title: 'CPU History' },
+      { x: 8, y: 0, w: 4, h: 4, i: '3', static: false, title: undefined },
+      { x: 0, y: 2, w: 2, h: 3, i: '4', static: false, title: undefined },
+      { x: 2, y: 3, w: 2, h: 2, i: '5', static: false, title: 'RAM' }
     ],
     widgets: [
       {
         id: '0',
         type: 'number',
-        title: 'CPU Usage',
+        title: '',
         hostId: 'host-1',
         deviceId: 'cpu',
         sensors: [{ name: 'usage_percent', table: 'raw' }],
-        options: { decimals: 1, suffix: '%' },
-        refreshInterval: 5000
+        options: { decimals: 1, suffix: '%', color: '#4CAF50' },
+        refreshInterval: 5000,
+        data: { value: 42.5 }
       },
       {
         id: '1',
-        type: 'bar',
-        title: 'Memory',
+        type: 'number',
         hostId: 'host-1',
         deviceId: 'ram',
         sensors: [{ name: 'used_percent', table: 'raw' }],
-        options: { orientation: 'vertical' },
-        refreshInterval: 5000
+        options: { decimals: 1, suffix: '%', color: '#2196F3' },
+        refreshInterval: 5000,
+        data: { value: 67.3 }
       },
       {
         id: '2',
         type: 'chart',
-        title: 'Disk I/O',
+        title: 'CPU History',
         hostId: 'host-1',
-        deviceId: 'disk',
-        sensors: [
-          { name: 'read_bytes', table: 'raw' },
-          { name: 'write_bytes', table: 'raw' }
-        ],
-        options: { timeRange: '1h' },
-        refreshInterval: 10000
+        deviceId: 'cpu',
+        sensors: [{ name: 'usage_percent', table: 'raw' }],
+        options: { timeRange: '1h', showLegend: false, smooth: true, colors: ['#4CAF50'], fill: true },
+        refreshInterval: 10000,
+        data: { data: generateChartData(45, 15) }
       },
       {
         id: '3',
-        type: 'number',
-        title: 'Network',
+        type: 'chart',
         hostId: 'host-1',
         deviceId: 'network',
         sensors: [{ name: 'bytes_sent', table: 'raw' }],
-        options: { suffix: ' B/s' },
-        refreshInterval: 5000
+        options: { timeRange: '1h', showLegend: false, smooth: true, colors: ['#9C27B0'], fill: true },
+        refreshInterval: 10000,
+        data: { data: generateChartData(1000000, 200000) }
       },
       {
         id: '4',
         type: 'number',
-        title: 'Temperature',
         hostId: 'host-1',
         deviceId: 'cpu',
         sensors: [{ name: 'temperature', table: 'raw' }],
-        options: { suffix: '°C' },
-        refreshInterval: 10000
+        options: { decimals: 0, suffix: '°C', color: '#FF5722' },
+        refreshInterval: 10000,
+        data: { value: 52 }
       },
       {
         id: '5',
         type: 'number',
-        title: 'Fans',
+        title: 'RAM',
         hostId: 'host-1',
-        deviceId: 'fans',
-        sensors: [{ name: 'rpm', table: 'raw' }],
-        options: { suffix: ' RPM' },
-        refreshInterval: 10000
+        deviceId: 'ram',
+        sensors: [{ name: 'used_gb', table: 'raw' }],
+        options: { decimals: 1, suffix: ' GB', color: '#00BCD4' },
+        refreshInterval: 5000,
+        data: { value: 10.8 }
       }
     ],
     gridOptions: DEFAULT_GRID_OPTIONS
