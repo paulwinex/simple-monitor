@@ -1,27 +1,37 @@
 <template>
-  <BaseWidget :show-header="true">
-    <template #title>
-      <div class="container-header">
-        <span class="widget-title">{{ title }}</span>
-        <div class="header-actions">
-          <q-btn
-            flat
-            dense
-            size="sm"
-            icon="add"
-            @click="showAddWidget = true"
-          />
-        </div>
+  <div class="grid-container-outer" :class="{ 'dark-theme': isDark }">
+    <div class="grid-container-header" :class="{ 'dark-theme': isDark }">
+      <span class="widget-title">{{ title }}</span>
+      <div v-if="isEditing" class="header-actions">
+        <q-btn
+          flat
+          dense
+          round
+          size="sm"
+          icon="add"
+          @click="showAddWidget = true"
+        />
       </div>
-    </template>
-    <template #content>
-      <div class="grid-container-widget">
+    </div>
+    <div class="grid-container-widget">
+      <!-- Add button in corner when no title -->
+      <div v-if="!showHeader && isEditing" class="corner-add-btn">
+        <q-btn
+          flat
+          dense
+          round
+          size="sm"
+          icon="add"
+          @click="showAddWidget = true"
+        />
+      </div>
+
         <GridLayout
           v-model:layout="internalLayout"
           :col-num="12"
           :row-height="25"
-          :is-draggable="true"
-          :is-resizable="true"
+          :is-draggable="isEditing"
+          :is-resizable="isEditing"
           :vertical-compact="true"
           :use-css-transforms="true"
           :prevent-collision="true"
@@ -41,10 +51,11 @@
           >
             <div class="widget-content-wrapper">
               <component :is="renderWidget(getWidget(item.i))" />
-              <div class="widget-remove">
+              <div v-if="isEditing" class="widget-remove">
                 <q-btn
                   flat
                   dense
+                  round
                   size="xs"
                   icon="close"
                   @click.stop="removeWidget(item.i)"
@@ -60,9 +71,8 @@
             Drop widgets here or click +
           </div>
         </div>
-      </div>
-    </template>
-  </BaseWidget>
+    </div>
+  </div>
 
   <q-dialog v-model="showAddWidget">
     <q-card style="min-width: 300px">
@@ -89,9 +99,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, watch } from 'vue'
+import { ref, h, watch, computed } from 'vue'
+import { useQuasar } from 'quasar'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
-import BaseWidget from './BaseWidget.vue'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
 
@@ -119,7 +129,11 @@ const props = defineProps<{
   containerId?: string
   children?: InternalWidget[]
   childLayout?: InternalLayoutItem[]
+  isEditing?: boolean
 }>()
+
+const $q = useQuasar()
+const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 const emit = defineEmits<{
   'update:layout': [layout: InternalLayoutItem[]]
@@ -261,28 +275,81 @@ defineExpose({
 </script>
 
 <style scoped>
-.grid-container-widget {
+.grid-container-outer {
   height: 100%;
-  position: relative;
   display: flex;
   flex-direction: column;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.container-header {
+/* Dark theme */
+.grid-container-outer.dark-theme {
+  background: #424242;
+  border: 1px solid #616161;
+}
+
+.grid-container-outer.dark-theme .grid-container-header {
+  background: #545454;
+  border-bottom: 1px solid #616161;
+}
+
+.grid-container-outer.dark-theme .widget-title {
+  color: #e0e0e0;
+}
+
+/* Light theme */
+.grid-container-outer:not(.dark-theme) {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+}
+
+.grid-container-outer:not(.dark-theme) .grid-container-header {
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.grid-container-outer:not(.dark-theme) .widget-title {
+  color: #424242;
+}
+
+.grid-container-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.widget-title {
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .header-actions {
   display: flex;
   gap: 4px;
+  margin-left: auto;
+}
+
+.grid-container-widget {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.corner-add-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
 }
 
 .internal-grid {
-  flex: 1;
-  min-height: 0;
+  height: 100%;
 }
 
 .empty-state {
@@ -302,27 +369,19 @@ defineExpose({
   position: absolute;
   top: 4px;
   right: 4px;
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.2s;
   z-index: 100;
   background: rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-}
-
-.widget-content-wrapper:hover .widget-remove {
-  opacity: 1;
+  border-radius: 50%;
 }
 
 /* Dark theme for internal grid items */
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #545454;
-  border: 1px solid #757575;
+  background: #424242;
+  border: 1px solid #616161;
 }
 
 :deep(.vue-grid-layout-light .vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #e0e0e0;
 }
 

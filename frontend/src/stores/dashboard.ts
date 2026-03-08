@@ -16,15 +16,6 @@ export interface WidgetConfig {
   childLayout?: GridLayoutItem[]
 }
 
-// Minimum sizes for each widget type
-export const WIDGET_MIN_SIZES: Record<string, { minW: number; minH: number }> = {
-  number: { minW: 2, minH: 2 },
-  chart: { minW: 4, minH: 4 },
-  bar: { minW: 3, minH: 3 },
-  pie: { minW: 3, minH: 3 },
-  gridContainer: { minW: 6, minH: 6 }
-}
-
 export interface GridLayoutItem {
   i: string
   x: number
@@ -39,20 +30,29 @@ export interface GridLayoutItem {
   title?: string
 }
 
-export interface DashboardState {
-  layout: GridLayoutItem[]
-  widgets: WidgetConfig[]
-  gridOptions: GridOptions
-}
-
 export interface GridOptions {
   colNum: number
   rowHeight: number
   verticalCompact: boolean
 }
 
+export interface DashboardState {
+  layout: GridLayoutItem[]
+  widgets: WidgetConfig[]
+  gridOptions: GridOptions
+}
+
+// Minimum sizes for each widget type
+export const WIDGET_MIN_SIZES: Record<string, { minW: number; minH: number }> = {
+  number: { minW: 2, minH: 2 },
+  chart: { minW: 4, minH: 4 },
+  bar: { minW: 3, minH: 3 },
+  pie: { minW: 3, minH: 3 },
+  gridContainer: { minW: 6, minH: 6 }
+}
+
 const DEFAULT_GRID_OPTIONS: GridOptions = {
-  colNum: 16,
+  colNum: 12,
   rowHeight: 30,
   verticalCompact: true
 }
@@ -62,10 +62,10 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
   // TODO: заменить на реальный API вызов
   // const response = await api.get('/api/v1/dashboards/default')
   // return response.data.dashboard
-
+  
   const now = Math.floor(Date.now() / 1000)
   const hourAgo = now - 3600
-
+  
   // Генерация тестовых данных для графика
   const generateChartData = (baseValue: number, variance: number) => {
     const data = []
@@ -77,7 +77,7 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
     }
     return data
   }
-
+  
   // Заглушка с текущими данными
   return {
     layout: [
@@ -206,7 +206,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   async function loadDashboard() {
     loading.value = true
     error.value = null
-
+    
     try {
       const data = await fetchDashboardFromApi()
       layout.value = data.layout
@@ -238,8 +238,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
     // Auto-place widget in next available slot
     const gridWidth = 12
-    const itemW = 4
-    const itemH = 4
+    const itemW = widget.type === 'gridContainer' ? 6 : 4
+    const itemH = widget.type === 'gridContainer' ? 6 : 4
 
     let x = 0
     let y = 0
@@ -269,8 +269,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
       y,
       w: itemW,
       h: itemH,
-      minW: 3,
-      minH: 3,
+      minW: WIDGET_MIN_SIZES[widget.type]?.minW || 2,
+      minH: WIDGET_MIN_SIZES[widget.type]?.minH || 2,
       title: widget.title
     })
   }

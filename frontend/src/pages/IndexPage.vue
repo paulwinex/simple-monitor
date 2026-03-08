@@ -3,27 +3,18 @@ import { onMounted, computed, h, ref } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
 import { useDashboardStore, WIDGET_MIN_SIZES } from 'stores/dashboard'
+import { useUIStore } from 'stores/ui'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
+const uiStore = useUIStore()
 
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
+const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
-
-const showAddWidget = ref(false)
-const selectedWidgetType = ref('number')
-const selectedWidgetTitle = ref('')
-
-const widgetTypes = [
-  { value: 'number', label: 'Number' },
-  { value: 'chart', label: 'Chart' },
-  { value: 'gridContainer', label: 'Grid Container' }
-]
-
-let widgetCounter = 0
 
 onMounted(() => {
   dashboardStore.loadDashboard()
@@ -92,10 +83,11 @@ function renderWidget(widget: any) {
   if (widget.type === 'gridContainer') {
     return h(GridContainerWidget, {
       title: widget.title,
-      showHeader: !!widget.title,
       containerId: widget.id,
       children: widget.children || [],
       childLayout: widget.childLayout || [],
+      isEditing: isEditMode.value,
+      showHeader: !!widget.title,
       'onUpdate:layout': (newLayout: any[]) => {
         widget.childLayout = newLayout
       },
@@ -108,58 +100,15 @@ function renderWidget(widget: any) {
   return null
 }
 
-function addWidget() {
-  showAddWidget.value = true
-}
-
-function confirmAddWidget() {
-  widgetCounter++
-  const widgetId = `widget-${widgetCounter}`
-  const widgetType = selectedWidgetType.value
-
-  const newWidget: any = {
-    id: widgetId,
-    type: widgetType,
-    title: selectedWidgetTitle.value || `Widget ${widgetCounter}`,
-    options: {},
-    refreshInterval: 5000
-  }
-
-  if (widgetType === 'number') {
-    newWidget.options = { decimals: 1, suffix: '', color: '#4CAF50' }
-    newWidget.data = { value: 0 }
-    newWidget.hostId = 'host-1'
-    newWidget.deviceId = 'cpu'
-    newWidget.sensors = [{ name: 'usage_percent', table: 'raw' }]
-  } else if (widgetType === 'chart') {
-    newWidget.options = { timeRange: '1h', showLegend: false, smooth: true, colors: ['#2196F3'], fill: true }
-    newWidget.data = { data: [] }
-    newWidget.hostId = 'host-1'
-    newWidget.deviceId = 'cpu'
-    newWidget.sensors = [{ name: 'usage_percent', table: 'raw' }]
-  } else if (widgetType === 'gridContainer') {
-    newWidget.children = []
-    newWidget.childLayout = []
-  }
-
-  dashboardStore.addWidget(newWidget)
-  
-  showAddWidget.value = false
-  selectedWidgetTitle.value = ''
+function removeWidget(widgetId: string) {
+  dashboardStore.removeWidget(widgetId)
 }
 </script>
 
 <template>
   <q-page class="q-pa-md">
     <div class="row items-center q-mb-md">
-      <div class="text-h4">Dashboard</div>
       <q-space />
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Add Widget"
-        @click="addWidget"
-      />
     </div>
 
     <div v-if="dashboardStore.isLoading" class="row justify-center q-mt-xl">
@@ -177,8 +126,8 @@ function confirmAddWidget() {
         v-model:layout="dashboardStore.layout"
         :col-num="gridOptions.colNum"
         :row-height="gridOptions.rowHeight"
-        :is-draggable="true"
-        :is-resizable="true"
+        :is-draggable="isEditMode"
+        :is-resizable="isEditMode"
         :vertical-compact="gridOptions.verticalCompact"
         :use-css-transforms="true"
         @layout-updated="layoutUpdatedEvent"
@@ -193,48 +142,29 @@ function confirmAddWidget() {
           :min-w="item.minW || getMinWidth(getWidget(item.i))"
           :min-h="item.minH || getMinHeight(getWidget(item.i))"
           :i="item.i"
+          :static="!isEditMode"
           @resize="resizeEvent"
           @move="moveEvent"
           @resized="resizedEvent"
           @moved="movedEvent"
         >
-          <component :is="renderWidget(getWidget(item.i))" />
+          <div class="widget-wrapper">
+            <component :is="renderWidget(getWidget(item.i))" />
+            <div v-if="isEditMode && getWidget(item.i)?.type !== 'gridContainer'" class="widget-delete">
+              <q-btn
+                flat
+                dense
+                round
+                size="sm"
+                icon="close"
+                @click.stop="removeWidget(item.i)"
+              />
+            </div>
+          </div>
         </GridItem>
       </GridLayout>
     </div>
   </q-page>
-
-  <q-dialog v-model="showAddWidget">
-    <q-card style="min-width: 350px">
-      <q-card-section>
-        <div class="text-h6">Add Widget</div>
-      </q-card-section>
-
-      <q-card-section class="q-pt-none">
-        <q-input
-          v-model="selectedWidgetTitle"
-          label="Widget Title"
-          outlined
-          dense
-          class="q-mb-md"
-        />
-        <q-select
-          v-model="selectedWidgetType"
-          :options="widgetTypes"
-          option-value="value"
-          option-label="label"
-          label="Widget Type"
-          outlined
-          dense
-        />
-      </q-card-section>
-
-      <q-card-actions align="right">
-        <q-btn flat label="Cancel" color="primary" v-close-popup />
-        <q-btn flat label="Add" color="primary" @click="confirmAddWidget" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
 </template>
 
 <style scoped>
@@ -243,6 +173,7 @@ function confirmAddWidget() {
   border-radius: 8px;
   padding: 16px;
   min-height: 400px;
+  position: relative;
 }
 
 .vue-grid-layout {
@@ -281,5 +212,19 @@ function confirmAddWidget() {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+.widget-wrapper {
+  height: 100%;
+  position: relative;
+}
+
+.widget-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
 }
 </style>
