@@ -1,8 +1,8 @@
 {
-  "name": "frontend",
+  "name": "nas_monitor",
   "version": "0.0.1",
-  "description": "NAS monitoring dashboard",
-  "productName": "NAS Daeshboard",
+  "description": "A Quasar Project",
+  "productName": "NAS Monitor",
   "author": "paulwinex <paulwinex@gmail.com>",
   "type": "module",
   "private": true,
@@ -15,19 +15,17 @@
   "dependencies": {
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
-    "date-fns": "^4.1.0",
-    "echarts": "^6.0.0",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "vue": "^3.5.22",
-    "vue-echarts": "^8.0.1",
-    "vue-grid-layout": "^2.4.0",
     "vue-router": "^5.0.0"
   },
   "devDependencies": {
     "@quasar/app-vite": "^2.1.0",
+    "@types/node": "^20.5.9",
     "autoprefixer": "^10.4.2",
-    "postcss": "^8.4.14"
+    "postcss": "^8.5.8",
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": "^28 || ^26 || ^24 || ^22 || ^20",
