@@ -1,4 +1,5 @@
 import time
+import json
 
 from sqlalchemy import select
 
@@ -22,12 +23,22 @@ class DashboardService(BaseService):
         if not dashboard:
             return None
 
+        # Convert JSON strings back to dicts if needed
+        layout = dashboard.layout or {}
+        widgets = dashboard.widgets or {}
+        
+        # Handle case when stored as list - convert to dict
+        if isinstance(layout, list):
+            layout = {item.get('i', str(idx)): item for idx, item in enumerate(layout)}
+        if isinstance(widgets, list):
+            widgets = {w.get('id', str(idx)): w for idx, w in enumerate(widgets)}
+
         return DashboardConfig(
             id=dashboard.id,
             name=dashboard.name,
             version=dashboard.version,
-            layout=dashboard.layout or [],
-            widgets=dashboard.widgets or [],
+            layout=layout,
+            widgets=widgets,
             updated_at=dashboard.updated_at
         )
 
@@ -46,9 +57,9 @@ class DashboardService(BaseService):
         result = await self.session.execute(stmt)
         db_dashboard = result.scalar_one_or_none()
 
-        # Prepare dashboard data
-        layout_data = [item.model_dump() for item in dashboard.layout]
-        widgets_data = [w.model_dump() for w in dashboard.widgets]
+        # Prepare dashboard data - layout and widgets are already dicts
+        layout_data = dashboard.layout or {}
+        widgets_data = dashboard.widgets or {}
 
         if db_dashboard:
             # Update existing dashboard
@@ -113,8 +124,8 @@ class DashboardService(BaseService):
                 id=d.id,
                 name=d.name,
                 version=d.version,
-                layout=d.layout or [],
-                widgets=d.widgets or [],
+                layout=d.layout or {},
+                widgets=d.widgets or {},
                 updated_at=d.updated_at
             )
             for d in dashboards

@@ -43,8 +43,8 @@ export interface DashboardConfig {
   id?: number | null
   name: string
   version: number
-  layout: GridLayoutItem[]
-  widgets: WidgetConfig[]
+  layout: Record<string, any>
+  widgets: Record<string, any>
   updated_at: number
 }
 

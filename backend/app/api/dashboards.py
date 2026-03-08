@@ -55,6 +55,28 @@ async def get_dashboard(
     )
 
 
+@router.put("/default", response_model=DashboardSaveResponse)
+async def save_default_dashboard(
+    payload: DashboardSaveRequest = None,
+    service: DashboardServiceDep = None
+):
+    """Save default dashboard configuration."""
+    try:
+        # Set dashboard ID to 1 for default dashboard
+        if payload.dashboard.id is None:
+            payload.dashboard.id = 1
+
+        dashboard, version = await service.save_dashboard(dashboard=payload.dashboard)
+
+        return DashboardSaveResponse(
+            id=dashboard.id,
+            version=version,
+            saved=True
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/{dashboard_id}", response_model=DashboardSaveResponse)
 async def save_dashboard(
     dashboard_id: int = Path(..., description="Dashboard ID"),

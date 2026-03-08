@@ -91,45 +91,13 @@ class HostWithDevicesOut(BaseModel):
 # Dashboard Schemas
 # =============================================================================
 
-class WidgetSensorConfig(BaseModel):
-    """Sensor configuration for a widget."""
-    name: str
-    table: Table = Table.raw
-
-
-class WidgetConfig(BaseModel):
-    """Widget configuration."""
-    id: str
-    type: str
-    title: str
-    host_id: str
-    device_id: str
-    sensors: list[WidgetSensorConfig]
-    options: dict = {}
-    refresh_interval: int = 5000  # ms
-
-
-class GridLayoutItem(BaseModel):
-    """Grid layout item for vue-grid-layout."""
-    i: str  # widget id
-    x: int
-    y: int
-    w: int
-    h: int
-    min_w: int = 2
-    min_h: int = 2
-    max_w: int = 12
-    max_h: int = 24
-    static: bool = False
-
-
 class DashboardConfig(BaseModel):
     """Dashboard configuration."""
     id: int | None = None  # Dashboard ID in database
     name: str = "My Dashboard"
     version: int = 1
-    layout: list[GridLayoutItem] = []
-    widgets: list[WidgetConfig] = []
+    layout: dict = {}
+    widgets: dict = {}
     updated_at: int = 0
 
 

@@ -291,8 +291,8 @@ class Dashboard(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, default="My Dashboard")
     version: Mapped[int] = mapped_column(Integer, default=1)
-    layout: Mapped[list] = mapped_column(JSON, default=list)  # vue-grid-layout state
-    widgets: Mapped[list] = mapped_column(JSON, default=list)  # widget configurations
+    layout: Mapped[dict] = mapped_column(JSON, default=dict)  # vue-grid-layout state (dict keyed by widget id)
+    widgets: Mapped[dict] = mapped_column(JSON, default=dict)  # widget configurations (dict keyed by widget id)
     created_at: Mapped[int] = mapped_column(Integer)
     updated_at: Mapped[int] = mapped_column(Integer)
 

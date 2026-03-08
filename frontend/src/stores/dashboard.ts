@@ -26,10 +26,37 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
   try {
     const response = await getDefaultDashboard()
     const dashboard = response.dashboard
-    
+
+    // Transform widgets from snake_case to camelCase
+    const widgetsArray = Array.isArray(dashboard.widgets) ? dashboard.widgets : (dashboard.widgets ? Object.values(dashboard.widgets) : [])
+    const transformedWidgets = widgetsArray.map((w: any) => ({
+      id: w.id,
+      type: w.type,
+      title: w.title,
+      hostId: w.host_id,
+      deviceId: w.device_id,
+      sensors: w.sensors,
+      options: w.options,
+      refreshInterval: w.refresh_interval,
+      children: w.children ? w.children.map((c: any) => ({
+        id: c.id,
+        type: c.type,
+        title: c.title,
+        hostId: c.host_id,
+        deviceId: c.device_id,
+        sensors: c.sensors,
+        options: c.options,
+        refreshInterval: c.refresh_interval
+      })) : undefined,
+      childLayout: w.child_layout
+    }))
+
+    // Transform layout from object/array to array
+    const layoutArray = Array.isArray(dashboard.layout) ? dashboard.layout : (dashboard.layout ? Object.values(dashboard.layout) : [])
+
     return {
-      layout: dashboard.layout,
-      widgets: dashboard.widgets,
+      layout: layoutArray,
+      widgets: transformedWidgets,
       gridOptions: DEFAULT_GRID_OPTIONS
     }
   } catch (error) {
@@ -44,14 +71,54 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
 }
 
 async function saveDashboardToApi(state: DashboardState): Promise<void> {
-  await saveDashboardApi('default', {
+  // Transform widgets to snake_case for backend and convert to dict
+  const transformedWidgets = state.widgets.map(w => ({
+    id: w.id,
+    type: w.type,
+    title: w.title,
+    host_id: w.hostId,
+    device_id: w.deviceId,
+    sensors: w.sensors,
+    options: w.options,
+    refresh_interval: w.refreshInterval,
+    children: w.children ? w.children.map(c => ({
+      id: c.id,
+      type: c.type,
+      title: c.title,
+      host_id: c.hostId,
+      device_id: c.deviceId,
+      sensors: c.sensors,
+      options: c.options,
+      refresh_interval: c.refreshInterval
+    })) : undefined,
+    child_layout: w.childLayout
+  }))
+
+  // Convert layout array to dict keyed by widget id
+  const layoutDict: Record<string, any> = {}
+  for (const item of state.layout) {
+    layoutDict[item.i] = item
+  }
+
+  // Convert widgets array to dict keyed by widget id
+  const widgetsDict: Record<string, any> = {}
+  for (const widget of transformedWidgets) {
+    widgetsDict[widget.id] = widget
+  }
+
+  const payload = {
     id: null,
     name: 'default',
     version: 1,
-    layout: state.layout,
-    widgets: state.widgets,
+    layout: layoutDict,
+    widgets: widgetsDict,
     updated_at: Math.floor(Date.now() / 1000)
-  })
+  }
+
+  console.log('[DashboardStore] Saving payload:')
+  console.log(JSON.stringify(payload, null, 2))
+
+  await saveDashboardApi('default', payload)
 }
 
 export const useDashboardStore = defineStore('dashboard', () => {
