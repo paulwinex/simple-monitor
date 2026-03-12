@@ -16,38 +16,24 @@
   </BaseWidget>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import BaseWidget from './BaseWidget.vue'
-import type { WidgetSlot } from 'src/components/models'
 
 Chart.register(...registerables)
 
-export interface ChartDataPoint {
-  timestamp: number
-  value: number
-}
+const props = defineProps({
+  title: String,
+  showHeader: Boolean,
+  slots: Array,
+  loading: Boolean,
+  error: String,
+  options: Object
+})
 
-export interface ChartWidgetOptions {
-  timeRange?: '1h' | '6h' | '24h' | '7d'
-  showLegend?: boolean
-  smooth?: boolean
-  colors?: string[]
-  fill?: boolean
-}
-
-const props = defineProps<{
-  title?: string
-  showHeader?: boolean
-  slots?: WidgetSlot[]
-  loading?: boolean
-  error?: string | null
-  options?: ChartWidgetOptions
-}>()
-
-const chartRef = ref<HTMLCanvasElement | null>(null)
-let chart: Chart | null = null
+const chartRef = ref(null)
+let chart = null
 
 const validSlots = computed(() => {
   return (props.slots || []).filter(s => s.sensor && s.data)
@@ -127,7 +113,7 @@ function updateChart() {
   if (!chart) return
 
   chart.data.labels = getLabels()
-  
+
   validSlots.value.forEach((slot, index) => {
     if (chart && chart.data.datasets[index]) {
       chart.data.datasets[index].data = getSlotData(slot)
@@ -137,30 +123,30 @@ function updateChart() {
 
   // Remove extra datasets if slots were removed
   chart.data.datasets = chart.data.datasets.slice(0, validSlots.value.length)
-  
+
   chart.update('none')
 }
 
-function getLabels(): string[] {
+function getLabels() {
   if (validSlots.value.length === 0) return []
   const firstSlot = validSlots.value[0]
   const data = getSlotData(firstSlot)
   return data.map(d => formatTimestamp(d.timestamp))
 }
 
-function getSlotData(slot: WidgetSlot): ChartDataPoint[] {
+function getSlotData(slot) {
   const data = slot.data
   if (!data) return []
   if (Array.isArray(data)) {
     return data.map(d => ({ timestamp: d.timestamp, value: d.value }))
   }
   if (data.data && Array.isArray(data.data)) {
-    return data.data.map((d: any) => ({ timestamp: d.timestamp, value: d.value }))
+    return data.data.map((d) => ({ timestamp: d.timestamp, value: d.value }))
   }
   return []
 }
 
-function formatTimestamp(timestamp: number): string {
+function formatTimestamp(timestamp) {
   const date = new Date(timestamp * 1000)
   const timeRange = props.options?.timeRange || '24h'
 
@@ -208,9 +194,7 @@ onBeforeUnmount(() => {
 </style>
 
 <!-- Widget metadata - defines available slots -->
-<script lang="ts">
-import type { WidgetSlotDefinition } from 'src/components/models'
-
+<script>
 export const widgetDefinition = {
   type: 'chart',
   label: 'Chart',
@@ -228,6 +212,6 @@ export const widgetDefinition = {
         fill: true
       }
     }
-  ] as WidgetSlotDefinition[]
+  ]
 }
 </script>

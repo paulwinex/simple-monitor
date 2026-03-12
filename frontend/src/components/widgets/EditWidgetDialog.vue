@@ -222,20 +222,19 @@
   </q-dialog>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, watch } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import type { WidgetConfig, WidgetSlot } from 'src/components/models'
 
-const props = defineProps<{
-  modelValue: boolean
-  widget: WidgetConfig | null
-}>()
+const props = defineProps({
+  modelValue: Boolean,
+  widget: Object
+})
 
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  'update:widget': [widget: WidgetConfig]
-}>()
+const emit = defineEmits([
+  'update:modelValue',
+  'update:widget'
+])
 
 const dashboardStore = useDashboardStore()
 
@@ -246,22 +245,22 @@ const dialogVisible = computed({
 
 // Widget configuration
 const widgetTitle = ref('')
-const widgetOptions = ref<Record<string, any>>({})
-const widgetSlots = ref<WidgetSlot[]>([])
+const widgetOptions = ref({})
+const widgetSlots = ref([])
 const widgetType = ref('number')
 
 // Cascade menu state
 const cascadeMenuVisible = ref(false)
-const currentSlot = ref<WidgetSlot | null>(null)
+const currentSlot = ref(null)
 
 // Menu positioning
-const menuAnchorEl = ref<HTMLElement | null>(null)
+const menuAnchorEl = ref(null)
 
 // Selections for cascade menu
-const currentHostSelection = ref<string | null>(null)
-const currentDeviceSelection = ref<string | null>(null)
-const currentSensorSelection = ref<string | null>(null)
-const currentSlotOptions = ref<Record<string, any>>({})
+const currentHostSelection = ref(null)
+const currentDeviceSelection = ref(null)
+const currentSensorSelection = ref(null)
+const currentSlotOptions = ref({})
 
 // Host options from store
 const hostOptions = computed(() => {
@@ -272,7 +271,7 @@ const hostOptions = computed(() => {
 })
 
 // Get device options for a host
-function getDeviceOptions(hostId: string | null) {
+function getDeviceOptions(hostId) {
   if (!hostId) return []
   const host = dashboardStore.hosts.find(h => h.host_id === hostId)
   if (!host) return []
@@ -283,10 +282,10 @@ function getDeviceOptions(hostId: string | null) {
 }
 
 // Get sensor options for a device
-function getSensorOptions(hostId: string | null, deviceId: string | null) {
+function getSensorOptions(hostId, deviceId) {
   if (!hostId || !deviceId) return []
 
-  const sensorMap: Record<string, { name: string; label: string }[]> = {
+  const sensorMap = {
     cpu: [
       { name: 'usage_percent', label: 'CPU Usage' },
       { name: 'temperature', label: 'Temperature' },
@@ -335,8 +334,8 @@ watch(() => props.widget, (newWidget) => {
 }, { immediate: true })
 
 // Get slot icon based on slot ID
-function getSlotIcon(slotId: string): string {
-  const iconMap: Record<string, string> = {
+function getSlotIcon(slotId) {
+  const iconMap = {
     number: 'format_list_numbered',
     chart: 'insert_chart',
     load: 'speed',
@@ -348,13 +347,13 @@ function getSlotIcon(slotId: string): string {
 }
 
 // Get slot color based on configuration
-function getSlotColor(slot: WidgetSlot): string {
+function getSlotColor(slot) {
   if (slot.sensor) return 'primary'
   return 'grey-7'
 }
 
 // Get slot summary text
-function getSlotSummary(slot: WidgetSlot): string {
+function getSlotSummary(slot) {
   if (!slot.sensor) return ''
   const parts = []
   if (slot.hostId) parts.push(slot.hostId)
@@ -364,31 +363,31 @@ function getSlotSummary(slot: WidgetSlot): string {
 }
 
 // Open cascade menu for slot
-function openCascadeMenu(slot: WidgetSlot, event: MouseEvent) {
+function openCascadeMenu(slot, event) {
   currentSlot.value = slot
   currentHostSelection.value = slot.hostId || null
   currentDeviceSelection.value = slot.deviceId || null
   currentSensorSelection.value = slot.sensor?.name || null
   currentSlotOptions.value = { ...slot.options }
-  menuAnchorEl.value = event.currentTarget as HTMLElement
+  menuAnchorEl.value = event.currentTarget
   cascadeMenuVisible.value = true
 }
 
 // Select host in cascade menu
-function selectHost(hostId: string) {
+function selectHost(hostId) {
   currentHostSelection.value = hostId
   currentDeviceSelection.value = null
   currentSensorSelection.value = null
 }
 
 // Select device in cascade menu
-function selectDevice(deviceId: string) {
+function selectDevice(deviceId) {
   currentDeviceSelection.value = deviceId
   currentSensorSelection.value = null
 }
 
 // Select sensor in cascade menu
-function selectSensor(sensor: string) {
+function selectSensor(sensor) {
   currentSensorSelection.value = sensor
 }
 
@@ -396,12 +395,12 @@ function selectSensor(sensor: string) {
 watch([cascadeMenuVisible, currentSensorSelection], ([closed, sensor]) => {
   if (closed || !currentSlot.value || !sensor) return
 
-  const updatedSlot: WidgetSlot = {
+  const updatedSlot = {
     ...currentSlot.value,
     hostId: currentHostSelection.value || undefined,
     deviceId: currentDeviceSelection.value || undefined,
     sensor: {
-      name: currentSensorSelection.value!,
+      name: currentSensorSelection.value,
       table: 'raw'
     },
     options: { ...currentSlotOptions.value }
@@ -416,7 +415,7 @@ watch([cascadeMenuVisible, currentSensorSelection], ([closed, sensor]) => {
 // Save widget
 function saveWidget() {
   if (props.widget) {
-    const updatedWidget: WidgetConfig = {
+    const updatedWidget = {
       ...props.widget,
       title: widgetTitle.value,
       slots: widgetSlots.value,

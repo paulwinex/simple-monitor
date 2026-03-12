@@ -19,17 +19,15 @@
   </q-item>
 </template>
 
-<script setup lang="ts">
-export interface EssentialLinkProps {
-  title: string;
-  caption?: string;
-  link?: string;
-  icon?: string;
-};
-
-withDefaults(defineProps<EssentialLinkProps>(), {
+<script setup>
+const props = withDefaults(defineProps({
+  title: String,
+  caption: String,
+  link: String,
+  icon: String
+}), {
   caption: '',
   link: '#',
-  icon: '',
-});
+  icon: ''
+})
 </script>

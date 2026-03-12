@@ -1,35 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts } from 'src/services/api'
-import type { GridLayoutItem, WidgetConfig, DashboardConfig } from 'src/components/models'
-import type { HostWithDevices } from 'src/services/api'
 
-export interface GridOptions {
-  colNum: number
-  rowHeight: number
-  verticalCompact: boolean
-}
-
-export interface DashboardState {
-  layout: GridLayoutItem[]
-  widgets: WidgetConfig[]
-  gridOptions: GridOptions
-}
-
-const DEFAULT_GRID_OPTIONS: GridOptions = {
+const DEFAULT_GRID_OPTIONS = {
   colNum: 12,
   rowHeight: 30,
   verticalCompact: true
 }
 
-async function fetchDashboardFromApi(): Promise<DashboardState> {
+async function fetchDashboardFromApi() {
   try {
     const response = await getDefaultDashboard()
     const dashboard = response.dashboard
 
     // Transform widgets from snake_case to camelCase
     const widgetsArray = Array.isArray(dashboard.widgets) ? dashboard.widgets : (dashboard.widgets ? Object.values(dashboard.widgets) : [])
-    const transformedWidgets = widgetsArray.map((w: any) => ({
+    const transformedWidgets = widgetsArray.map((w) => ({
       id: w.id,
       type: w.type,
       title: w.title,
@@ -47,7 +33,7 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
       sensors: w.sensors,  // Keep for backward compatibility
       options: w.options,
       refreshInterval: w.refresh_interval,
-      children: w.children ? w.children.map((c: any) => ({
+      children: w.children ? w.children.map((c) => ({
         id: c.id,
         type: c.type,
         title: c.title,
@@ -87,7 +73,7 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
   }
 }
 
-async function saveDashboardToApi(state: DashboardState): Promise<void> {
+async function saveDashboardToApi(state) {
   // Transform widgets to snake_case for backend and convert to dict
   const transformedWidgets = state.widgets.map(w => ({
     id: w.id,
@@ -108,13 +94,13 @@ async function saveDashboardToApi(state: DashboardState): Promise<void> {
   }))
 
   // Convert layout array to dict keyed by widget id
-  const layoutDict: Record<string, any> = {}
+  const layoutDict = {}
   for (const item of state.layout) {
     layoutDict[item.i] = item
   }
 
   // Convert widgets array to dict keyed by widget id
-  const widgetsDict: Record<string, any> = {}
+  const widgetsDict = {}
   for (const widget of transformedWidgets) {
     widgetsDict[widget.id] = widget
   }
@@ -135,12 +121,12 @@ async function saveDashboardToApi(state: DashboardState): Promise<void> {
 }
 
 export const useDashboardStore = defineStore('dashboard', () => {
-  const layout = ref<GridLayoutItem[]>([])
-  const widgets = ref<WidgetConfig[]>([])
-  const gridOptions = ref<GridOptions>({ ...DEFAULT_GRID_OPTIONS })
+  const layout = ref([])
+  const widgets = ref([])
+  const gridOptions = ref({ ...DEFAULT_GRID_OPTIONS })
   const loading = ref(false)
-  const error = ref<string | null>(null)
-  const hosts = ref<HostWithDevices[]>([])
+  const error = ref(null)
+  const hosts = ref([])
 
   const isLoading = computed(() => loading.value)
   const hasError = computed(() => error.value !== null)
@@ -157,7 +143,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   async function loadDashboard() {
     loading.value = true
     error.value = null
-    
+
     try {
       const data = await fetchDashboardFromApi()
       layout.value = data.layout
@@ -180,11 +166,11 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  function updateGridOptions(options: Partial<GridOptions>) {
+  function updateGridOptions(options) {
     gridOptions.value = { ...gridOptions.value, ...options }
   }
 
-  function addWidget(widget: WidgetConfig, parentId?: string) {
+  function addWidget(widget, parentId) {
     console.log('[DashboardStore] addWidget called')
     console.log('[DashboardStore] widget:', widget)
     console.log('[DashboardStore] parentId:', parentId)
@@ -198,7 +184,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
       if (parentIndex !== -1) {
         const parent = widgets.value[parentIndex]
-        
+
         // Initialize children and childLayout if not present
         const children = parent.children ? [...parent.children] : []
         const childLayout = parent.childLayout ? [...parent.childLayout] : []
@@ -305,16 +291,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  function removeWidget(id: string) {
+  function removeWidget(id) {
     widgets.value = widgets.value.filter(w => w.id !== id)
     layout.value = layout.value.filter(l => l.i !== id)
   }
 
-  function updateLayout(newLayout: GridLayoutItem[]) {
+  function updateLayout(newLayout) {
     layout.value = newLayout
   }
 
-  function updateWidget(id: string, config: Partial<WidgetConfig>) {
+  function updateWidget(id, config) {
     const index = widgets.value.findIndex(w => w.id === id)
     if (index !== -1) {
       const oldWidget = widgets.value[index]
@@ -326,23 +312,23 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  function getWidget(id: string): WidgetConfig | undefined {
+  function getWidget(id) {
     return widgets.value.find(w => w.id === id)
   }
 
-  function getAvailableWidgetTypes(parentType?: string): { value: string; label: string }[] {
+  function getAvailableWidgetTypes(parentType) {
     const allTypes = [
       { value: 'number', label: 'Number' },
       { value: 'chart', label: 'Chart' },
       { value: 'bar', label: 'Bar Chart' },
       { value: 'pie', label: 'Pie Chart' }
     ]
-    
+
     // GridContainer cannot be nested inside another GridContainer
     if (parentType !== 'gridContainer') {
       allTypes.push({ value: 'gridContainer', label: 'Grid Container' })
     }
-    
+
     return allTypes
   }
 

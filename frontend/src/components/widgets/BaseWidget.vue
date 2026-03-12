@@ -11,19 +11,16 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed } from 'vue'
 import { useQuasar } from 'quasar'
 
-defineProps<{
-  title?: string
-  showHeader?: boolean
-}>()
+defineProps({
+  title: String,
+  showHeader: Boolean
+})
 
-defineSlots<{
-  title?(): any
-  content(): any
-}>()
+// Slots are inferred from template: title(), content()
 
 const $q = useQuasar()
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')

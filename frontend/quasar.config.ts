@@ -43,9 +43,12 @@ export default defineConfig((/* ctx */) => {
       },
 
       typescript: {
-        strict: true,
-        vueShim: true
-        // extendTsConfig (tsConfig) {}
+        strict: false,
+        vueShim: true,
+        // allowJs is enabled by default, but we explicitly disable type checking on JS files
+        extendTsConfig (tsConfig) {
+          tsConfig.compilerOptions.checkJs = false
+        }
       },
 
       vueRouterMode: 'hash', // available values: 'hash', 'history'

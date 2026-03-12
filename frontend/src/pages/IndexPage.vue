@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import { onMounted, computed, h, ref } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
@@ -8,7 +8,6 @@ import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
-import type { WidgetConfig } from 'src/components/models'
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
@@ -19,38 +18,38 @@ const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
 
 const showEditWidget = ref(false)
-const editingWidget = ref<WidgetConfig | null>(null)
+const editingWidget = ref(null)
 
 onMounted(() => {
   dashboardStore.loadDashboard()
 })
 
-function moveEvent(i: string, newX: number, newY: number) {
+function moveEvent(i, newX, newY) {
   console.info(`MOVE i=${i}, X=${newX}, Y=${newY}`)
 }
 
-function movedEvent(i: string, newX: number, newY: number) {
+function movedEvent(i, newX, newY) {
   console.info(`MOVED i=${i}, X=${newX}, Y=${newY}`)
 }
 
-function resizeEvent(i: string, newH: number, newW: number, newHPx: number, newWPx: number) {
+function resizeEvent(i, newH, newW, newHPx, newWPx) {
   console.info(`RESIZE i=${i}, H=${newH}, W=${newW}, H(px)=${newHPx}, W(px)=${newWPx}`)
 }
 
-function resizedEvent(i: string, newX: number, newY: number, newHPx: number, newWPx: number) {
+function resizedEvent(i, newX, newY, newHPx, newWPx) {
   console.info(`RESIZED i=${i}, X=${newX}, Y=${newY}, H(px)=${newHPx}, W(px)=${newWPx}`)
 }
 
-function layoutUpdatedEvent(newLayout: any[]) {
+function layoutUpdatedEvent(newLayout) {
   dashboardStore.updateLayout(newLayout)
   console.info('Updated layout')
 }
 
-function getWidget(id: string) {
+function getWidget(id) {
   return dashboardStore.widgets.find(w => w.id === id)
 }
 
-function renderWidget(widget: any) {
+function renderWidget(widget) {
   if (!widget) return null
 
   const commonProps = {
@@ -82,21 +81,21 @@ function renderWidget(widget: any) {
       childLayout: widget.childLayout || [],
       isEditing: isEditMode.value,
       showHeader: !!widget.title,
-      'onUpdate:layout': (newLayout: any[]) => {
+      'onUpdate:layout': (newLayout) => {
         console.log('[IndexPage] GridContainer layout updated:', newLayout)
         // Update widget in store with new childLayout
         updateContainerWidget(widget.id, { childLayout: newLayout })
       },
-      'onUpdate:children': (newChildren: any[]) => {
+      'onUpdate:children': (newChildren) => {
         console.log('[IndexPage] GridContainer children updated:', newChildren)
         // Update widget in store with new children
         updateContainerWidget(widget.id, { children: newChildren })
       },
-      'onEdit-container': (containerId: string) => {
+      'onEdit-container': (containerId) => {
         console.log('[IndexPage] Edit container:', containerId)
         openEditWidget(containerId)
       },
-      'onRemove-container': (containerId: string) => {
+      'onRemove-container': (containerId) => {
         console.log('[IndexPage] Remove container:', containerId)
         removeWidget(containerId)
       }
@@ -106,11 +105,11 @@ function renderWidget(widget: any) {
   return null
 }
 
-function removeWidget(widgetId: string) {
+function removeWidget(widgetId) {
   dashboardStore.removeWidget(widgetId)
 }
 
-function openEditWidget(widgetId: string) {
+function openEditWidget(widgetId) {
   const widget = getWidget(widgetId)
   if (widget) {
     editingWidget.value = { ...widget }
@@ -118,12 +117,12 @@ function openEditWidget(widgetId: string) {
   }
 }
 
-function updateWidget(updatedWidget: WidgetConfig) {
+function updateWidget(updatedWidget) {
   dashboardStore.updateWidget(updatedWidget.id, updatedWidget)
   dashboardStore.saveDashboard()
 }
 
-function updateContainerWidget(containerId: string, updates: Partial<WidgetConfig>) {
+function updateContainerWidget(containerId, updates) {
   dashboardStore.updateWidget(containerId, updates)
   dashboardStore.saveDashboard()
 }

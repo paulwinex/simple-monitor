@@ -108,7 +108,7 @@
   />
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, h, watch, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
@@ -117,49 +117,32 @@ import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
 import AddWidgetDialog from './AddWidgetDialog.vue'
 import EditWidgetDialog from './EditWidgetDialog.vue'
-import type { WidgetConfig } from 'src/components/models'
 
-interface InternalWidget {
-  id: string
-  type: string
-  title?: string
-  options: Record<string, any>
-  data?: any
-}
-
-interface InternalLayoutItem {
-  i: string
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-const props = defineProps<{
-  title?: string
-  showHeader?: boolean
-  containerId?: string
-  children?: InternalWidget[]
-  childLayout?: InternalLayoutItem[]
-  isEditing?: boolean
-}>()
+const props = defineProps({
+  title: String,
+  showHeader: Boolean,
+  containerId: String,
+  children: Array,
+  childLayout: Array,
+  isEditing: Boolean
+})
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
-const emit = defineEmits<{
-  'update:layout': [layout: InternalLayoutItem[]]
-  'update:children': [children: InternalWidget[]]
-  'edit-container': [containerId: string]
-  'remove-container': [containerId: string]
-}>()
+const emit = defineEmits([
+  'update:layout',
+  'update:children',
+  'edit-container',
+  'remove-container'
+])
 
-const internalLayout = ref<InternalLayoutItem[]>([])
-const internalWidgets = ref<InternalWidget[]>([])
+const internalLayout = ref([])
+const internalWidgets = ref([])
 const showAddWidget = ref(false)
 const showEditWidget = ref(false)
-const editingWidget = ref<InternalWidget | null>(null)
+const editingWidget = ref(null)
 
 // Get parent widget from store to access grid width
 const parentWidget = computed(() => {
@@ -176,24 +159,24 @@ const gridContainerLayout = computed(() => {
 
 // Check if widget overlaps with parent container's action buttons
 // Parent buttons are in top-right corner, so check if widget is near that area
-function isWidgetInTopRightCorner(widgetId: string): boolean {
+function isWidgetInTopRightCorner(widgetId) {
   const layoutItem = internalLayout.value.find(item => item.i === widgetId)
   const containerLayout = gridContainerLayout.value
-  
+
   if (!layoutItem || !containerLayout) return false
-  
+
   // Parent container buttons are in top-right corner
   // Check if widget's top-right area overlaps with where parent buttons would be
-  
+
   // Widget must be at the top (y === 0)
   const isAtTop = layoutItem.y === 0
-  
+
   // Widget's right edge must align with container's right edge (within 1 unit)
   // This means widget is at the very right edge
   const containerRightEdge = containerLayout.x + containerLayout.w
   const widgetRightEdge = layoutItem.x + layoutItem.w
   const isAtRightEdge = (containerRightEdge - widgetRightEdge) < 1
-  
+
   return isAtTop && isAtRightEdge
 }
 
@@ -202,7 +185,7 @@ watch(() => parentWidget.value, (newParent) => {
   console.log('[GridContainerWidget] parentWidget changed:', newParent ? 'yes' : 'no')
   if (newParent) {
     if (newParent.children && newParent.children.length > 0) {
-      internalWidgets.value = JSON.parse(JSON.stringify(newParent.children)) as InternalWidget[]
+      internalWidgets.value = JSON.parse(JSON.stringify(newParent.children))
       console.log('[GridContainerWidget] Updated internalWidgets:', internalWidgets.value.length)
     } else {
       internalWidgets.value = []
@@ -218,17 +201,17 @@ watch(() => parentWidget.value, (newParent) => {
   }
 }, { immediate: true, deep: true })
 
-function onDialogUpdate(value: boolean) {
+function onDialogUpdate(value) {
   console.log('[GridContainerWidget] Dialog updated, value:', value)
   // No need to emit - data is already in store via dashboardStore.addWidget
   // Just close the dialog
 }
 
-function getWidget(id: string): InternalWidget | undefined {
+function getWidget(id) {
   return internalWidgets.value.find(w => w.id === id)
 }
 
-function renderWidget(widget: InternalWidget | undefined) {
+function renderWidget(widget) {
   if (!widget) return null
 
   const commonProps = {
@@ -256,7 +239,7 @@ function renderWidget(widget: InternalWidget | undefined) {
   return null
 }
 
-function editWidget(widgetId: string) {
+function editWidget(widgetId) {
   const widget = getWidget(widgetId)
   if (widget) {
     editingWidget.value = { ...widget }
@@ -264,7 +247,7 @@ function editWidget(widgetId: string) {
   }
 }
 
-function updateInternalWidget(updatedWidget: InternalWidget) {
+function updateInternalWidget(updatedWidget) {
   const index = internalWidgets.value.findIndex(w => w.id === updatedWidget.id)
   if (index !== -1) {
     internalWidgets.value[index] = updatedWidget
@@ -276,7 +259,7 @@ function updateInternalWidget(updatedWidget: InternalWidget) {
   }
 }
 
-function onLayoutUpdated(newLayout: InternalLayoutItem[]) {
+function onLayoutUpdated(newLayout) {
   internalLayout.value = newLayout
   // Update in store
   if (props.containerId) {
@@ -285,13 +268,13 @@ function onLayoutUpdated(newLayout: InternalLayoutItem[]) {
   }
 }
 
-function removeWidget(widgetId: string) {
+function removeWidget(widgetId) {
   internalWidgets.value = internalWidgets.value.filter(w => w.id !== widgetId)
   internalLayout.value = internalLayout.value.filter(l => l.i !== widgetId)
 
   // Update in store
   if (props.containerId) {
-    dashboardStore.updateWidget(props.containerId, { 
+    dashboardStore.updateWidget(props.containerId, {
       children: internalWidgets.value,
       childLayout: internalLayout.value
     })

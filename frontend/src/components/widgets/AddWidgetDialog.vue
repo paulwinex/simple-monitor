@@ -287,21 +287,20 @@
   </q-dialog>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, watch } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import type { WidgetConfig, WidgetSlot } from 'src/components/models'
 import { widgetRegistry, getSlotDefinitions } from './widget-registry'
 
-const props = defineProps<{
-  modelValue: boolean
-  parentType?: string
-  parentId?: string
-}>()
+const props = defineProps({
+  modelValue: Boolean,
+  parentType: String,
+  parentId: String
+})
 
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-}>()
+const emit = defineEmits([
+  'update:modelValue'
+])
 
 const dashboardStore = useDashboardStore()
 
@@ -326,13 +325,8 @@ const selectedWidgetDef = computed(() =>
 
 // Widget configuration
 const widgetTitle = ref('')
-const widgetOptions = ref<Record<string, any>>({})
-const slotConfigs = ref<Record<string, {
-  hostId: string | null
-  deviceId: string | null
-  sensor: string | null
-  options: Record<string, any>
-}>>({})
+const widgetOptions = ref({})
+const slotConfigs = ref({})
 
 const slotDefinitions = computed(() => {
   if (!selectedType.value) return []
@@ -341,19 +335,19 @@ const slotDefinitions = computed(() => {
 
 // Cascade menu state
 const cascadeMenuVisible = ref(false)
-const currentMenuSlotId = ref<string | null>(null)
+const currentMenuSlotId = ref(null)
 const currentMenuSlotDef = computed(() =>
   slotDefinitions.value.find(d => d.id === currentMenuSlotId.value)
 )
 
 // Menu positioning
-const menuAnchorEl = ref<HTMLElement | null>(null)
+const menuAnchorEl = ref(null)
 
 // Temporary selections for cascade menu
-const currentHostSelection = ref<string | null>(null)
-const currentDeviceSelection = ref<string | null>(null)
-const currentSensorSelection = ref<string | null>(null)
-const currentSlotOptions = ref<Record<string, any>>({})
+const currentHostSelection = ref(null)
+const currentDeviceSelection = ref(null)
+const currentSensorSelection = ref(null)
+const currentSlotOptions = ref({})
 
 // Host options from store
 const hostOptions = computed(() => {
@@ -364,7 +358,7 @@ const hostOptions = computed(() => {
 })
 
 // Get device options for a host
-function getDeviceOptions(hostId: string | null) {
+function getDeviceOptions(hostId) {
   if (!hostId) return []
   const host = dashboardStore.hosts.find(h => h.host_id === hostId)
   if (!host) return []
@@ -375,10 +369,10 @@ function getDeviceOptions(hostId: string | null) {
 }
 
 // Get sensor options for a device
-function getSensorOptions(hostId: string | null, deviceId: string | null) {
+function getSensorOptions(hostId, deviceId) {
   if (!hostId || !deviceId) return []
 
-  const sensorMap: Record<string, { name: string; label: string }[]> = {
+  const sensorMap = {
     cpu: [
       { name: 'usage_percent', label: 'CPU Usage' },
       { name: 'temperature', label: 'Temperature' },
@@ -417,20 +411,20 @@ function getSensorOptions(hostId: string | null, deviceId: string | null) {
 }
 
 // Check if slot is configured
-function isSlotConfigured(slotId: string): boolean {
+function isSlotConfigured(slotId) {
   const config = slotConfigs.value[slotId]
   return !!(config && config.hostId && config.deviceId && config.sensor)
 }
 
 // Get button label for slot
-function getSlotButtonLabel(slotId: string): string {
+function getSlotButtonLabel(slotId) {
   const config = slotConfigs.value[slotId]
   if (!config || !config.sensor) return 'Configure'
   return config.sensor
 }
 
 // Get slot summary for display
-function getSlotSummary(slotId: string): string {
+function getSlotSummary(slotId) {
   const config = slotConfigs.value[slotId]
   if (!config || !config.hostId) return ''
   const parts = []
@@ -441,32 +435,32 @@ function getSlotSummary(slotId: string): string {
 }
 
 // Open cascade menu for slot
-function openCascadeMenu(slotId: string, event: MouseEvent) {
+function openCascadeMenu(slotId, event) {
   currentMenuSlotId.value = slotId
   const config = slotConfigs.value[slotId]
   currentHostSelection.value = config?.hostId || null
   currentDeviceSelection.value = config?.deviceId || null
   currentSensorSelection.value = config?.sensor || null
   currentSlotOptions.value = config?.options ? { ...config.options } : {}
-  menuAnchorEl.value = event.currentTarget as HTMLElement
+  menuAnchorEl.value = event.currentTarget
   cascadeMenuVisible.value = true
 }
 
 // Select host in cascade menu
-function selectHost(hostId: string) {
+function selectHost(hostId) {
   currentHostSelection.value = hostId
   currentDeviceSelection.value = null
   currentSensorSelection.value = null
 }
 
 // Select device in cascade menu
-function selectDevice(deviceId: string) {
+function selectDevice(deviceId) {
   currentDeviceSelection.value = deviceId
   currentSensorSelection.value = null
 }
 
 // Select sensor in cascade menu
-function selectSensor(sensor: string) {
+function selectSensor(sensor) {
   currentSensorSelection.value = sensor
 }
 
@@ -498,8 +492,8 @@ const canCreate = computed(() => {
 })
 
 // Get widget icon
-function getWidgetIcon(type: string): string {
-  const iconMap: Record<string, string> = {
+function getWidgetIcon(type) {
+  const iconMap = {
     number: 'format_list_numbered',
     chart: 'insert_chart',
     gridContainer: 'view_module',
@@ -510,8 +504,8 @@ function getWidgetIcon(type: string): string {
 }
 
 // Get slot icon
-function getSlotIcon(slotId: string): string {
-  const iconMap: Record<string, string> = {
+function getSlotIcon(slotId) {
+  const iconMap = {
     number: 'format_list_numbered',
     chart: 'insert_chart',
     load: 'speed',
@@ -523,20 +517,20 @@ function getSlotIcon(slotId: string): string {
 }
 
 // Get slot count for display
-function getSlotCount(widget: typeof widgetRegistry[0]): number {
+function getSlotCount(widget) {
   return widget.slotDefinitions.length
 }
 
 // Select widget type and go to next step
-function selectWidgetType(type: string) {
+function selectWidgetType(type) {
   selectedType.value = type
-  
+
   // GridContainer has no slots - create immediately
   if (type === 'gridContainer') {
     createWidget()
     return
   }
-  
+
   const defs = getSlotDefinitions(type)
 
   // Initialize slot configs
@@ -555,7 +549,7 @@ function selectWidgetType(type: string) {
 
 // Create widget
 function createWidget() {
-  const slots: WidgetSlot[] = slotDefinitions.value.map(def => {
+  const slots = slotDefinitions.value.map(def => {
     const config = slotConfigs.value[def.id]
     return {
       id: def.id,
@@ -570,7 +564,7 @@ function createWidget() {
     }
   })
 
-  const newWidget: WidgetConfig = {
+  const newWidget = {
     id: `widget-${Date.now()}`,
     type: selectedType.value,
     title: widgetTitle.value || undefined,

@@ -52,7 +52,7 @@
   </q-layout>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useUIStore } from 'stores/ui'

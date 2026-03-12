@@ -23,32 +23,24 @@
   </BaseWidget>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed } from 'vue'
 import BaseWidget from './BaseWidget.vue'
-import type { WidgetSlot, WidgetSlotDefinition } from 'src/components/models'
 
-interface NumberWidgetOptions {
-  prefix?: string
-  suffix?: string
-  decimals?: number
-  color?: string
-}
-
-const props = defineProps<{
-  title?: string
-  showHeader?: boolean
-  slots?: WidgetSlot[]
-  loading?: boolean
-  error?: string | null
-  options?: NumberWidgetOptions
-}>()
+const props = defineProps({
+  title: String,
+  showHeader: Boolean,
+  slots: Array,
+  loading: Boolean,
+  error: String,
+  options: Object
+})
 
 const validSlots = computed(() => {
   return (props.slots || []).filter(s => s.sensor && s.data)
 })
 
-function slotValue(slot: WidgetSlot): number | null {
+function slotValue(slot) {
   const data = slot.data
   if (!data) return null
   if (Array.isArray(data) && data.length > 0) {
@@ -60,11 +52,11 @@ function slotValue(slot: WidgetSlot): number | null {
   return null
 }
 
-function slotColor(slot: WidgetSlot): string {
+function slotColor(slot) {
   return slot.options?.color || props.options?.color || '#4CAF50'
 }
 
-function formatValue(value: number | null, slot: WidgetSlot): string {
+function formatValue(value, slot) {
   if (value === null || value === undefined) return '—'
 
   const decimals = slot.options?.decimals ?? props.options?.decimals ?? 1
@@ -101,9 +93,7 @@ function formatValue(value: number | null, slot: WidgetSlot): string {
 </style>
 
 <!-- Widget metadata - defines available slots -->
-<script lang="ts">
-import type { WidgetSlotDefinition } from 'src/components/models'
-
+<script>
 export const widgetDefinition = {
   type: 'number',
   label: 'Number',
@@ -120,6 +110,6 @@ export const widgetDefinition = {
         color: '#4CAF50'
       }
     }
-  ] as WidgetSlotDefinition[]
+  ]
 }
 </script>

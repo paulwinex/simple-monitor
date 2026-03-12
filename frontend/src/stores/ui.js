@@ -8,17 +8,17 @@ export const useUIStore = defineStore('ui', () => {
 
   function toggleEditMode() {
     isEditMode.value = !isEditMode.value
-    
+
     // Save dashboard when exiting edit mode
     if (!isEditMode.value) {
       dashboardStore.saveDashboard()
     }
   }
 
-  function setEditMode(value: boolean) {
+  function setEditMode(value) {
     const wasEditing = isEditMode.value
     isEditMode.value = value
-    
+
     // Save dashboard when exiting edit mode
     if (wasEditing && !value) {
       dashboardStore.saveDashboard()
