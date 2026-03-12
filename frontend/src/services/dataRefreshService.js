@@ -10,7 +10,7 @@ import {
  * - Deduplicates identical queries across widgets
  * - Supports both latest value and range queries
  * - Automatically refreshes data at configured intervals
- * - Updates Pinia store with fresh data
+ * - Updates widget slot data directly in the dashboard store
  */
 class DataRefreshService {
   constructor() {
@@ -31,11 +31,6 @@ class DataRefreshService {
    * Stops all existing timers and creates new ones
    */
   start(widgets) {
-    console.log('[DataRefreshService] Starting with widgets:', widgets.length)
-
-    // Stop all existing queries
-    this.stopAll()
-
     // Collect all unique queries from widgets
     const queryMap = new Map()
 
@@ -52,28 +47,63 @@ class DataRefreshService {
       }
     }
 
-    // Create active queries for each unique query
+    // Compare with existing queries - only create/remove what changed
+    const newQueryKeys = new Set(queryMap.keys())
+    const existingKeys = new Set(this.activeQueries.keys())
+
+    // Remove queries that no longer exist
+    for (const keyString of existingKeys) {
+      if (!newQueryKeys.has(keyString)) {
+        this.removeQuery(keyString)
+      }
+    }
+
+    // Create new queries or update existing ones
     for (const [keyString, queryInfo] of queryMap) {
-      this.createQuery(queryInfo.key, queryInfo.interval)
+      const existingQuery = this.activeQueries.get(keyString)
+      if (existingQuery) {
+        // Update subscribers and interval if changed
+        existingQuery.subscribers = queryInfo.subscribers
+        if (existingQuery.interval !== queryInfo.interval) {
+          existingQuery.interval = queryInfo.interval
+          // Restart timer with new interval
+          if (existingQuery.timerId) {
+            clearInterval(existingQuery.timerId)
+          }
+          existingQuery.timerId = setInterval(() => {
+            this.executeQuery(existingQuery)
+          }, queryInfo.interval)
+        }
+      } else {
+        // Create new query
+        this.createQuery(queryInfo.key, queryInfo.interval, queryInfo.subscribers)
+      }
     }
 
     this.isRunning = true
-    console.log('[DataRefreshService] Started with', this.activeQueries.size, 'unique queries')
   }
 
   /**
    * Collect queries from a widget based on its slots
    */
   collectWidgetQueries(widget, queryMap, parentHostId) {
-    if (!widget.hostId && !parentHostId) return
+    // For container widgets, use parent's hostId
+    const widgetHostId = widget.hostId || parentHostId
     if (!widget.slots || widget.slots.length === 0) return
 
-    const hostId = widget.hostId || parentHostId
     const queryType = widget.type === 'number' ? 'latest' : 'range'
     const interval = widget.refreshInterval || 5000
 
     for (const slot of widget.slots) {
-      if (!slot.sensor || !slot.deviceId) continue
+      if (!slot.sensor || !slot.deviceId) {
+        continue
+      }
+
+      // Each slot can have its own hostId, or inherit from widget/parent
+      const hostId = slot.hostId || widgetHostId
+      if (!hostId) {
+        continue
+      }
 
       const key = {
         hostId,
@@ -90,12 +120,13 @@ class DataRefreshService {
       if (existing) {
         // Merge with existing query - use shortest interval
         existing.interval = Math.min(existing.interval, interval)
-        existing.subscribers.add(slot)
+        // Add subscriber reference
+        existing.subscribers.push({ widgetId: widget.id, slotId: slot.id })
       } else {
         queryMap.set(keyString, {
           key,
           interval,
-          subscribers: new Set([slot])
+          subscribers: [{ widgetId: widget.id, slotId: slot.id }]
         })
       }
     }
@@ -125,14 +156,12 @@ class DataRefreshService {
   /**
    * Create a new active query
    */
-  createQuery(key, interval) {
+  createQuery(key, interval, subscribers) {
     const keyString = this.getQueryKeyString(key)
-
-    console.log('[DataRefreshService] Creating query:', keyString, 'interval:', interval)
 
     const activeQuery = {
       key,
-      subscribers: new Set(),
+      subscribers: subscribers || [],
       interval,
       timerId: null,
       lastData: null,
@@ -241,64 +270,18 @@ class DataRefreshService {
   }
 
   /**
-   * Notify all subscribers of new data
+   * Notify all subscribers of new data by updating slot.data in the store
    */
   notifySubscribers(query, data) {
+    if (!this.dashboardStore) return
+
     for (const subscriber of query.subscribers) {
       try {
-        subscriber(data)
+        const { widgetId, slotId } = subscriber
+        // Use the store's updateSlotData method for proper reactivity
+        this.dashboardStore.updateSlotData(widgetId, slotId, data)
       } catch (error) {
         console.error('[DataRefreshService] Subscriber error:', error)
-      }
-    }
-  }
-
-  /**
-   * Subscribe to query updates
-   * Returns unsubscribe function
-   */
-  subscribe(
-    hostId,
-    deviceId,
-    metricName,
-    table,
-    queryType,
-    callback,
-    rangeHours
-  ) {
-    const key = {
-      hostId,
-      deviceId,
-      metricName,
-      table,
-      queryType,
-      rangeHours
-    }
-
-    const keyString = this.getQueryKeyString(key)
-    let activeQuery = this.activeQueries.get(keyString)
-
-    if (!activeQuery) {
-      // Create query if it doesn't exist (shouldn't happen in normal flow)
-      console.warn('[DataRefreshService] Query not found, creating:', keyString)
-      this.createQuery(key, 5000)
-      activeQuery = this.activeQueries.get(keyString)
-    }
-
-    activeQuery.subscribers.add(callback)
-
-    // Immediately notify with last data if available
-    if (activeQuery.lastData) {
-      callback(activeQuery.lastData)
-    }
-
-    // Return unsubscribe function
-    return () => {
-      activeQuery?.subscribers.delete(callback)
-
-      // Clean up query if no subscribers
-      if (activeQuery && activeQuery.subscribers.size === 0) {
-        this.removeQuery(keyString)
       }
     }
   }
@@ -313,7 +296,6 @@ class DataRefreshService {
         clearInterval(query.timerId)
       }
       this.activeQueries.delete(keyString)
-      console.log('[DataRefreshService] Removed query:', keyString)
     }
   }
 
@@ -321,8 +303,6 @@ class DataRefreshService {
    * Stop all queries
    */
   stopAll() {
-    console.log('[DataRefreshService] Stopping all queries')
-
     for (const [keyString, query] of this.activeQueries) {
       if (query.timerId) {
         clearInterval(query.timerId)
@@ -337,7 +317,6 @@ class DataRefreshService {
    * Restart with new widgets configuration
    */
   restart(widgets) {
-    console.log('[DataRefreshService] Restarting...')
     this.start(widgets)
   }
 
@@ -362,7 +341,7 @@ class DataRefreshService {
     return Array.from(this.activeQueries.values()).map(q => ({
       key: this.getQueryKeyString(q.key),
       interval: q.interval,
-      subscribers: q.subscribers.size,
+      subscribers: q.subscribers.length,
       hasData: !!q.lastData
     }))
   }

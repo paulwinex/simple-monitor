@@ -127,11 +127,12 @@
   </q-page>
 </template>
 <script setup>
-import { onMounted, computed, h, ref } from 'vue'
+import { onMounted, onUnmounted, computed, h, ref, watch } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useUIStore } from 'stores/ui'
+import { dataRefreshService } from 'src/services/dataRefreshService'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
@@ -141,6 +142,59 @@ import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const uiStore = useUIStore()
+
+// Initialize data refresh service
+onMounted(() => {
+  dataRefreshService.init(dashboardStore)
+})
+
+// Create a computed that tracks only widget structure (not data changes)
+// This prevents restart loop when slot.data is updated
+const widgetStructure = computed(() => {
+  return dashboardStore.widgets.map(w => ({
+    id: w.id,
+    type: w.type,
+    refreshInterval: w.refreshInterval,
+    options: w.options,
+    slots: w.slots?.map(s => ({
+      id: s.id,
+      hostId: s.hostId,
+      deviceId: s.deviceId,
+      sensor: s.sensor
+    })),
+    // Include children structure for gridContainer widgets
+    children: w.children?.map(c => ({
+      id: c.id,
+      type: c.type,
+      refreshInterval: c.refreshInterval,
+      options: c.options,
+      slots: c.slots?.map(s => ({
+        id: s.id,
+        hostId: s.hostId,
+        deviceId: s.deviceId,
+        sensor: s.sensor
+      }))
+    }))
+  }))
+})
+
+// Watch for widget structural changes and restart data refresh
+watch(
+  widgetStructure,
+  (widgets) => {
+    if (dataRefreshService.getIsRunning()) {
+      dataRefreshService.restart(widgets)
+    } else if (widgets.length > 0) {
+      dataRefreshService.start(widgets)
+    }
+  },
+  { deep: true }
+)
+
+// Clean up on unmount
+onUnmounted(() => {
+  dataRefreshService.stopAll()
+})
 
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 const isEditMode = computed(() => uiStore.isEditMode)
@@ -171,6 +225,12 @@ function layoutUpdatedEvent(newLayout) {
   }
 }
 
+// Grid layout event handlers (can be empty for now)
+function moveEvent() {}
+function resizeEvent() {}
+function movedEvent() {}
+function resizedEvent() {}
+
 function getWidget(id) {
   return dashboardStore.widgets.find(w => w.id === id)
 }
@@ -183,6 +243,7 @@ function renderWidget(widget) {
     showHeader: !!widget.title,
     options: widget.options,
     slots: widget.slots,
+    widgetId: widget.id,
     loading: false,
     error: null
   }

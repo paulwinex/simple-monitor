@@ -27,16 +27,36 @@ const props = defineProps({
   title: String,
   showHeader: Boolean,
   slots: Array,
+  widgetId: String,
   loading: Boolean,
   error: String,
   options: Object
+})
+
+const dashboardStore = useDashboardStore()
+
+// Get reactive slot data from store
+const reactiveSlots = computed(() => {
+  if (!props.widgetId || !props.slots) return []
+  
+  const widget = dashboardStore.getWidget(props.widgetId)
+  if (!widget || !widget.slots) return props.slots || []
+  
+  // Merge slot config with reactive data from store
+  return props.slots.map(slotConfig => {
+    const storeSlot = widget.slots.find(s => s.id === slotConfig.id)
+    return {
+      ...slotConfig,
+      data: storeSlot?.data || null
+    }
+  })
 })
 
 const chartRef = ref(null)
 let chart = null
 
 const validSlots = computed(() => {
-  return (props.slots || []).filter(s => s.sensor && s.data)
+  return reactiveSlots.value.filter(s => s.sensor && s.data)
 })
 
 function createChart() {
@@ -135,14 +155,19 @@ function getLabels() {
 }
 
 function getSlotData(slot) {
-  const data = slot.data
-  if (!data) return []
-  if (Array.isArray(data)) {
-    return data.map(d => ({ timestamp: d.timestamp, value: d.value }))
+  const slotData = slot.data
+  if (!slotData) return []
+  
+  // slot.data is a wrapper object with data array inside
+  if (slotData.data && Array.isArray(slotData.data)) {
+    return slotData.data.map(d => ({ timestamp: d.timestamp, value: d.value }))
   }
-  if (data.data && Array.isArray(data.data)) {
-    return data.data.map((d) => ({ timestamp: d.timestamp, value: d.value }))
+  
+  // Fallback: if slotData itself is an array
+  if (Array.isArray(slotData)) {
+    return slotData.map(d => ({ timestamp: d.timestamp, value: d.value }))
   }
+  
   return []
 }
 

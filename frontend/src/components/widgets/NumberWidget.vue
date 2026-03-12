@@ -25,29 +25,51 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
 
 const props = defineProps({
   title: String,
   showHeader: Boolean,
   slots: Array,
+  widgetId: String,
   loading: Boolean,
   error: String,
   options: Object
 })
 
+const dashboardStore = useDashboardStore()
+
+// Get reactive slot data from store
+const reactiveSlots = computed(() => {
+  if (!props.widgetId || !props.slots) return []
+  
+  const widget = dashboardStore.getWidget(props.widgetId)
+  if (!widget || !widget.slots) return props.slots || []
+  
+  // Merge slot config with reactive data from store
+  return props.slots.map(slotConfig => {
+    const storeSlot = widget.slots.find(s => s.id === slotConfig.id)
+    return {
+      ...slotConfig,
+      data: storeSlot?.data || null
+    }
+  })
+})
+
 const validSlots = computed(() => {
-  return (props.slots || []).filter(s => s.sensor && s.data)
+  return reactiveSlots.value.filter(s => s.sensor && s.data)
 })
 
 function slotValue(slot) {
-  const data = slot.data
-  if (!data) return null
-  if (Array.isArray(data) && data.length > 0) {
-    return data[data.length - 1].value ?? null
-  }
-  if (data.value !== undefined) {
-    return data.value
+  const slotData = slot.data
+  if (!slotData) return null
+
+  // slot.data is a wrapper object with data array inside
+  const metrics = slotData.data
+  if (!metrics) return null
+  if (Array.isArray(metrics) && metrics.length > 0) {
+    return metrics[metrics.length - 1].value ?? null
   }
   return null
 }

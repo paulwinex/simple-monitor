@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts } from 'src/services/api'
+import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts, getMetricDevices } from 'src/services/api'
 
 const DEFAULT_GRID_OPTIONS = {
   colNum: 12,
@@ -178,7 +178,30 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   async function loadHosts() {
     try {
-      hosts.value = await getHosts()
+      const hostsData = await getHosts()
+      
+      // Load sensors for each host and device
+      const hostsArray = Array.isArray(hostsData) ? hostsData : (hostsData ? Object.values(hostsData) : [])
+      
+      for (const host of hostsArray) {
+        if (host.devices && host.devices.length > 0) {
+          // Load sensors from metrics/devices endpoint
+          const devicesWithMetrics = await getMetricDevices(host.host_id)
+          
+          // Map sensors to devices
+          const metricsMap = {}
+          for (const device of devicesWithMetrics) {
+            metricsMap[device.name] = device.metrics || []
+          }
+          
+          // Add sensors to each device
+          for (const device of host.devices) {
+            device.sensors = metricsMap[device.name] || []
+          }
+        }
+      }
+      
+      hosts.value = hostsArray
     } catch (err) {
       console.error('Failed to load hosts:', err)
       hosts.value = []
@@ -345,6 +368,39 @@ export const useDashboardStore = defineStore('dashboard', () => {
     return widgets.value.find(w => w.id === id)
   }
 
+  /**
+   * Update slot data for a widget - ensures Vue reactivity
+   * Handles both root widgets and nested container children
+   */
+  function updateSlotData(widgetId, slotId, data) {
+    // First try to find in root widgets
+    let widget = getWidget(widgetId)
+    
+    // If not found, search in container children
+    if (!widget) {
+      for (const w of widgets.value) {
+        if (w.type === 'gridContainer' && w.children) {
+          widget = w.children.find(c => c.id === widgetId)
+          if (widget) break
+        }
+      }
+    }
+    
+    if (widget && widget.slots) {
+      const slot = widget.slots.find(s => s.id === slotId)
+      if (slot) {
+        // Replace the entire slot object to trigger reactivity
+        const slotIndex = widget.slots.findIndex(s => s.id === slotId)
+        if (slotIndex !== -1) {
+          widget.slots[slotIndex] = {
+            ...widget.slots[slotIndex],
+            data
+          }
+        }
+      }
+    }
+  }
+
   function getAvailableWidgetTypes(parentType) {
     const allTypes = [
       { value: 'number', label: 'Number' },
@@ -379,6 +435,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     updateWidget,
     updateGridOptions,
     getWidget,
-    getAvailableWidgetTypes
+    getAvailableWidgetTypes,
+    updateSlotData
   }
 })

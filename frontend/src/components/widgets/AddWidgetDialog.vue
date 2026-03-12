@@ -368,45 +368,21 @@ function getDeviceOptions(hostId) {
   }))
 }
 
-// Get sensor options for a device
+// Get sensor options for a device - loads from store (populated from backend)
 function getSensorOptions(hostId, deviceId) {
   if (!hostId || !deviceId) return []
 
-  const sensorMap = {
-    cpu: [
-      { name: 'usage_percent', label: 'CPU Usage' },
-      { name: 'temperature', label: 'Temperature' },
-      { name: 'frequency', label: 'Frequency' }
-    ],
-    ram: [
-      { name: 'used_percent', label: 'RAM Usage' },
-      { name: 'used_gb', label: 'Used GB' },
-      { name: 'total_gb', label: 'Total GB' }
-    ],
-    disk: [
-      { name: 'used_percent', label: 'Disk Usage' },
-      { name: 'used_gb', label: 'Used GB' },
-      { name: 'total_gb', label: 'Total GB' },
-      { name: 'io_read', label: 'Read I/O' },
-      { name: 'io_write', label: 'Write I/O' }
-    ],
-    network: [
-      { name: 'bytes_sent', label: 'Bytes Sent' },
-      { name: 'bytes_recv', label: 'Bytes Received' },
-      { name: 'packets_sent', label: 'Packets Sent' },
-      { name: 'packets_recv', label: 'Packets Received' }
-    ]
-  }
-
   const host = dashboardStore.hosts.find(h => h.host_id === hostId)
   if (!host) return []
+  
   const device = host.devices.find(d => d.name === deviceId)
   if (!device) return []
 
-  const sensors = sensorMap[device.type] || [{ name: 'value', label: 'Value' }]
+  // Use sensors array loaded from backend
+  const sensors = device.sensors || []
   return sensors.map(s => ({
-    label: s.label,
-    value: s.name
+    label: s,
+    value: s
   }))
 }
 

@@ -262,22 +262,18 @@ function renderWidget(widget) {
     title: widget.title,
     showHeader: !!widget.title,
     options: widget.options,
+    slots: widget.slots,
+    widgetId: widget.id,
     loading: false,
     error: null
   }
 
   if (widget.type === 'number') {
-    return h(NumberWidget, {
-      ...commonProps,
-      value: widget.data?.value ?? 0
-    })
+    return h(NumberWidget, commonProps)
   }
 
   if (widget.type === 'chart') {
-    return h(ChartWidget, {
-      ...commonProps,
-      data: widget.data?.data ?? []
-    })
+    return h(ChartWidget, commonProps)
   }
 
   return null
