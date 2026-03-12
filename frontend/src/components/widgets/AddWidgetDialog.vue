@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="dialogVisible" persistent>
-    <q-card style="min-width: 450px">
+    <q-card style="min-width: 600px">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Add Widget</div>
         <q-space />
@@ -10,86 +10,272 @@
       <q-card-section class="q-pt-none">
         <q-stepper
           v-model="step"
-          ref="stepperRef"
           color="primary"
           animated
-          alternative-labels
+          header-nav
         >
+          <!-- Step 1: Widget Type Selection -->
           <q-step
             :name="1"
             title="Widget Type"
             icon="widgets"
             :done="step > 1"
           >
-            <widget-type-step
-              v-model:selected-type="selectedType"
-              :parent-type="parentType"
-              @select="selectWidgetType"
-            />
+            <div class="widget-grid q-pa-md">
+              <div
+                v-for="widget in availableWidgets"
+                :key="widget.type"
+                class="widget-card"
+                @click="selectWidgetType(widget.type)"
+              >
+                <q-card class="full-height cursor-pointer" bordered>
+                  <q-card-section class="text-center q-pa-lg">
+                    <q-icon
+                      :name="getWidgetIcon(widget.type)"
+                      size="48px"
+                      color="primary"
+                      class="q-mb-md"
+                    />
+                    <div class="text-h6 q-mb-xs">{{ widget.label }}</div>
+                    <div class="text-caption text-grey-7">
+                      {{ getSlotCount(widget) }} slot(s)
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
           </q-step>
 
+          <!-- Step 2: Widget Configuration -->
           <q-step
             :name="2"
-            title="Host"
-            icon="dns"
-            :done="step > 2"
-            :ready="selectedHostId !== null && selectedDeviceId !== null"
-          >
-            <host-step
-              v-model:selected-host="selectedHostId"
-              v-model:selected-device="selectedDeviceId"
-            />
-          </q-step>
-
-          <q-step
-            :name="3"
-            title="Sensors"
-            icon="sensors"
-            :done="step > 3"
-            :ready="selectedSensors.length > 0"
-          >
-            <sensors-step
-              v-model:selected-sensors="selectedSensors"
-              :host-id="selectedHostId"
-              :device-id="selectedDeviceId"
-              :widget-type="selectedType"
-            />
-          </q-step>
-
-          <q-step
-            :name="4"
-            title="Settings"
+            title="Configure"
             icon="settings"
-            :done="step > 4"
+            :done="step > 2"
           >
-            <settings-step
-              v-model:title="widgetTitle"
-              v-model:options="widgetOptions"
-              :widget-type="selectedType"
-            />
+            <div class="q-pa-md">
+              <!-- Widget Title -->
+              <q-input
+                v-model="widgetTitle"
+                label="Widget Title"
+                outlined
+                dense
+                class="q-mb-md"
+              />
+
+              <!-- Slot Definitions Info -->
+              <div class="text-subtitle2 q-mb-sm">
+                {{ selectedWidgetDef?.label }} Slots
+              </div>
+
+              <!-- Slots Configuration -->
+              <q-list bordered separator class="q-mb-md">
+                <q-item
+                  v-for="slotDef in slotDefinitions"
+                  :key="slotDef.id"
+                >
+                  <q-item-section avatar>
+                    <q-icon :name="getSlotIcon(slotDef.id)" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ slotDef.label }}</q-item-label>
+                    <q-item-label caption>
+                      {{ slotDef.required ? 'Required' : 'Optional' }}
+                      <span v-if="getSlotSummary(slotDef.id)" class="text-grey-6 q-ml-xs">
+                        — {{ getSlotSummary(slotDef.id) }}
+                      </span>
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      ref="slotButtons"
+                      flat
+                      dense
+                      :color="isSlotConfigured(slotDef.id) ? 'primary' : 'grey'"
+                      :label="getSlotButtonLabel(slotDef.id)"
+                      @click="openCascadeMenu(slotDef.id, $event)"
+                    />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+
+              <!-- Cascade Menu with Nested Submenus -->
+              <q-menu
+                v-model="cascadeMenuVisible"
+                :target="menuAnchorEl"
+                position="bottom"
+                :no-parent-event="true"
+              >
+                <q-card style="min-width: 350px">
+                  <q-card-section class="row items-center q-pb-sm bg-primary text-white">
+                    <div class="text-subtitle1">{{ currentMenuSlotDef?.label }}</div>
+                    <q-space />
+                    <q-btn flat round dense icon="close" @click="cascadeMenuVisible = false" />
+                  </q-card-section>
+
+                  <q-card-section class="q-pa-md-none">
+                    <!-- Step 1: Host Selection -->
+                    <div v-if="!currentHostSelection" class="menu-column">
+                      <q-list dense>
+                        <q-item
+                          v-for="host in hostOptions"
+                          :key="host.value"
+                          clickable
+                          v-ripple
+                          @click="selectHost(host.value)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon name="dns" color="primary" />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{ host.label }}</q-item-label>
+                          </q-item-section>
+                          <q-item-section side>
+                            <q-icon name="chevron_right" color="grey-7" />
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </div>
+
+                    <!-- Step 2: Device Selection -->
+                    <div v-else-if="!currentDeviceSelection" class="menu-column">
+                      <div class="menu-header">
+                        <q-btn flat dense round icon="arrow_back" size="sm" @click="currentHostSelection = null" />
+                        <span class="text-caption text-grey-7">{{ currentHostSelection }}</span>
+                      </div>
+                      <q-list dense>
+                        <q-item
+                          v-for="device in getDeviceOptions(currentHostSelection)"
+                          :key="device.value"
+                          clickable
+                          v-ripple
+                          @click="selectDevice(device.value)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon name="memory" color="primary" />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{ device.label }}</q-item-label>
+                            <q-item-label caption>{{ device.value }}</q-item-label>
+                          </q-item-section>
+                          <q-item-section side>
+                            <q-icon name="chevron_right" color="grey-7" />
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </div>
+
+                    <!-- Step 3: Sensor Selection -->
+                    <div v-else-if="!currentSensorSelection" class="menu-column">
+                      <div class="menu-header">
+                        <q-btn flat dense round icon="arrow_back" size="sm" @click="currentDeviceSelection = null" />
+                        <span class="text-caption text-grey-7">{{ currentDeviceSelection }}</span>
+                      </div>
+                      <q-list dense>
+                        <q-item
+                          v-for="sensor in getSensorOptions(currentHostSelection, currentDeviceSelection)"
+                          :key="sensor.value"
+                          clickable
+                          v-ripple
+                          @click="selectSensor(sensor.value)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon name="sensors" color="primary" />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{ sensor.label }}</q-item-label>
+                            <q-item-label caption>{{ sensor.value }}</q-item-label>
+                          </q-item-section>
+                          <q-item-section side>
+                            <q-icon name="check" color="grey-7" />
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </div>
+
+                    <!-- Step 4: Options -->
+                    <div v-else class="menu-column">
+                      <div class="menu-header">
+                        <q-btn flat dense round icon="arrow_back" size="sm" @click="currentSensorSelection = null" />
+                        <span class="text-caption text-grey-7">{{ currentSensorSelection }}</span>
+                      </div>
+                      <div class="q-pa-md">
+                        <div class="text-subtitle2 q-mb-sm">Options</div>
+                        <q-input
+                          v-model.number="currentSlotOptions.decimals"
+                          label="Decimals"
+                          type="number"
+                          outlined
+                          dense
+                          class="q-mb-sm"
+                        />
+                        <q-input
+                          v-model="currentSlotOptions.suffix"
+                          label="Suffix"
+                          outlined
+                          dense
+                          class="q-mb-sm"
+                        />
+                        <q-input
+                          v-model="currentSlotOptions.color"
+                          label="Color"
+                          outlined
+                          dense
+                        >
+                          <template #append>
+                            <q-avatar square color="white" size="20px">
+                              <div
+                                :style="{
+                                  backgroundColor: currentSlotOptions.color,
+                                  width: '100%',
+                                  height: '100%'
+                                }"
+                              />
+                            </q-avatar>
+                          </template>
+                        </q-input>
+                      </div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </q-menu>
+
+              <!-- Widget-level Options for Chart -->
+              <div v-if="selectedType === 'chart'">
+                <div class="text-subtitle2 q-mb-sm">Chart Options</div>
+                <q-input
+                  v-model="widgetOptions.timeRange"
+                  label="Time Range"
+                  outlined
+                  dense
+                >
+                  <template #append>
+                    <q-select
+                      v-model="widgetOptions.timeRange"
+                      :options="['1h', '6h', '12h', '24h', '7d']"
+                      dense
+                      borderless
+                    />
+                  </template>
+                </q-input>
+              </div>
+            </div>
           </q-step>
 
           <template #navigation>
             <q-stepper-navigation>
               <q-btn
-                v-if="step === 2 || step === 3"
-                flat
-                @click="nextStep"
-                :label="step === 3 ? 'Continue' : 'Continue'"
-                color="primary"
-                :disable="!canProceed"
-              />
-              <q-btn
-                v-if="step === 4"
+                v-if="step === 2"
                 flat
                 @click="createWidget"
                 label="Create"
                 color="primary"
+                :disable="!canCreate"
               />
               <q-btn
-                v-if="step > 1 && step < 4"
+                v-if="step === 2"
                 flat
-                @click="step = (step as number) - 1"
+                @click="step = 1"
                 label="Back"
                 color="primary"
               />
@@ -103,12 +289,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import WidgetTypeStep from './widget-dialog/WidgetTypeStep.vue'
-import HostStep from './widget-dialog/HostStep.vue'
-import SensorsStep from './widget-dialog/SensorsStep.vue'
-import SettingsStep from './widget-dialog/SettingsStep.vue'
 import { useDashboardStore } from 'stores/dashboard'
-import type { WidgetConfig } from 'src/components/models'
+import type { WidgetConfig, WidgetSlot } from 'src/components/models'
+import { widgetRegistry, getSlotDefinitions } from './widget-registry'
 
 const props = defineProps<{
   modelValue: boolean
@@ -127,100 +310,305 @@ const dialogVisible = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
-const step = ref(1)
-const selectedType = ref('number')
-const selectedHostId = ref<string | null>(null)
-const selectedDeviceId = ref<string | null>(null)
-const selectedSensors = ref<{ name: string; table: string }[]>([])
-const widgetTitle = ref('')
-const widgetOptions = ref<Record<string, any>>({})
-
-const canProceed = computed(() => {
-  if (step.value === 2) return selectedHostId.value !== null && selectedDeviceId.value !== null
-  if (step.value === 3) return selectedSensors.value.length > 0
-  if (step.value === 4) return true
-  return false
+// Filter out gridContainer if we're inside a gridContainer (nested grids not supported)
+const availableWidgets = computed(() => {
+  if (props.parentType === 'gridContainer') {
+    return widgetRegistry.filter(w => w.type !== 'gridContainer')
+  }
+  return widgetRegistry
 })
 
+const step = ref(1)
+const selectedType = ref('')
+const selectedWidgetDef = computed(() =>
+  availableWidgets.value.find(w => w.type === selectedType.value)
+)
+
+// Widget configuration
+const widgetTitle = ref('')
+const widgetOptions = ref<Record<string, any>>({})
+const slotConfigs = ref<Record<string, {
+  hostId: string | null
+  deviceId: string | null
+  sensor: string | null
+  options: Record<string, any>
+}>>({})
+
+const slotDefinitions = computed(() => {
+  if (!selectedType.value) return []
+  return getSlotDefinitions(selectedType.value)
+})
+
+// Cascade menu state
+const cascadeMenuVisible = ref(false)
+const currentMenuSlotId = ref<string | null>(null)
+const currentMenuSlotDef = computed(() =>
+  slotDefinitions.value.find(d => d.id === currentMenuSlotId.value)
+)
+
+// Menu positioning
+const menuAnchorEl = ref<HTMLElement | null>(null)
+
+// Temporary selections for cascade menu
+const currentHostSelection = ref<string | null>(null)
+const currentDeviceSelection = ref<string | null>(null)
+const currentSensorSelection = ref<string | null>(null)
+const currentSlotOptions = ref<Record<string, any>>({})
+
+// Host options from store
+const hostOptions = computed(() => {
+  return dashboardStore.hosts.map(h => ({
+    label: h.host_id,
+    value: h.host_id
+  }))
+})
+
+// Get device options for a host
+function getDeviceOptions(hostId: string | null) {
+  if (!hostId) return []
+  const host = dashboardStore.hosts.find(h => h.host_id === hostId)
+  if (!host) return []
+  return host.devices.map(d => ({
+    label: d.label || d.name,
+    value: d.name
+  }))
+}
+
+// Get sensor options for a device
+function getSensorOptions(hostId: string | null, deviceId: string | null) {
+  if (!hostId || !deviceId) return []
+
+  const sensorMap: Record<string, { name: string; label: string }[]> = {
+    cpu: [
+      { name: 'usage_percent', label: 'CPU Usage' },
+      { name: 'temperature', label: 'Temperature' },
+      { name: 'frequency', label: 'Frequency' }
+    ],
+    ram: [
+      { name: 'used_percent', label: 'RAM Usage' },
+      { name: 'used_gb', label: 'Used GB' },
+      { name: 'total_gb', label: 'Total GB' }
+    ],
+    disk: [
+      { name: 'used_percent', label: 'Disk Usage' },
+      { name: 'used_gb', label: 'Used GB' },
+      { name: 'total_gb', label: 'Total GB' },
+      { name: 'io_read', label: 'Read I/O' },
+      { name: 'io_write', label: 'Write I/O' }
+    ],
+    network: [
+      { name: 'bytes_sent', label: 'Bytes Sent' },
+      { name: 'bytes_recv', label: 'Bytes Received' },
+      { name: 'packets_sent', label: 'Packets Sent' },
+      { name: 'packets_recv', label: 'Packets Received' }
+    ]
+  }
+
+  const host = dashboardStore.hosts.find(h => h.host_id === hostId)
+  if (!host) return []
+  const device = host.devices.find(d => d.name === deviceId)
+  if (!device) return []
+
+  const sensors = sensorMap[device.type] || [{ name: 'value', label: 'Value' }]
+  return sensors.map(s => ({
+    label: s.label,
+    value: s.name
+  }))
+}
+
+// Check if slot is configured
+function isSlotConfigured(slotId: string): boolean {
+  const config = slotConfigs.value[slotId]
+  return !!(config && config.hostId && config.deviceId && config.sensor)
+}
+
+// Get button label for slot
+function getSlotButtonLabel(slotId: string): string {
+  const config = slotConfigs.value[slotId]
+  if (!config || !config.sensor) return 'Configure'
+  return config.sensor
+}
+
+// Get slot summary for display
+function getSlotSummary(slotId: string): string {
+  const config = slotConfigs.value[slotId]
+  if (!config || !config.hostId) return ''
+  const parts = []
+  if (config.hostId) parts.push(config.hostId)
+  if (config.deviceId) parts.push(config.deviceId)
+  if (config.sensor) parts.push(config.sensor)
+  return parts.join(' / ')
+}
+
+// Open cascade menu for slot
+function openCascadeMenu(slotId: string, event: MouseEvent) {
+  currentMenuSlotId.value = slotId
+  const config = slotConfigs.value[slotId]
+  currentHostSelection.value = config?.hostId || null
+  currentDeviceSelection.value = config?.deviceId || null
+  currentSensorSelection.value = config?.sensor || null
+  currentSlotOptions.value = config?.options ? { ...config.options } : {}
+  menuAnchorEl.value = event.currentTarget as HTMLElement
+  cascadeMenuVisible.value = true
+}
+
+// Select host in cascade menu
+function selectHost(hostId: string) {
+  currentHostSelection.value = hostId
+  currentDeviceSelection.value = null
+  currentSensorSelection.value = null
+}
+
+// Select device in cascade menu
+function selectDevice(deviceId: string) {
+  currentDeviceSelection.value = deviceId
+  currentSensorSelection.value = null
+}
+
+// Select sensor in cascade menu
+function selectSensor(sensor: string) {
+  currentSensorSelection.value = sensor
+}
+
+// Save slot config when menu closes
+watch([cascadeMenuVisible, currentSensorSelection], ([closed, sensor]) => {
+  if (closed || !currentMenuSlotId.value || !sensor) return
+
+  const config = slotConfigs.value[currentMenuSlotId.value]
+  if (config) {
+    config.hostId = currentHostSelection.value
+    config.deviceId = currentDeviceSelection.value
+    config.sensor = currentSensorSelection.value
+    config.options = { ...currentSlotOptions.value }
+  }
+})
+
+// Check if widget can be created
+const canCreate = computed(() => {
+  const defs = slotDefinitions.value
+  for (const def of defs) {
+    if (def.required) {
+      const config = slotConfigs.value[def.id]
+      if (!config || !config.hostId || !config.deviceId || !config.sensor) {
+        return false
+      }
+    }
+  }
+  return true
+})
+
+// Get widget icon
+function getWidgetIcon(type: string): string {
+  const iconMap: Record<string, string> = {
+    number: 'format_list_numbered',
+    chart: 'insert_chart',
+    gridContainer: 'view_module',
+    cpu: 'memory',
+    dualNumber: 'view_module'
+  }
+  return iconMap[type] || 'widgets'
+}
+
+// Get slot icon
+function getSlotIcon(slotId: string): string {
+  const iconMap: Record<string, string> = {
+    number: 'format_list_numbered',
+    chart: 'insert_chart',
+    load: 'speed',
+    temperature: 'thermometer',
+    primary: 'looks_one',
+    secondary: 'looks_two'
+  }
+  return iconMap[slotId] || 'data_usage'
+}
+
+// Get slot count for display
+function getSlotCount(widget: typeof widgetRegistry[0]): number {
+  return widget.slotDefinitions.length
+}
+
+// Select widget type and go to next step
 function selectWidgetType(type: string) {
   selectedType.value = type
-  // GridContainer skips to settings directly
+  
+  // GridContainer has no slots - create immediately
   if (type === 'gridContainer') {
-    step.value = 4
-  } else {
-    step.value = 2
+    createWidget()
+    return
   }
+  
+  const defs = getSlotDefinitions(type)
+
+  // Initialize slot configs
+  slotConfigs.value = {}
+  for (const def of defs) {
+    slotConfigs.value[def.id] = {
+      hostId: null,
+      deviceId: null,
+      sensor: null,
+      options: { ...def.defaultOptions }
+    }
+  }
+
+  step.value = 2
 }
 
-function nextStep() {
-  step.value = (step.value as number) + 1
-}
-
+// Create widget
 function createWidget() {
-  console.log('[AddWidgetDialog] createWidget called')
-  console.log('[AddWidgetDialog] selectedType:', selectedType.value)
-  console.log('[AddWidgetDialog] parentId:', props.parentId)
-  console.log('[AddWidgetDialog] widgetTitle:', widgetTitle.value)
-  console.log('[AddWidgetDialog] widgetOptions:', widgetOptions.value)
+  const slots: WidgetSlot[] = slotDefinitions.value.map(def => {
+    const config = slotConfigs.value[def.id]
+    return {
+      id: def.id,
+      label: def.label,
+      hostId: config.hostId || undefined,
+      deviceId: config.deviceId || undefined,
+      sensor: config.sensor ? {
+        name: config.sensor,
+        table: 'raw'
+      } : undefined,
+      options: config.options
+    }
+  })
 
   const newWidget: WidgetConfig = {
     id: `widget-${Date.now()}`,
     type: selectedType.value,
     title: widgetTitle.value || undefined,
-    hostId: selectedHostId.value || undefined,
-    deviceId: selectedDeviceId.value || undefined,
-    sensors: selectedSensors.value,
-    options: widgetOptions.value,
+    slots,
+    options: { ...widgetOptions.value },
     refreshInterval: 5000
   }
 
-  // Add default options based on widget type
+  // Add default data structure based on widget type
   if (selectedType.value === 'number') {
-    newWidget.options = {
-      decimals: 1,
-      suffix: '',
-      color: '#4CAF50',
-      ...widgetOptions.value
-    }
     newWidget.data = { value: 0 }
   } else if (selectedType.value === 'chart') {
-    newWidget.options = {
-      timeRange: '1h',
-      showLegend: false,
-      smooth: true,
-      colors: ['#2196F3'],
-      fill: true,
-      ...widgetOptions.value
-    }
     newWidget.data = { data: [] }
   }
 
-  console.log('[AddWidgetDialog] newWidget:', newWidget)
-  console.log('[AddWidgetDialog] Calling dashboardStore.addWidget with parentId:', props.parentId)
-
   dashboardStore.addWidget(newWidget, props.parentId)
 
-  console.log('[AddWidgetDialog] Widget added successfully')
-
-  // Save to backend if added to container (to persist the change)
+  // Save to backend if added to container
   if (props.parentId) {
-    console.log('[AddWidgetDialog] Saving dashboard to persist container widget')
     dashboardStore.saveDashboard()
   }
 
-  // Reset and close
   resetForm()
   dialogVisible.value = false
 }
 
 function resetForm() {
   step.value = 1
-  selectedType.value = 'number'
-  selectedHostId.value = null
-  selectedDeviceId.value = null
-  selectedSensors.value = []
+  selectedType.value = ''
   widgetTitle.value = ''
   widgetOptions.value = {}
+  slotConfigs.value = {}
+  cascadeMenuVisible.value = false
+  currentMenuSlotId.value = null
+  currentHostSelection.value = null
+  currentDeviceSelection.value = null
+  currentSensorSelection.value = null
+  currentSlotOptions.value = {}
 }
 
 // Reset form when dialog opens
@@ -233,7 +621,35 @@ watch(dialogVisible, (newVal) => {
 </script>
 
 <style scoped>
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.widget-card {
+  transition: transform 0.2s;
+}
+
+.widget-card:hover {
+  transform: translateY(-4px);
+}
+
 .q-stepper {
   background: transparent;
+}
+
+.menu-column {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
 }
 </style>

@@ -25,14 +25,37 @@ export interface WidgetSensorConfig {
   table: 'raw' | 'hourly' | 'history'
 }
 
+/**
+ * Widget slot - a data source binding point within a widget
+ * Each slot represents a UI element that can display data
+ */
+export interface WidgetSlot {
+  id: string              // Unique slot ID within widget (e.g., 'number', 'chart', 'temp', 'load')
+  label?: string          // Display label for the slot
+  hostId?: string         // Source host ID
+  deviceId?: string       // Source device ID
+  sensor?: WidgetSensorConfig  // Sensor configuration
+  options?: Record<string, any> // Slot-specific options (color, suffix, etc.)
+  data?: any              // Runtime data for this slot
+}
+
+/**
+ * Widget slot definition - defines available slots for a widget type
+ */
+export interface WidgetSlotDefinition {
+  id: string              // Slot ID
+  label: string           // Display label
+  required: boolean       // Whether slot is required
+  allowMultiple: boolean  // Whether multiple sensors can be assigned
+  defaultOptions?: Record<string, any> // Default slot options
+}
+
 export interface WidgetConfig {
   id: string
   type: string
-  title?: string
-  hostId?: string
-  deviceId?: string
-  sensors?: WidgetSensorConfig[]
-  options: Record<string, any>
+  title?: string          // Widget title (common for all slots)
+  slots?: WidgetSlot[]    // Slot data bindings
+  options?: Record<string, any> // Widget-level options
   refreshInterval: number
   data?: any
   children?: WidgetConfig[]

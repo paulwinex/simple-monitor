@@ -57,21 +57,20 @@ function renderWidget(widget: any) {
     title: widget.title,
     showHeader: !!widget.title,
     options: widget.options,
+    slots: widget.slots,
     loading: false,
     error: null
   }
 
   if (widget.type === 'number') {
     return h(NumberWidget, {
-      ...commonProps,
-      value: widget.data?.value ?? null
+      ...commonProps
     })
   }
 
   if (widget.type === 'chart') {
     return h(ChartWidget, {
-      ...commonProps,
-      data: widget.data?.data ?? []
+      ...commonProps
     })
   }
 

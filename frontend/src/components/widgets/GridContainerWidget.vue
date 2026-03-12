@@ -53,8 +53,14 @@
             :i="item.i"
           >
             <div class="widget-content-wrapper">
-              <component :is="renderWidget(getWidget(item.i))" />
-              <div v-if="isEditing" class="widget-actions">
+              <div class="widget-inner-content">
+                <component :is="renderWidget(getWidget(item.i))" />
+              </div>
+              <div
+                v-if="isEditing"
+                class="widget-actions"
+                :class="{ 'widget-actions-centered': isWidgetInTopRightCorner(item.i) }"
+              >
                 <q-btn
                   flat
                   dense
@@ -155,13 +161,41 @@ const showAddWidget = ref(false)
 const showEditWidget = ref(false)
 const editingWidget = ref<InternalWidget | null>(null)
 
-console.log('[GridContainerWidget] containerId:', props.containerId)
-
-// Get parent widget from store
+// Get parent widget from store to access grid width
 const parentWidget = computed(() => {
   if (!props.containerId) return null
   return dashboardStore.getWidget(props.containerId)
 })
+
+// Get the grid container layout item from parent to determine grid boundaries
+const gridContainerLayout = computed(() => {
+  if (!props.containerId) return null
+  const layout = dashboardStore.layout
+  return layout.find(item => item.i === props.containerId)
+})
+
+// Check if widget overlaps with parent container's action buttons
+// Parent buttons are in top-right corner, so check if widget is near that area
+function isWidgetInTopRightCorner(widgetId: string): boolean {
+  const layoutItem = internalLayout.value.find(item => item.i === widgetId)
+  const containerLayout = gridContainerLayout.value
+  
+  if (!layoutItem || !containerLayout) return false
+  
+  // Parent container buttons are in top-right corner
+  // Check if widget's top-right area overlaps with where parent buttons would be
+  
+  // Widget must be at the top (y === 0)
+  const isAtTop = layoutItem.y === 0
+  
+  // Widget's right edge must align with container's right edge (within 1 unit)
+  // This means widget is at the very right edge
+  const containerRightEdge = containerLayout.x + containerLayout.w
+  const widgetRightEdge = layoutItem.x + layoutItem.w
+  const isAtRightEdge = (containerRightEdge - widgetRightEdge) < 1
+  
+  return isAtTop && isAtRightEdge
+}
 
 // Watch for changes in parent widget from store - this is the primary source
 watch(() => parentWidget.value, (newParent) => {
@@ -379,18 +413,31 @@ defineExpose({
 .widget-content-wrapper {
   height: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-inner-content {
+  flex: 1;
+  position: relative;
+  min-height: 0;
 }
 
 .widget-actions {
   position: absolute;
   top: 4px;
-  left: 4px;
+  right: 4px;
   z-index: 100;
   display: flex;
   gap: 4px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 50px;
   padding: 4px;
+  transition: all 0.2s ease;
+}
+
+.widget-actions-centered {
+  top: 40px;
 }
 
 .widget-actions .q-btn {

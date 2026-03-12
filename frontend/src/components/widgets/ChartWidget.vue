@@ -17,9 +17,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import BaseWidget from './BaseWidget.vue'
+import type { WidgetSlot } from 'src/components/models'
 
 Chart.register(...registerables)
 
@@ -39,7 +40,7 @@ export interface ChartWidgetOptions {
 const props = defineProps<{
   title?: string
   showHeader?: boolean
-  data?: ChartDataPoint[]
+  slots?: WidgetSlot[]
   loading?: boolean
   error?: string | null
   options?: ChartWidgetOptions
@@ -48,35 +49,47 @@ const props = defineProps<{
 const chartRef = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
 
+const validSlots = computed(() => {
+  return (props.slots || []).filter(s => s.sensor && s.data)
+})
+
 function createChart() {
   if (!chartRef.value) return
-  
+
   const ctx = chartRef.value.getContext('2d')
   if (!ctx) return
-  
-  const colors = props.options?.colors || ['#4CAF50']
-  
+
+  const defaultColors = ['#2196F3', '#4CAF50', '#FF5722', '#9C27B0', '#FF9800']
+  const colors = props.options?.colors || defaultColors
+
+  const datasets = validSlots.value.map((slot, index) => {
+    const color = slot.options?.color || colors[index % colors.length]
+    const data = getSlotData(slot)
+
+    return {
+      label: slot.label || slot.sensor?.name || 'Value',
+      data: data.map(d => d.value),
+      borderColor: color,
+      backgroundColor: props.options?.fill ? color + '20' : 'transparent',
+      tension: props.options?.smooth ? 0.4 : 0,
+      fill: props.options?.fill ?? false,
+      pointRadius: 2,
+      pointHoverRadius: 4
+    }
+  })
+
   chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: props.data?.map(d => formatTimestamp(d.timestamp)) || [],
-      datasets: [{
-        label: 'Value',
-        data: props.data?.map(d => d.value) || [],
-        borderColor: colors[0],
-        backgroundColor: props.options?.fill ? colors[0] + '20' : 'transparent',
-        tension: props.options?.smooth ? 0.4 : 0,
-        fill: props.options?.fill ?? false,
-        pointRadius: 2,
-        pointHoverRadius: 4
-      }]
+      labels: getLabels(),
+      datasets
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: props.options?.showLegend ?? false
+          display: props.options?.showLegend ?? true
         },
         tooltip: {
           mode: 'index',
@@ -112,24 +125,53 @@ function createChart() {
 
 function updateChart() {
   if (!chart) return
+
+  chart.data.labels = getLabels()
   
-  chart.data.labels = props.data?.map(d => formatTimestamp(d.timestamp)) || []
-  chart.data.datasets[0].data = props.data?.map(d => d.value) || []
+  validSlots.value.forEach((slot, index) => {
+    if (chart && chart.data.datasets[index]) {
+      chart.data.datasets[index].data = getSlotData(slot)
+      chart.data.datasets[index].label = slot.label || slot.sensor?.name || 'Value'
+    }
+  })
+
+  // Remove extra datasets if slots were removed
+  chart.data.datasets = chart.data.datasets.slice(0, validSlots.value.length)
+  
   chart.update('none')
+}
+
+function getLabels(): string[] {
+  if (validSlots.value.length === 0) return []
+  const firstSlot = validSlots.value[0]
+  const data = getSlotData(firstSlot)
+  return data.map(d => formatTimestamp(d.timestamp))
+}
+
+function getSlotData(slot: WidgetSlot): ChartDataPoint[] {
+  const data = slot.data
+  if (!data) return []
+  if (Array.isArray(data)) {
+    return data.map(d => ({ timestamp: d.timestamp, value: d.value }))
+  }
+  if (data.data && Array.isArray(data.data)) {
+    return data.data.map((d: any) => ({ timestamp: d.timestamp, value: d.value }))
+  }
+  return []
 }
 
 function formatTimestamp(timestamp: number): string {
   const date = new Date(timestamp * 1000)
   const timeRange = props.options?.timeRange || '24h'
-  
+
   if (timeRange === '7d') {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
-  
+
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-watch(() => props.data, () => {
+watch(() => props.slots, () => {
   if (chart) {
     updateChart()
   } else if (!props.loading) {
@@ -138,7 +180,7 @@ watch(() => props.data, () => {
 }, { deep: true })
 
 onMounted(() => {
-  if (!props.loading && props.data) {
+  if (!props.loading && validSlots.value.length > 0) {
     createChart()
   }
 })
@@ -164,3 +206,28 @@ onBeforeUnmount(() => {
   position: relative;
 }
 </style>
+
+<!-- Widget metadata - defines available slots -->
+<script lang="ts">
+import type { WidgetSlotDefinition } from 'src/components/models'
+
+export const widgetDefinition = {
+  type: 'chart',
+  label: 'Chart',
+  defaultSize: { w: 6, h: 6 },
+  slotDefinitions: [
+    {
+      id: 'chart',
+      label: 'Chart Data',
+      required: true,
+      allowMultiple: true,
+      defaultOptions: {
+        timeRange: '1h',
+        showLegend: false,
+        smooth: true,
+        fill: true
+      }
+    }
+  ] as WidgetSlotDefinition[]
+}
+</script>

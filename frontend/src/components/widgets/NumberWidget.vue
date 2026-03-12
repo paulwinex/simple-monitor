@@ -9,8 +9,13 @@
           {{ error }}
         </div>
         <div v-else class="text-center">
-          <div class="value" :style="{ color: options.color }">
-            {{ formattedValue }}
+          <div
+            v-for="slot in validSlots"
+            :key="slot.id"
+            class="value"
+            :style="{ color: slotColor(slot) }"
+          >
+            {{ formatValue(slotValue(slot), slot) }}
           </div>
         </div>
       </div>
@@ -21,6 +26,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import BaseWidget from './BaseWidget.vue'
+import type { WidgetSlot, WidgetSlotDefinition } from 'src/components/models'
 
 interface NumberWidgetOptions {
   prefix?: string
@@ -32,27 +38,49 @@ interface NumberWidgetOptions {
 const props = defineProps<{
   title?: string
   showHeader?: boolean
-  value?: number | null
+  slots?: WidgetSlot[]
   loading?: boolean
   error?: string | null
   options?: NumberWidgetOptions
 }>()
 
-const formattedValue = computed(() => {
-  if (props.value === null || props.value === undefined) return '—'
-  
-  const decimals = props.options?.decimals ?? 1
-  let formatted = Number(props.value).toFixed(decimals)
-  
-  if (props.options?.prefix) {
-    formatted = props.options.prefix + formatted
+const validSlots = computed(() => {
+  return (props.slots || []).filter(s => s.sensor && s.data)
+})
+
+function slotValue(slot: WidgetSlot): number | null {
+  const data = slot.data
+  if (!data) return null
+  if (Array.isArray(data) && data.length > 0) {
+    return data[data.length - 1].value ?? null
   }
-  if (props.options?.suffix) {
+  if (data.value !== undefined) {
+    return data.value
+  }
+  return null
+}
+
+function slotColor(slot: WidgetSlot): string {
+  return slot.options?.color || props.options?.color || '#4CAF50'
+}
+
+function formatValue(value: number | null, slot: WidgetSlot): string {
+  if (value === null || value === undefined) return '—'
+
+  const decimals = slot.options?.decimals ?? props.options?.decimals ?? 1
+  let formatted = Number(value).toFixed(decimals)
+
+  if (slot.options?.prefix) {
+    formatted = slot.options.prefix + formatted
+  }
+  if (slot.options?.suffix) {
+    formatted = formatted + slot.options.suffix
+  } else if (props.options?.suffix) {
     formatted = formatted + props.options.suffix
   }
-  
+
   return formatted
-})
+}
 </script>
 
 <style scoped>
@@ -61,6 +89,8 @@ const formattedValue = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .value {
@@ -69,3 +99,27 @@ const formattedValue = computed(() => {
   line-height: 1;
 }
 </style>
+
+<!-- Widget metadata - defines available slots -->
+<script lang="ts">
+import type { WidgetSlotDefinition } from 'src/components/models'
+
+export const widgetDefinition = {
+  type: 'number',
+  label: 'Number',
+  defaultSize: { w: 4, h: 4 },
+  slotDefinitions: [
+    {
+      id: 'number',
+      label: 'Number',
+      required: true,
+      allowMultiple: false,
+      defaultOptions: {
+        decimals: 1,
+        suffix: '',
+        color: '#4CAF50'
+      }
+    }
+  ] as WidgetSlotDefinition[]
+}
+</script>

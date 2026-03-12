@@ -33,17 +33,34 @@ async function fetchDashboardFromApi(): Promise<DashboardState> {
       id: w.id,
       type: w.type,
       title: w.title,
-      hostId: w.host_id,
-      deviceId: w.device_id,
-      sensors: w.sensors,
+      // Support both old (hostId/deviceId/sensors) and new (slots) format
+      slots: w.slots || (w.hostId && w.deviceId && w.sensors ? [{
+        id: 'default',
+        label: 'Default',
+        hostId: w.hostId,
+        deviceId: w.deviceId,
+        sensor: w.sensors[0],
+        options: {}
+      }] : undefined),
+      hostId: w.host_id,  // Keep for backward compatibility
+      deviceId: w.deviceId,  // Keep for backward compatibility
+      sensors: w.sensors,  // Keep for backward compatibility
       options: w.options,
       refreshInterval: w.refresh_interval,
       children: w.children ? w.children.map((c: any) => ({
         id: c.id,
         type: c.type,
         title: c.title,
+        slots: c.slots || (c.hostId && c.deviceId && c.sensors ? [{
+          id: 'default',
+          label: 'Default',
+          hostId: c.hostId,
+          deviceId: c.deviceId,
+          sensor: c.sensors[0],
+          options: {}
+        }] : undefined),
         hostId: c.host_id,
-        deviceId: c.device_id,
+        deviceId: c.deviceId,
         sensors: c.sensors,
         options: c.options,
         refreshInterval: c.refresh_interval
@@ -76,18 +93,14 @@ async function saveDashboardToApi(state: DashboardState): Promise<void> {
     id: w.id,
     type: w.type,
     title: w.title,
-    host_id: w.hostId,
-    device_id: w.deviceId,
-    sensors: w.sensors,
+    slots: w.slots,
     options: w.options,
     refresh_interval: w.refreshInterval,
     children: w.children ? w.children.map(c => ({
       id: c.id,
       type: c.type,
       title: c.title,
-      host_id: c.hostId,
-      device_id: c.deviceId,
-      sensors: c.sensors,
+      slots: c.slots,
       options: c.options,
       refresh_interval: c.refreshInterval
     })) : undefined,

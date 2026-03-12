@@ -38,6 +38,10 @@ backend-logs:
     docker compose logs -f --tail 100
 
 
+[working-directory: 'frontend']
+front-up:
+    yarn dev
+
 # Start client locally
 [working-directory: 'client']
 client:
