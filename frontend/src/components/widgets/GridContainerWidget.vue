@@ -199,30 +199,21 @@ function isWidgetInTopRightCorner(widgetId) {
 // Watch for changes in parent widget from store - this is the primary source
 // Don't reload data while editing to prevent losing unsaved changes
 watch(() => parentWidget.value, (newParent) => {
-  console.log('[GridContainerWidget] parentWidget changed:', newParent ? 'yes' : 'no')
-  
   // Skip reload if we're in edit mode and have unsaved changes
   if (props.isEditing && layoutChanged.value) {
-    console.log('[GridContainerWidget] Skipping reload - in edit mode with unsaved changes')
     return
   }
   
   if (newParent) {
     if (newParent.children && newParent.children.length > 0) {
       internalWidgets.value = JSON.parse(JSON.stringify(newParent.children))
-      console.log('[GridContainerWidget] Updated internalWidgets:', internalWidgets.value.length)
-      console.log('[GridContainerWidget] internalWidgets data:', JSON.stringify(internalWidgets.value))
     } else {
       internalWidgets.value = []
-      console.log('[GridContainerWidget] Cleared internalWidgets')
     }
     if (newParent.childLayout && newParent.childLayout.length > 0) {
       internalLayout.value = JSON.parse(JSON.stringify(newParent.childLayout))
-      console.log('[GridContainerWidget] Updated internalLayout:', internalLayout.value.length)
-      console.log('[GridContainerWidget] internalLayout data:', JSON.stringify(internalLayout.value))
     } else {
       internalLayout.value = []
-      console.log('[GridContainerWidget] Cleared internalLayout')
     }
   }
 }, { immediate: true, deep: true })
@@ -231,10 +222,6 @@ watch(() => parentWidget.value, (newParent) => {
 watch(() => props.isEditing, (newEditing, oldEditing) => {
   // Save only when exiting edit mode (transition from true to false)
   if (oldEditing && !newEditing && layoutChanged.value && props.containerId) {
-    console.log('[GridContainerWidget] Exiting edit mode, saving layout changes')
-    console.log('[GridContainerWidget] internalLayout:', JSON.stringify(internalLayout.value))
-    console.log('[GridContainerWidget] internalWidgets:', JSON.stringify(internalWidgets.value))
-    
     // Save both layout and children with position/size info
     const widgets = internalWidgets.value.map(w => {
       const layoutItem = internalLayout.value.find(l => l.i === w.id)
@@ -249,8 +236,6 @@ watch(() => props.isEditing, (newEditing, oldEditing) => {
       }
       return w
     })
-    console.log('[GridContainerWidget] Saving widgets with position:', JSON.stringify(widgets))
-    console.log('[GridContainerWidget] Saving childLayout:', JSON.stringify(internalLayout.value))
     
     dashboardStore.updateWidget(props.containerId, { 
       childLayout: internalLayout.value,
@@ -262,7 +247,6 @@ watch(() => props.isEditing, (newEditing, oldEditing) => {
 })
 
 function onDialogUpdate(value) {
-  console.log('[GridContainerWidget] Dialog updated, value:', value)
   // No need to emit - data is already in store via dashboardStore.addWidget
   // Just close the dialog
 }
@@ -349,13 +333,11 @@ function removeWidget(widgetId) {
 }
 
 function editContainer() {
-  console.log('[GridContainerWidget] editContainer called')
   // Emit event to parent to open edit dialog for this container
   emit('edit-container', props.containerId)
 }
 
 function removeContainer() {
-  console.log('[GridContainerWidget] removeContainer called')
   // Emit event to parent to remove this container
   emit('remove-container', props.containerId)
 }

@@ -119,15 +119,6 @@ async function fetchDashboardFromApi() {
 }
 
 async function saveDashboardToApi(state) {
-  // Check for duplicate IDs in layout before saving
-  const seenLayoutIds = new Set()
-  for (const item of state.layout) {
-    if (seenLayoutIds.has(item.i)) {
-      console.error(`[DashboardStore] Duplicate layout ID detected before save: ${item.i}`)
-    }
-    seenLayoutIds.add(item.i)
-  }
-
   // Transform widgets to snake_case for backend and convert to dict
   const transformedWidgets = state.widgets.map(w => ({
     id: w.id,
@@ -225,16 +216,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   function addWidget(widget, parentId) {
-    console.log('[DashboardStore] addWidget called')
-    console.log('[DashboardStore] widget:', widget)
-    console.log('[DashboardStore] parentId:', parentId)
-    console.log('[DashboardStore] Current widgets count:', widgets.value.length)
-
     if (parentId) {
       // Add to container widget
-      console.log('[DashboardStore] Looking for parent with id:', parentId)
       const parentIndex = widgets.value.findIndex(w => w.id === parentId)
-      console.log('[DashboardStore] Parent index:', parentIndex)
 
       if (parentIndex !== -1) {
         const parent = widgets.value[parentIndex]
@@ -245,9 +229,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
         // Generate unique widget ID using timestamp and random number
         widget.id = `${parentId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-        console.log('[DashboardStore] New widget id:', widget.id)
         children.push(widget)
-        console.log('[DashboardStore] Widget pushed to children, new count:', children.length)
 
         // Auto-place in container grid - always place, even if it goes beyond visible area
         const containerWidth = 12
@@ -284,7 +266,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
           x = 0
         }
 
-        console.log('[DashboardStore] Placing widget at x:', x, 'y:', y)
         childLayout.push({
           i: widget.id,
           x,
@@ -292,7 +273,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
           w: itemW,
           h: itemH
         })
-        console.log('[DashboardStore] Layout item added, new count:', childLayout.length)
 
         // Update parent widget with new children and childLayout
         widgets.value[parentIndex] = {
@@ -300,9 +280,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
           children,
           childLayout
         }
-        console.log('[DashboardStore] Parent widget updated')
       } else {
-        console.log('[DashboardStore] Parent not found')
       }
     } else {
       // Add to main dashboard
@@ -360,10 +338,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     if (index !== -1) {
       const oldWidget = widgets.value[index]
       widgets.value[index] = { ...oldWidget, ...config }
-      console.log('[DashboardStore] updateWidget:', id, 'config:', config)
-      console.log('[DashboardStore] Updated widget:', widgets.value[index])
-    } else {
-      console.warn('[DashboardStore] Widget not found:', id)
     }
   }
 

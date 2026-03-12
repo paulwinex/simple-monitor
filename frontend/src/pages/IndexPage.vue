@@ -1,153 +1,55 @@
-<script setup>
-import { onMounted, computed, h, ref } from 'vue'
-import { GridLayout, GridItem } from 'vue-grid-layout-v3'
-import { useQuasar } from 'quasar'
-import { useDashboardStore } from 'stores/dashboard'
-import { useUIStore } from 'stores/ui'
-import NumberWidget from 'components/widgets/NumberWidget.vue'
-import ChartWidget from 'components/widgets/ChartWidget.vue'
-import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
-import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
-
-const $q = useQuasar()
-const dashboardStore = useDashboardStore()
-const uiStore = useUIStore()
-
-const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
-const isEditMode = computed(() => uiStore.isEditMode)
-const gridOptions = computed(() => dashboardStore.gridOptions)
-
-const showEditWidget = ref(false)
-const editingWidget = ref(null)
-
-onMounted(() => {
-  dashboardStore.loadDashboard()
-})
-
-function moveEvent(i, newX, newY) {
-  console.info(`MOVE i=${i}, X=${newX}, Y=${newY}`)
-}
-
-function movedEvent(i, newX, newY) {
-  console.info(`MOVED i=${i}, X=${newX}, Y=${newY}`)
-}
-
-function resizeEvent(i, newH, newW, newHPx, newWPx) {
-  console.info(`RESIZE i=${i}, H=${newH}, W=${newW}, H(px)=${newHPx}, W(px)=${newWPx}`)
-}
-
-function resizedEvent(i, newX, newY, newHPx, newWPx) {
-  console.info(`RESIZED i=${i}, X=${newX}, Y=${newY}, H(px)=${newHPx}, W(px)=${newWPx}`)
-}
-
-function layoutUpdatedEvent(newLayout) {
-  // Check for duplicate IDs before updating
-  const seenIds = new Set()
-  const hasDuplicates = newLayout.some(item => {
-    if (seenIds.has(item.i)) {
-      console.error(`[IndexPage] Duplicate layout ID detected: ${item.i}`)
-      return true
-    }
-    seenIds.add(item.i)
-    return false
-  })
-  
-  if (!hasDuplicates) {
-    dashboardStore.updateLayout(newLayout)
-    console.info('Updated layout')
-  } else {
-    console.error('[IndexPage] Layout update rejected due to duplicate IDs')
-  }
-}
-
-function getWidget(id) {
-  return dashboardStore.widgets.find(w => w.id === id)
-}
-
-function renderWidget(widget) {
-  if (!widget) return null
-
-  const commonProps = {
-    title: widget.title,
-    showHeader: !!widget.title,
-    options: widget.options,
-    slots: widget.slots,
-    loading: false,
-    error: null
-  }
-
-  if (widget.type === 'number') {
-    return h(NumberWidget, {
-      ...commonProps
-    })
-  }
-
-  if (widget.type === 'chart') {
-    return h(ChartWidget, {
-      ...commonProps
-    })
-  }
-
-  if (widget.type === 'gridContainer') {
-    return h(GridContainerWidget, {
-      title: widget.title,
-      containerId: widget.id,
-      children: widget.children || [],
-      childLayout: widget.childLayout || [],
-      childLayoutColNum: widget.options?.colNum || 12,
-      isEditing: isEditMode.value,
-      showHeader: !!widget.title,
-      'onUpdate:layout': (newLayout) => {
-        console.log('[IndexPage] GridContainer layout updated:', newLayout)
-        // Update widget in store with new childLayout
-        updateContainerWidget(widget.id, { childLayout: newLayout })
-      },
-      'onUpdate:children': (newChildren) => {
-        console.log('[IndexPage] GridContainer children updated:', newChildren)
-        // Update widget in store with new children
-        updateContainerWidget(widget.id, { children: newChildren })
-      },
-      'onEdit-container': (containerId) => {
-        console.log('[IndexPage] Edit container:', containerId)
-        openEditWidget(containerId)
-      },
-      'onRemove-container': (containerId) => {
-        console.log('[IndexPage] Remove container:', containerId)
-        removeWidget(containerId)
-      }
-    })
-  }
-
-  return null
-}
-
-function removeWidget(widgetId) {
-  dashboardStore.removeWidget(widgetId)
-}
-
-function openEditWidget(widgetId) {
-  const widget = getWidget(widgetId)
-  if (widget) {
-    editingWidget.value = { ...widget }
-    showEditWidget.value = true
-  }
-}
-
-function updateWidget(updatedWidget) {
-  dashboardStore.updateWidget(updatedWidget.id, updatedWidget)
-  dashboardStore.saveDashboard()
-}
-
-function updateContainerWidget(containerId, updates) {
-  dashboardStore.updateWidget(containerId, updates)
-  dashboardStore.saveDashboard()
-}
-</script>
 
 <template>
   <q-page class="q-pa-md">
-    <div class="row items-center q-mb-md">
-      <q-space />
+    <!-- Floating Edit Mode Toggle Button -->
+    <div class="floating-menu-container">
+      <q-btn
+        v-if="!isEditMode"
+        round
+        dense
+        flat
+        icon="edit"
+        color="grey-7"
+        @click="toggleEditMode"
+        class="floating-menu-btn"
+        title="Edit Mode"
+      />
+
+      <!-- Edit Mode Menu -->
+      <div v-else class="edit-mode-menu">
+        <q-btn
+          round
+          dense
+          flat
+          icon="add"
+          @click="handleAddWidget"
+          title="Add Widget"
+        />
+        <q-btn
+          round
+          dense
+          flat
+          icon="save"
+          @click="toggleEditMode"
+          title="Save and Exit Edit Mode"
+        />
+        <q-btn
+          round
+          dense
+          flat
+          icon="edit"
+          @click="handleDashboardSettings"
+          title="Dashboard Settings"
+        />
+        <q-btn
+          round
+          dense
+          flat
+          icon="close"
+          @click="toggleEditMode"
+          title="Cancel (Discard Changes)"
+        />
+      </div>
     </div>
 
     <div v-if="dashboardStore.isLoading" class="row justify-center q-mt-xl">
@@ -216,8 +118,150 @@ function updateContainerWidget(containerId, updates) {
       :widget="editingWidget"
       @update:widget="updateWidget"
     />
+
+    <!-- Add Widget Dialog -->
+    <AddWidgetDialog
+      v-model="showAddWidget"
+      parent-type="root"
+    />
   </q-page>
 </template>
+<script setup>
+import { onMounted, computed, h, ref } from 'vue'
+import { GridLayout, GridItem } from 'vue-grid-layout-v3'
+import { useQuasar } from 'quasar'
+import { useDashboardStore } from 'stores/dashboard'
+import { useUIStore } from 'stores/ui'
+import NumberWidget from 'components/widgets/NumberWidget.vue'
+import ChartWidget from 'components/widgets/ChartWidget.vue'
+import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
+import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
+import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
+
+const $q = useQuasar()
+const dashboardStore = useDashboardStore()
+const uiStore = useUIStore()
+
+const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
+const isEditMode = computed(() => uiStore.isEditMode)
+const gridOptions = computed(() => dashboardStore.gridOptions)
+
+const showEditWidget = ref(false)
+const editingWidget = ref(null)
+const showAddWidget = ref(false)
+const showDashboardSettings = ref(false)
+
+onMounted(() => {
+  dashboardStore.loadDashboard()
+})
+
+function layoutUpdatedEvent(newLayout) {
+  // Check for duplicate IDs before updating
+  const seenIds = new Set()
+  const hasDuplicates = newLayout.some(item => {
+    if (seenIds.has(item.i)) {
+      return true
+    }
+    seenIds.add(item.i)
+    return false
+  })
+
+  if (!hasDuplicates) {
+    dashboardStore.updateLayout(newLayout)
+  }
+}
+
+function getWidget(id) {
+  return dashboardStore.widgets.find(w => w.id === id)
+}
+
+function renderWidget(widget) {
+  if (!widget) return null
+
+  const commonProps = {
+    title: widget.title,
+    showHeader: !!widget.title,
+    options: widget.options,
+    slots: widget.slots,
+    loading: false,
+    error: null
+  }
+
+  if (widget.type === 'number') {
+    return h(NumberWidget, {
+      ...commonProps
+    })
+  }
+
+  if (widget.type === 'chart') {
+    return h(ChartWidget, {
+      ...commonProps
+    })
+  }
+
+  if (widget.type === 'gridContainer') {
+    return h(GridContainerWidget, {
+      title: widget.title,
+      containerId: widget.id,
+      children: widget.children || [],
+      childLayout: widget.childLayout || [],
+      childLayoutColNum: widget.options?.colNum || 12,
+      isEditing: isEditMode.value,
+      showHeader: !!widget.title,
+      'onUpdate:layout': (newLayout) => {
+        // Update widget in store with new childLayout
+        updateContainerWidget(widget.id, { childLayout: newLayout })
+      },
+      'onUpdate:children': (newChildren) => {
+        // Update widget in store with new children
+        updateContainerWidget(widget.id, { children: newChildren })
+      },
+      'onEdit-container': (containerId) => {
+        openEditWidget(containerId)
+      },
+      'onRemove-container': (containerId) => {
+        removeWidget(containerId)
+      }
+    })
+  }
+
+  return null
+}
+
+function removeWidget(widgetId) {
+  dashboardStore.removeWidget(widgetId)
+}
+
+function openEditWidget(widgetId) {
+  const widget = getWidget(widgetId)
+  if (widget) {
+    editingWidget.value = { ...widget }
+    showEditWidget.value = true
+  }
+}
+
+function updateWidget(updatedWidget) {
+  dashboardStore.updateWidget(updatedWidget.id, updatedWidget)
+  dashboardStore.saveDashboard()
+}
+
+function updateContainerWidget(containerId, updates) {
+  dashboardStore.updateWidget(containerId, updates)
+  dashboardStore.saveDashboard()
+}
+
+function toggleEditMode() {
+  uiStore.toggleEditMode()
+}
+
+function handleAddWidget() {
+  showAddWidget.value = true
+}
+
+function handleDashboardSettings() {
+  showDashboardSettings.value = true
+}
+</script>
 
 <style scoped>
 .dashboard-grid {
@@ -226,6 +270,63 @@ function updateContainerWidget(containerId, updates) {
   padding: 16px;
   min-height: 400px;
   position: relative;
+}
+
+/* Floating Menu Container */
+.floating-menu-container {
+  position: fixed;
+  top: 5px;
+  right: 5px;
+  z-index: 1000;
+}
+
+.floating-menu-btn {
+  background: rgba(41, 41, 41, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: #434343 !important;
+}
+
+.floating-menu-btn:hover {
+  background: rgba(128, 128, 128, 0.7);
+}
+
+/* Edit Mode Menu */
+.edit-mode-menu {
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px;
+  border-radius: 50px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.edit-mode-menu .q-btn {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.edit-mode-menu .q-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Light theme support - keep dark background */
+:deep(.vue-grid-layout-light .floating-menu-btn) {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+:deep(.vue-grid-layout-light .floating-menu-btn:hover) {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+:deep(.vue-grid-layout-light .edit-mode-menu) {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+:deep(.vue-grid-layout-light .edit-mode-menu .q-btn) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+:deep(.vue-grid-layout-light .edit-mode-menu .q-btn:hover) {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .vue-grid-layout {
