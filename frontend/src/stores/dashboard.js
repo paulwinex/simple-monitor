@@ -15,7 +15,7 @@ async function fetchDashboardFromApi() {
 
     // Transform widgets from snake_case to camelCase
     const widgetsArray = Array.isArray(dashboard.widgets) ? dashboard.widgets : (dashboard.widgets ? Object.values(dashboard.widgets) : [])
-    const transformedWidgets = widgetsArray.map((w) => ({
+    let transformedWidgets = widgetsArray.map((w) => ({
       id: w.id,
       type: w.type,
       title: w.title,
@@ -55,7 +55,52 @@ async function fetchDashboardFromApi() {
     }))
 
     // Transform layout from object/array to array
-    const layoutArray = Array.isArray(dashboard.layout) ? dashboard.layout : (dashboard.layout ? Object.values(dashboard.layout) : [])
+    let layoutArray = Array.isArray(dashboard.layout) ? dashboard.layout : (dashboard.layout ? Object.values(dashboard.layout) : [])
+    
+    // Check for duplicate IDs in layout and fix them
+    const seenIds = new Set()
+    const uniqueLayout = []
+    for (const item of layoutArray) {
+      if (seenIds.has(item.i)) {
+        console.warn(`[DashboardStore] Duplicate layout item ID found: ${item.i}. Generating new ID.`)
+        // Find the widget with this ID and get its real ID
+        const widget = transformedWidgets.find(w => w.id === item.i)
+        if (widget) {
+          item.i = `${widget.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+        } else {
+          item.i = `widget-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+        }
+      }
+      seenIds.add(item.i)
+      uniqueLayout.push(item)
+    }
+    layoutArray = uniqueLayout
+
+    // Also check for duplicate widget IDs
+    const seenWidgetIds = new Set()
+    const uniqueWidgets = []
+    for (const widget of transformedWidgets) {
+      if (seenWidgetIds.has(widget.id)) {
+        console.warn(`[DashboardStore] Duplicate widget ID found: ${widget.id}. Generating new ID.`)
+        widget.id = `${widget.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+      }
+      seenWidgetIds.add(widget.id)
+      
+      // Also check for duplicate IDs in childLayout (for GridContainer widgets)
+      if (widget.childLayout && widget.childLayout.length > 0) {
+        const seenChildIds = new Set()
+        for (const childItem of widget.childLayout) {
+          if (seenChildIds.has(childItem.i)) {
+            console.warn(`[DashboardStore] Duplicate childLayout ID found in widget ${widget.id}: ${childItem.i}. Generating new ID.`)
+            childItem.i = `${widget.id}-${childItem.i}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+          }
+          seenChildIds.add(childItem.i)
+        }
+      }
+      
+      uniqueWidgets.push(widget)
+    }
+    transformedWidgets = uniqueWidgets
 
     return {
       layout: layoutArray,
@@ -74,6 +119,15 @@ async function fetchDashboardFromApi() {
 }
 
 async function saveDashboardToApi(state) {
+  // Check for duplicate IDs in layout before saving
+  const seenLayoutIds = new Set()
+  for (const item of state.layout) {
+    if (seenLayoutIds.has(item.i)) {
+      console.error(`[DashboardStore] Duplicate layout ID detected before save: ${item.i}`)
+    }
+    seenLayoutIds.add(item.i)
+  }
+
   // Transform widgets to snake_case for backend and convert to dict
   const transformedWidgets = state.widgets.map(w => ({
     id: w.id,
@@ -189,7 +243,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
         const children = parent.children ? [...parent.children] : []
         const childLayout = parent.childLayout ? [...parent.childLayout] : []
 
-        widget.id = `${parentId}-${children.length}`
+        // Generate unique widget ID using timestamp and random number
+        widget.id = `${parentId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
         console.log('[DashboardStore] New widget id:', widget.id)
         children.push(widget)
         console.log('[DashboardStore] Widget pushed to children, new count:', children.length)

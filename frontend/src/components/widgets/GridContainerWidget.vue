@@ -1,5 +1,5 @@
 <template>
-  <div class="grid-container-outer" :class="{ 'dark-theme': isDark }">
+  <div ref="containerRef" class="grid-container-outer" :class="{ 'dark-theme': isDark }">
     <div v-if="showHeader && title" class="grid-container-header" :class="{ 'dark-theme': isDark }">
       <span class="widget-title">{{ title }}</span>
     </div>
@@ -33,7 +33,7 @@
 
       <GridLayout
           v-model:layout="internalLayout"
-          :col-num="12"
+          :col-num="internalGridColNum"
           :row-height="25"
           :is-draggable="isEditing"
           :is-resizable="isEditing"
@@ -124,6 +124,7 @@ const props = defineProps({
   containerId: String,
   children: Array,
   childLayout: Array,
+  childLayoutColNum: Number,  // Number of columns in the internal grid (default: 12)
   isEditing: Boolean
 })
 
@@ -143,6 +144,8 @@ const internalWidgets = ref([])
 const showAddWidget = ref(false)
 const showEditWidget = ref(false)
 const editingWidget = ref(null)
+const layoutChanged = ref(false)
+const containerRef = ref(null)
 
 // Get parent widget from store to access grid width
 const parentWidget = computed(() => {
@@ -150,34 +153,47 @@ const parentWidget = computed(() => {
   return dashboardStore.getWidget(props.containerId)
 })
 
-// Get the grid container layout item from parent to determine grid boundaries
-const gridContainerLayout = computed(() => {
-  if (!props.containerId) return null
-  const layout = dashboardStore.layout
-  return layout.find(item => item.i === props.containerId)
+// Get the number of columns for the internal grid (from parent widget options or default to 12)
+const internalGridColNum = computed(() => {
+  if (!props.containerId) return 12
+  const widget = parentWidget.value
+  return widget?.options?.colNum || 12
 })
 
 // Check if widget overlaps with parent container's action buttons
 // Parent buttons are in top-right corner, so check if widget is near that area
+// Uses PIXEL-based calculation: if widget's right edge is within 80px of
+// the container's right edge, shift the widget action buttons down
 function isWidgetInTopRightCorner(widgetId) {
   const layoutItem = internalLayout.value.find(item => item.i === widgetId)
-  const containerLayout = gridContainerLayout.value
 
-  if (!layoutItem || !containerLayout) return false
+  if (!layoutItem || !containerRef.value) return false
 
-  // Parent container buttons are in top-right corner
-  // Check if widget's top-right area overlaps with where parent buttons would be
+  // Get container width in pixels
+  const containerWidth = containerRef.value.offsetWidth
+
+  // Get the number of columns for this container
+  const colNum = internalGridColNum.value
+
+  // Widget's RIGHT edge position in grid units
+  const widgetRightEdge = layoutItem.x + layoutItem.w
+
+  // Calculate distance from widget's right edge to container's right edge in grid units
+  const distanceInGridUnits = colNum - widgetRightEdge
+
+  // Convert grid units to pixels: (distanceInGridUnits / colNum) * containerWidth
+  const distanceInPixels = (distanceInGridUnits / colNum) * containerWidth
+
+  // Threshold in pixels (80px from right edge)
+  const PIXEL_THRESHOLD = 80
 
   // Widget must be at the top (y === 0)
   const isAtTop = layoutItem.y === 0
 
-  // Widget's right edge must align with container's right edge (within 1 unit)
-  // This means widget is at the very right edge
-  const containerRightEdge = containerLayout.x + containerLayout.w
-  const widgetRightEdge = layoutItem.x + layoutItem.w
-  const isAtRightEdge = (containerRightEdge - widgetRightEdge) < 1
+  // Widget's right edge must be within threshold distance from container's right edge
+  const isNearRightEdge = distanceInPixels <= PIXEL_THRESHOLD && distanceInPixels >= 0
 
-  return isAtTop && isAtRightEdge
+  return isAtTop && isNearRightEdge
 }
 
 // Watch for changes in parent widget from store - this is the primary source
@@ -200,6 +216,17 @@ watch(() => parentWidget.value, (newParent) => {
     }
   }
 }, { immediate: true, deep: true })
+
+// Watch for exit from edit mode - save layout changes only when editing stops
+watch(() => props.isEditing, (newEditing, oldEditing) => {
+  // Save only when exiting edit mode (transition from true to false)
+  if (oldEditing && !newEditing && layoutChanged.value && props.containerId) {
+    console.log('[GridContainerWidget] Exiting edit mode, saving layout changes')
+    dashboardStore.updateWidget(props.containerId, { childLayout: internalLayout.value })
+    dashboardStore.saveDashboard()
+    layoutChanged.value = false
+  }
+})
 
 function onDialogUpdate(value) {
   console.log('[GridContainerWidget] Dialog updated, value:', value)
@@ -251,34 +278,31 @@ function updateInternalWidget(updatedWidget) {
   const index = internalWidgets.value.findIndex(w => w.id === updatedWidget.id)
   if (index !== -1) {
     internalWidgets.value[index] = updatedWidget
-    // Update in store
+    // Update in store but don't save immediately - wait until edit mode is exited
     if (props.containerId) {
       dashboardStore.updateWidget(props.containerId, { children: internalWidgets.value })
-      dashboardStore.saveDashboard()
+      layoutChanged.value = true
     }
   }
 }
 
 function onLayoutUpdated(newLayout) {
   internalLayout.value = newLayout
-  // Update in store
-  if (props.containerId) {
-    dashboardStore.updateWidget(props.containerId, { childLayout: newLayout })
-    dashboardStore.saveDashboard()
-  }
+  layoutChanged.value = true
+  // Don't save immediately - wait until edit mode is exited
 }
 
 function removeWidget(widgetId) {
   internalWidgets.value = internalWidgets.value.filter(w => w.id !== widgetId)
   internalLayout.value = internalLayout.value.filter(l => l.i !== widgetId)
 
-  // Update in store
+  // Update in store but don't save immediately - wait until edit mode is exited
   if (props.containerId) {
     dashboardStore.updateWidget(props.containerId, {
       children: internalWidgets.value,
       childLayout: internalLayout.value
     })
-    dashboardStore.saveDashboard()
+    layoutChanged.value = true
   }
 }
 

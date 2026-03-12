@@ -15,12 +15,14 @@
 import { computed } from 'vue'
 import { useQuasar } from 'quasar'
 
-defineProps({
-  title: String,
-  showHeader: Boolean
+const props = defineProps({
+  title: {
+    type: String,
+    default: ''
+  }
 })
 
-// Slots are inferred from template: title(), content()
+const showHeader = computed(() => !!props.title)
 
 const $q = useQuasar()
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')

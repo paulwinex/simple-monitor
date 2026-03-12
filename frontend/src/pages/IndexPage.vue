@@ -41,8 +41,23 @@ function resizedEvent(i, newX, newY, newHPx, newWPx) {
 }
 
 function layoutUpdatedEvent(newLayout) {
-  dashboardStore.updateLayout(newLayout)
-  console.info('Updated layout')
+  // Check for duplicate IDs before updating
+  const seenIds = new Set()
+  const hasDuplicates = newLayout.some(item => {
+    if (seenIds.has(item.i)) {
+      console.error(`[IndexPage] Duplicate layout ID detected: ${item.i}`)
+      return true
+    }
+    seenIds.add(item.i)
+    return false
+  })
+  
+  if (!hasDuplicates) {
+    dashboardStore.updateLayout(newLayout)
+    console.info('Updated layout')
+  } else {
+    console.error('[IndexPage] Layout update rejected due to duplicate IDs')
+  }
 }
 
 function getWidget(id) {
@@ -79,6 +94,7 @@ function renderWidget(widget) {
       containerId: widget.id,
       children: widget.children || [],
       childLayout: widget.childLayout || [],
+      childLayoutColNum: widget.options?.colNum || 12,
       isEditing: isEditMode.value,
       showHeader: !!widget.title,
       'onUpdate:layout': (newLayout) => {

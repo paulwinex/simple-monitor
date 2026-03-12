@@ -8,6 +8,28 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
+        <!-- GridContainer Options -->
+        <q-expansion-item
+          v-if="widget?.type === 'gridContainer'"
+          label="Grid Container Options"
+          icon="view_module"
+        >
+          <q-card>
+            <q-card-section class="q-pa-md">
+              <q-input
+                v-model.number="widgetOptions.colNum"
+                label="Number of Columns"
+                type="number"
+                :min="6"
+                :max="48"
+                outlined
+                dense
+                hint="Default is 12. Use 24 for finer control."
+              />
+            </q-card-section>
+          </q-card>
+        </q-expansion-item>
+
         <!-- Widget Title -->
         <q-input
           v-model="widgetTitle"
