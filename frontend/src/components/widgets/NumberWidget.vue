@@ -151,8 +151,21 @@ function valueStyle(slot) {
 function formatValue(value, slot) {
   if (value === null || value === undefined) return '—'
 
-  const decimals = slot.options?.decimals ?? props.options?.decimals ?? 1
-  let formatted = Number(value).toFixed(decimals)
+  // Check slot options first, then widget options, then default to 1
+  const decimals = (slot.options?.decimals !== undefined) 
+    ? slot.options.decimals 
+    : ((props.options?.decimals !== undefined) 
+        ? props.options.decimals 
+        : 1)
+  
+  let formatted
+  
+  // If decimals is 0, format as integer
+  if (decimals === 0) {
+    formatted = Math.round(Number(value)).toString()
+  } else {
+    formatted = Number(value).toFixed(decimals)
+  }
 
   if (slot.options?.prefix) {
     formatted = slot.options.prefix + formatted

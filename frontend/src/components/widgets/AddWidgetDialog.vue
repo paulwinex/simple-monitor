@@ -11,6 +11,7 @@
         <q-stepper
           v-model="step"
           color="primary"
+          flat
           animated
           header-nav
           vertical
@@ -59,7 +60,7 @@
                 Widget Slots - Configure data source for each slot
               </div>
               <div class="text-caption text-grey-7 q-mb-md">
-                Click on a slot button to select Host → Device → Sensor. 
+                Click on a slot button to select Host → Device → Sensor.
                 Slots without a sensor will be hidden in the widget.
               </div>
 
@@ -82,116 +83,91 @@
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-btn
-                      ref="slotButtons"
-                      flat
-                      dense
-                      :color="isSlotConfigured(slotDef.id) ? 'primary' : 'grey'"
-                      :label="getSlotButtonLabel(slotDef.id)"
-                      @click="openCascadeMenu(slotDef.id, $event)"
-                    />
+                    <q-btn flat dense :color="isSlotConfigured(slotDef.id) ? 'primary' : 'grey'" :label="getSlotButtonLabel(slotDef.id)">
+                      <q-menu v-model="menuVisible" anchor="top middle" self="top middle">
+                        <!-- Level 1: Host Selection -->
+                        <q-list v-if="!tempHostSelection" dense style="min-width: 150px">
+                          <q-item
+                            v-for="host in hostOptions"
+                            :key="host.value"
+                            clickable
+                            @click="tempHostSelection = host.value; tempDeviceSelection = null"
+                          >
+                            <q-item-section avatar>
+                              <q-icon name="dns" color="primary" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ host.label }}</q-item-label>
+                            </q-item-section>
+                            <q-item-section side>
+                              <q-icon name="chevron_right" color="grey-7" />
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+
+                        <!-- Level 2: Device Selection -->
+                        <q-list v-else-if="!tempDeviceSelection" dense style="min-width: 150px">
+                          <q-item clickable @click="tempHostSelection = null; tempDeviceSelection = null">
+                            <q-item-section side>
+                              <q-icon name="arrow_back" size="xs" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label caption>Back</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                          <q-separator />
+                          <q-item
+                            v-for="device in getDeviceOptions(tempHostSelection)"
+                            :key="device.value"
+                            clickable
+                            @click="tempDeviceSelection = device.value"
+                          >
+                            <q-item-section avatar>
+                              <q-icon name="memory" color="primary" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ device.label }}</q-item-label>
+                              <q-item-label caption>{{ device.value }}</q-item-label>
+                            </q-item-section>
+                            <q-item-section side>
+                              <q-icon name="chevron_right" color="grey-7" />
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+
+                        <!-- Level 3: Sensor Selection -->
+                        <q-list v-else dense style="min-width: 150px">
+                          <q-item clickable @click="tempDeviceSelection = null">
+                            <q-item-section side>
+                              <q-icon name="arrow_back" size="xs" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label caption>Back to {{ tempHostSelection }}</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                          <q-separator />
+                          <q-item
+                            v-for="sensor in getSensorOptions(tempHostSelection, tempDeviceSelection)"
+                            :key="sensor.value"
+                            clickable
+                            @click="selectSensor(slotDef.id, sensor.value)"
+                          >
+                            <q-item-section avatar>
+                              <q-icon name="sensors" color="primary" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ sensor.label }}</q-item-label>
+                            </q-item-section>
+                            <q-item-section side>
+                              <q-icon name="check" v-if="slotConfigs[slotDef.id]?.sensor === sensor.value" color="primary" />
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-menu>
+                    </q-btn>
                   </q-item-section>
                 </q-item>
               </q-list>
-
-              <!-- Cascade Menu with 3-level dropdown -->
-              <q-menu
-                v-model="cascadeMenuVisible"
-                position="bottom"
-                :no-parent-event="true"
-                anchor="top middle"
-                self="top middle"
-                :offset="[0, 0]"
-              >
-                <q-card style="min-width: 350px">
-                  <q-card-section class="row items-center q-pb-sm bg-primary text-white">
-                    <div class="text-subtitle1">{{ currentMenuSlotDef?.label }}</div>
-                    <q-space />
-                    <q-btn flat round dense icon="close" @click="cascadeMenuVisible = false" />
-                  </q-card-section>
-
-                  <q-card-section class="q-pa-md-none">
-                    <!-- Level 1: Host Selection -->
-                    <div v-if="!currentHostSelection" class="menu-column">
-                      <q-list dense>
-                        <q-item
-                          v-for="host in hostOptions"
-                          :key="host.value"
-                          clickable
-                          v-ripple
-                          @click="selectHost(host.value)"
-                        >
-                          <q-item-section avatar>
-                            <q-icon name="dns" color="primary" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>{{ host.label }}</q-item-label>
-                          </q-item-section>
-                          <q-item-section side>
-                            <q-icon name="chevron_right" color="grey-7" />
-                          </q-item-section>
-                        </q-item>
-                      </q-list>
-                    </div>
-
-                    <!-- Level 2: Device Selection -->
-                    <div v-else-if="!currentDeviceSelection" class="menu-column">
-                      <div class="menu-header">
-                        <q-btn flat dense round icon="arrow_back" size="sm" @click="currentHostSelection = null" />
-                        <span class="text-caption text-grey-7">{{ currentHostSelection }}</span>
-                      </div>
-                      <q-list dense>
-                        <q-item
-                          v-for="device in getDeviceOptions(currentHostSelection)"
-                          :key="device.value"
-                          clickable
-                          v-ripple
-                          @click="selectDevice(device.value)"
-                        >
-                          <q-item-section avatar>
-                            <q-icon name="memory" color="primary" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>{{ device.label }}</q-item-label>
-                            <q-item-label caption>{{ device.value }}</q-item-label>
-                          </q-item-section>
-                          <q-item-section side>
-                            <q-icon name="chevron_right" color="grey-7" />
-                          </q-item-section>
-                        </q-item>
-                      </q-list>
-                    </div>
-
-                    <!-- Level 3: Sensor Selection -->
-                    <div v-else class="menu-column">
-                      <div class="menu-header">
-                        <q-btn flat dense round icon="arrow_back" size="sm" @click="currentDeviceSelection = null" />
-                        <span class="text-caption text-grey-7">{{ currentDeviceSelection }}</span>
-                      </div>
-                      <q-list dense>
-                        <q-item
-                          v-for="sensor in getSensorOptions(currentHostSelection, currentDeviceSelection)"
-                          :key="sensor.value"
-                          clickable
-                          v-ripple
-                          @click="selectSensor(sensor.value)"
-                        >
-                          <q-item-section avatar>
-                            <q-icon name="sensors" color="primary" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>{{ sensor.label }}</q-item-label>
-                            <q-item-label caption>{{ sensor.value }}</q-item-label>
-                          </q-item-section>
-                          <q-item-section side>
-                            <q-icon name="check" color="grey-7" />
-                          </q-item-section>
-                        </q-item>
-                      </q-list>
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </q-menu>
             </div>
           </q-step>
 
@@ -302,7 +278,7 @@
               <!-- Number Options -->
               <div v-if="selectedType === 'number'" class="widget-options-column">
                 <div class="text-subtitle2 q-mb-sm">Number Options</div>
-                
+
                 <!-- Decimal Places -->
                 <q-input
                   v-model.number="widgetOptions.decimals"
@@ -314,7 +290,7 @@
                   dense
                   class="q-mb-sm"
                 />
-                
+
                 <!-- Suffix -->
                 <q-input
                   v-model="widgetOptions.suffix"
@@ -323,7 +299,7 @@
                   dense
                   class="q-mb-sm"
                 />
-                
+
                 <!-- Font Size Slider -->
                 <div class="q-mb-sm">
                   <div class="text-caption text-grey-7 q-mb-xs">Font Size: {{ widgetOptions.fontSize }}%</div>
@@ -338,7 +314,7 @@
                     markers
                   />
                 </div>
-                
+
                 <!-- Color -->
                 <q-input
                   v-model="widgetOptions.color"
@@ -374,36 +350,38 @@
 
           <template #navigation>
             <q-stepper-navigation>
-              <q-btn
-                v-if="step === 2"
-                flat
-                @click="step = 3"
-                label="Next"
-                color="primary"
-                :disable="!canProceedToStep3"
-              />
-              <q-btn
-                v-if="step === 2"
-                flat
-                @click="step = 1"
-                label="Back"
-                color="primary"
-              />
-              <q-btn
-                v-if="step === 3"
-                flat
-                @click="createWidget"
-                label="Create"
-                color="primary"
-                :disable="!canCreate"
-              />
-              <q-btn
-                v-if="step === 3"
-                flat
-                @click="step = 2"
-                label="Back"
-                color="primary"
-              />
+              <div class="row full-width justify-between">
+                <q-btn
+                  v-if="step === 2"
+                  flat
+                  @click="step = 1"
+                  label="Back"
+                  color="primary"
+                />
+                <q-btn
+                  v-if="step === 2"
+                  flat
+                  @click="step = 3"
+                  label="Next"
+                  color="primary"
+                  :disable="!canProceedToStep3"
+                />
+                <q-btn
+                  v-if="step === 3"
+                  flat
+                  @click="step = 2"
+                  label="Back"
+                  color="primary"
+                />
+                <q-btn
+                  v-if="step === 3"
+                  flat
+                  @click="createWidget"
+                  label="Create"
+                  color="primary"
+                  :disable="!canCreate"
+                />
+              </div>
             </q-stepper-navigation>
           </template>
         </q-stepper>
@@ -460,17 +438,10 @@ const slotDefinitions = computed(() => {
   return getSlotDefinitions(selectedType.value)
 })
 
-// Cascade menu state
-const cascadeMenuVisible = ref(false)
-const currentMenuSlotId = ref(null)
-const currentMenuSlotDef = computed(() =>
-  slotDefinitions.value.find(d => d.id === currentMenuSlotId.value)
-)
-
-// Temporary selections for cascade menu
-const currentHostSelection = ref(null)
-const currentDeviceSelection = ref(null)
-const currentSensorSelection = ref(null)
+// Temporary selections for nested menu (per-slot)
+const tempHostSelection = ref(null)
+const tempDeviceSelection = ref(null)
+const menuVisible = ref(false)
 
 // Host options from store
 const hostOptions = computed(() => {
@@ -533,47 +504,18 @@ function getSlotSummary(slotId) {
   return parts.join(' / ')
 }
 
-// Open cascade menu for slot
-function openCascadeMenu(slotId, event) {
-  currentMenuSlotId.value = slotId
+// Select sensor from nested menu - saves immediately to slot config
+function selectSensor(slotId, sensor) {
   const config = slotConfigs.value[slotId]
-  currentHostSelection.value = config?.hostId || null
-  currentDeviceSelection.value = config?.deviceId || null
-  currentSensorSelection.value = config?.sensor || null
-  cascadeMenuVisible.value = true
-}
-
-// Select host in cascade menu
-function selectHost(hostId) {
-  currentHostSelection.value = hostId
-  currentDeviceSelection.value = null
-  currentSensorSelection.value = null
-}
-
-// Select device in cascade menu
-function selectDevice(deviceId) {
-  currentDeviceSelection.value = deviceId
-  currentSensorSelection.value = null
-}
-
-// Select sensor in cascade menu
-function selectSensor(sensor) {
-  currentSensorSelection.value = sensor
-  // Save the slot config immediately after sensor selection
-  saveSlotConfig()
-}
-
-// Save slot config when sensor is selected
-function saveSlotConfig() {
-  if (!currentMenuSlotId.value || !currentSensorSelection.value) return
-
-  const config = slotConfigs.value[currentMenuSlotId.value]
   if (config) {
-    config.hostId = currentHostSelection.value
-    config.deviceId = currentDeviceSelection.value
-    config.sensor = currentSensorSelection.value
+    config.hostId = tempHostSelection.value
+    config.deviceId = tempDeviceSelection.value
+    config.sensor = sensor
   }
-  cascadeMenuVisible.value = false
+  // Close menu and reset temp selections
+  menuVisible.value = false
+  tempHostSelection.value = null
+  tempDeviceSelection.value = null
 }
 
 // Check if widget can proceed to step 3
@@ -733,11 +675,8 @@ function resetForm() {
   widgetTitle.value = ''
   widgetOptions.value = {}
   slotConfigs.value = {}
-  cascadeMenuVisible.value = false
-  currentMenuSlotId.value = null
-  currentHostSelection.value = null
-  currentDeviceSelection.value = null
-  currentSensorSelection.value = null
+  tempHostSelection.value = null
+  tempDeviceSelection.value = null
 }
 
 // Reset form when dialog opens

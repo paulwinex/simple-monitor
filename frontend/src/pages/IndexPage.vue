@@ -110,7 +110,6 @@
           </div>
         </GridItem>
       </GridLayout>
-      <pre>{code}</pre>
     </div>
 
     <!-- Edit Widget Dialog -->
