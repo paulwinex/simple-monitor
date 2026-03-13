@@ -2,7 +2,7 @@
   <q-dialog v-model="dialogVisible">
     <q-card style="min-width: 700px; max-height: 90vh;">
       <q-card-section class="row items-center q-pb-none q-mb-md">
-        <div class="text-h6">Edit Widget</div>
+        <div class="text-h6">{{ dialogTitle }}</div>
         <q-space />
         <q-btn flat round dense icon="close" @click="closeDialog" />
       </q-card-section>
@@ -131,14 +131,7 @@
         </div>
 
         <!-- Widget-specific options slot -->
-        <component
-          :is="widgetEditComponent"
-          v-if="widgetEditComponent"
-          ref="widgetEditRef"
-          :widget="widget"
-          :widget-options="widgetOptions"
-          @update:widget-options="updateWidgetOptions"
-        />
+        <slot name="widget-options"></slot>
       </q-card-section>
 
       <q-card-actions align="right">
@@ -150,18 +143,23 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import { getWidgetEditDialog } from './widget-registry'
 
 const props = defineProps({
   modelValue: Boolean,
-  widget: Object
+  widget: Object,
+  dialogTitle: {
+    type: String,
+    default: 'Edit Widget'
+  }
 })
 
 const emit = defineEmits([
   'update:modelValue',
-  'update:widget'
+  'update:widget',
+  'save',
+  'cancel'
 ])
 
 const dashboardStore = useDashboardStore()
@@ -173,11 +171,8 @@ const dialogVisible = computed({
 
 // Widget configuration
 const widgetTitle = ref('')
-const widgetOptions = ref({})
 const widgetSlots = ref([])
 const widgetType = ref('')
-const widgetEditComponent = ref(null)
-const widgetEditRef = ref(null)
 
 // Temporary selections for nested menu
 const tempHostSelection = ref(null)
@@ -226,23 +221,14 @@ function getSensorOptions(hostId, deviceId) {
 }
 
 // Watch for widget changes - create backup for cancel
-watch(() => props.widget, async (newWidget) => {
+watch(() => props.widget, (newWidget) => {
   if (newWidget) {
     widgetTitle.value = newWidget.title || ''
-    widgetOptions.value = { ...newWidget.options }
     widgetType.value = newWidget.type
     widgetSlots.value = JSON.parse(JSON.stringify(newWidget.slots || []))
     backupSlots.value = JSON.parse(JSON.stringify(newWidget.slots || []))
     backupTitle.value = newWidget.title || ''
     backupOptions.value = { ...newWidget.options }
-
-    // Load widget-specific edit dialog component
-    const editDialog = getWidgetEditDialog(newWidget.type)
-    if (editDialog) {
-      widgetEditComponent.value = markRaw(defineAsyncComponent(() => import(`./${editDialog}`)))
-    } else {
-      widgetEditComponent.value = null
-    }
   }
 }, { immediate: true })
 
@@ -295,29 +281,25 @@ function selectSensor(slot, sensor) {
   tempDeviceSelection.value = null
 }
 
-// Update widget options from child component
-function updateWidgetOptions(newOptions) {
-  widgetOptions.value = newOptions
-}
-
 // Cancel changes and restore backup
 function cancelChanges() {
-  widgetSlots.value = JSON.parse(JSON.stringify(backupSlots.value))
-  widgetTitle.value = backupTitle.value
-  widgetOptions.value = backupOptions.value
+  emit('cancel', {
+    slots: JSON.parse(JSON.stringify(backupSlots.value)),
+    title: backupTitle.value,
+    options: backupOptions.value
+  })
   dialogVisible.value = false
 }
 
-// Save widget
+// Save widget - emits save event with updated widget data
 function saveWidget() {
   if (props.widget) {
     const updatedWidget = {
       ...props.widget,
       title: widgetTitle.value,
-      slots: widgetSlots.value,
-      options: { ...widgetOptions.value }
+      slots: widgetSlots.value
     }
-    emit('update:widget', updatedWidget)
+    emit('save', updatedWidget)
     closeDialog()
   }
 }
@@ -325,6 +307,14 @@ function saveWidget() {
 function closeDialog() {
   dialogVisible.value = false
 }
+
+// Expose methods for child components
+defineExpose({
+  widgetTitle,
+  widgetSlots,
+  widgetType,
+  backupOptions
+})
 </script>
 
 <style scoped>

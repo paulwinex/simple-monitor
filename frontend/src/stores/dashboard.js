@@ -56,7 +56,7 @@ async function fetchDashboardFromApi() {
 
     // Transform layout from object/array to array
     let layoutArray = Array.isArray(dashboard.layout) ? dashboard.layout : (dashboard.layout ? Object.values(dashboard.layout) : [])
-    
+
     // Check for duplicate IDs in layout and fix them
     const seenIds = new Set()
     const uniqueLayout = []
@@ -85,7 +85,7 @@ async function fetchDashboardFromApi() {
         widget.id = `${widget.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
       }
       seenWidgetIds.add(widget.id)
-      
+
       // Also check for duplicate IDs in childLayout (for GridContainer widgets)
       if (widget.childLayout && widget.childLayout.length > 0) {
         const seenChildIds = new Set()
@@ -97,7 +97,7 @@ async function fetchDashboardFromApi() {
           seenChildIds.add(childItem.i)
         }
       }
-      
+
       uniqueWidgets.push(widget)
     }
     transformedWidgets = uniqueWidgets
@@ -159,8 +159,8 @@ async function saveDashboardToApi(state) {
     updated_at: Math.floor(Date.now() / 1000)
   }
 
-  console.log('[DashboardStore] Saving payload:')
-  console.log(JSON.stringify(payload, null, 2))
+  // console.log('[DashboardStore] Saving payload:')
+  // console.log(JSON.stringify(payload, null, 2))
 
   await saveDashboardApi('default', payload)
 }
@@ -179,28 +179,28 @@ export const useDashboardStore = defineStore('dashboard', () => {
   async function loadHosts() {
     try {
       const hostsData = await getHosts()
-      
+
       // Load sensors for each host and device
       const hostsArray = Array.isArray(hostsData) ? hostsData : (hostsData ? Object.values(hostsData) : [])
-      
+
       for (const host of hostsArray) {
         if (host.devices && host.devices.length > 0) {
           // Load sensors from metrics/devices endpoint
           const devicesWithMetrics = await getMetricDevices(host.host_id)
-          
+
           // Map sensors to devices
           const metricsMap = {}
           for (const device of devicesWithMetrics) {
             metricsMap[device.name] = device.metrics || []
           }
-          
+
           // Add sensors to each device
           for (const device of host.devices) {
             device.sensors = metricsMap[device.name] || []
           }
         }
       }
-      
+
       hosts.value = hostsArray
     } catch (err) {
       console.error('Failed to load hosts:', err)
@@ -240,7 +240,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   function addWidget(widget, parentId) {
     console.log('[DashboardStore] addWidget called:', widget.type, 'parentId:', parentId)
-    
+
     if (parentId) {
       // Add to container widget
       const parentIndex = widgets.value.findIndex(w => w.id === parentId)
@@ -308,7 +308,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
           children,
           childLayout
         }
-        
+
         console.log('[DashboardStore] parent updated, new children count:', widgets.value[parentIndex].children.length)
       } else {
         console.log('[DashboardStore] parent NOT found!')

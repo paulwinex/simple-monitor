@@ -188,163 +188,12 @@
               />
 
               <!-- Widget-specific options -->
-              <!-- Chart Options -->
-              <div v-if="selectedType === 'chart'" class="widget-options-column">
-                <div class="text-subtitle2 q-mb-sm">Chart Options</div>
-
-                <!-- Time Range -->
-                <q-select
-                  v-model="widgetOptions.timeRange"
-                  label="Time Range"
-                  :options="['1m', '5m', '15m', '30m', '1h', '6h', '12h', '24h', '7d']"
-                  outlined
-                  dense
-                  class="q-mb-sm"
-                />
-
-                <!-- Chart Color -->
-                <q-input
-                  v-model="widgetOptions.chartColor"
-                  label="Chart Color"
-                  outlined
-                  dense
-                  class="q-mb-sm"
-                >
-                  <template #append>
-                    <q-btn round dense flat icon="colorize">
-                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                        <q-color v-model="widgetOptions.chartColor" />
-                      </q-popup-proxy>
-                    </q-btn>
-                  </template>
-                </q-input>
-
-                <!-- Legend -->
-                <q-toggle
-                  v-model="widgetOptions.showLegend"
-                  label="Show Legend"
-                  class="q-mb-sm"
-                />
-
-                <!-- Smooth Lines -->
-                <q-toggle
-                  v-model="widgetOptions.smooth"
-                  label="Smooth Lines"
-                  class="q-mb-sm"
-                />
-
-                <!-- Fill Area -->
-                <q-toggle
-                  v-model="widgetOptions.fill"
-                  label="Fill Area"
-                  class="q-mb-sm"
-                />
-
-                <!-- Show Points -->
-                <q-toggle
-                  v-model="widgetOptions.showPoints"
-                  label="Show Points"
-                  class="q-mb-sm"
-                />
-
-                <!-- Show X Axis -->
-                <q-toggle
-                  v-model="widgetOptions.showXAxis"
-                  label="Show X Axis"
-                  class="q-mb-sm"
-                />
-
-                <!-- Show Y Axis -->
-                <q-toggle
-                  v-model="widgetOptions.showYAxis"
-                  label="Show Y Axis"
-                  class="q-mb-sm"
-                />
-
-                <!-- Show Grid -->
-                <q-toggle
-                  v-model="widgetOptions.showGrid"
-                  label="Show Grid"
-                  class="q-mb-sm"
-                />
-
-                <!-- Show Axis Values -->
-                <q-toggle
-                  v-model="widgetOptions.showAxisValues"
-                  label="Show Axis Values"
-                />
-              </div>
-
-              <!-- Number Options -->
-              <div v-if="selectedType === 'number'" class="widget-options-column">
-                <div class="text-subtitle2 q-mb-sm">Number Options</div>
-
-                <!-- Decimal Places -->
-                <q-input
-                  v-model.number="widgetOptions.decimals"
-                  label="Decimal Places"
-                  type="number"
-                  :min="0"
-                  :max="5"
-                  outlined
-                  dense
-                  class="q-mb-sm"
-                />
-
-                <!-- Suffix -->
-                <q-input
-                  v-model="widgetOptions.suffix"
-                  label="Suffix"
-                  outlined
-                  dense
-                  class="q-mb-sm"
-                />
-
-                <!-- Font Size Slider -->
-                <div class="q-mb-sm">
-                  <div class="text-caption text-grey-7 q-mb-xs">Font Size: {{ widgetOptions.fontSize }}%</div>
-                  <q-slider
-                    v-model="widgetOptions.fontSize"
-                    :min="20"
-                    :max="100"
-                    :step="5"
-                    label
-                    label-always
-                    color="primary"
-                    markers
-                  />
-                </div>
-
-                <!-- Color -->
-                <q-input
-                  v-model="widgetOptions.color"
-                  label="Color"
-                  outlined
-                  dense
-                >
-                  <template #append>
-                    <q-btn round dense flat icon="colorize">
-                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                        <q-color v-model="widgetOptions.color" />
-                      </q-popup-proxy>
-                    </q-btn>
-                  </template>
-                </q-input>
-              </div>
-
-              <div v-if="selectedType === 'gridContainer'" class="widget-options">
-                <div class="text-subtitle2 q-mb-sm">Grid Container Options</div>
-                <q-input
-                  v-model.number="widgetOptions.colNum"
-                  label="Number of Columns"
-                  type="number"
-                  :min="6"
-                  :max="48"
-                  outlined
-                  dense
-                  hint="Default is 12. Use 24 for finer control."
-                />
-              </div>
+              <component
+                :is="widgetEditComponent"
+                v-if="widgetEditComponent"
+                :widget-options="widgetOptions"
+                @update:widget-options="updateWidgetOptions"
+              />
             </div>
           </q-step>
 
@@ -391,9 +240,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import { widgetRegistry, getSlotDefinitions } from './widget-registry'
+import { widgetRegistry, getSlotDefinitions, getWidgetEditDialog } from './widget-registry'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -432,6 +281,7 @@ const selectedWidgetDef = computed(() =>
 const widgetTitle = ref('')
 const widgetOptions = ref({})
 const slotConfigs = ref({})
+const widgetEditComponent = ref(null)
 
 const slotDefinitions = computed(() => {
   if (!selectedType.value) return []
@@ -567,6 +417,11 @@ function getSlotCount(widget) {
   return widget.slotDefinitions.length
 }
 
+// Update widget options from child component
+function updateWidgetOptions(newOptions) {
+  widgetOptions.value = newOptions
+}
+
 // Select widget type and go to next step
 function selectWidgetType(type) {
   selectedType.value = type
@@ -616,6 +471,14 @@ function selectWidgetType(type) {
       color: '#4CAF50',
       fontSize: 50
     }
+  }
+
+  // Load widget-specific edit dialog component
+  const editDialog = getWidgetEditDialog(type)
+  if (editDialog) {
+    widgetEditComponent.value = markRaw(defineAsyncComponent(() => import(`./${editDialog}`)))
+  } else {
+    widgetEditComponent.value = null
   }
 
   step.value = 2
@@ -683,6 +546,7 @@ function resetForm() {
   slotConfigs.value = {}
   tempHostSelection.value = null
   tempDeviceSelection.value = null
+  widgetEditComponent.value = null
 }
 
 // Reset form when dialog opens
