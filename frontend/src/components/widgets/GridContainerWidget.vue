@@ -115,6 +115,7 @@ import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useDashboardStore } from 'stores/dashboard'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
+import GaugeWidget from './GaugeWidget.vue'
 import AddWidgetDialog from './AddWidgetDialog.vue'
 import EditWidgetDialog from './EditWidgetDialog.vue'
 
@@ -149,14 +150,14 @@ const containerRef = ref(null)
 const internalWidgets = computed(() => {
   if (!props.containerId) return []
   const widget = dashboardStore.getWidget(props.containerId)
-  console.log('[GridContainer] internalWidgets computed:', widget?.children?.length || 0, 'children')
+  // console.log('[GridContainer] internalWidgets computed:', widget?.children?.length || 0, 'children')
   return widget?.children || []
 })
 
 const internalLayout = computed(() => {
   if (!props.containerId) return []
   const widget = dashboardStore.getWidget(props.containerId)
-  console.log('[GridContainer] internalLayout computed:', widget?.childLayout?.length || 0, 'items')
+  // console.log('[GridContainer] internalLayout computed:', widget?.childLayout?.length || 0, 'items')
   return widget?.childLayout || []
 })
 
@@ -274,6 +275,10 @@ function renderWidget(widget) {
     return h(ChartWidget, commonProps)
   }
 
+  if (widget.type === 'gauge') {
+    return h(GaugeWidget, commonProps)
+  }
+
   return null
 }
 
@@ -288,7 +293,7 @@ function editWidget(widgetId) {
 function updateInternalWidget(updatedWidget) {
   const widget = dashboardStore.getWidget(props.containerId)
   if (!widget || !widget.children) return
-  
+
   const index = widget.children.findIndex(w => w.id === updatedWidget.id)
   if (index !== -1) {
     // Preserve position and size from current layout
@@ -302,7 +307,7 @@ function updateInternalWidget(updatedWidget) {
 
     // Create new children array with updated widget
     const newChildren = widget.children.map((c, i) => i === index ? updatedWidget : c)
-    
+
     // Update in store - this will trigger reactivity
     dashboardStore.updateWidget(props.containerId, { children: newChildren })
     layoutChanged.value = true

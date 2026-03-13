@@ -392,6 +392,7 @@ function getWidgetIcon(type) {
   const iconMap = {
     number: 'format_list_numbered',
     chart: 'insert_chart',
+    gauge: 'speed',
     gridContainer: 'view_module',
     cpu: 'memory',
     dualNumber: 'view_module'
@@ -471,6 +472,21 @@ function selectWidgetType(type) {
       color: '#4CAF50',
       fontSize: 50
     }
+  } else if (type === 'gauge') {
+    widgetOptions.value = {
+      strokeWidth: 20,
+      arcAngle: 270,
+      rangeMin: 0,
+      rangeMax: 100,
+      gradientColors: ['#4CAF50', '#8BC34A', '#FFC107', '#F44336'],
+      showArrow: false,
+      arrowColor: '#ffffff',
+      textColor: '#ffffff',
+      backgroundColor: '#424242',
+      decimals: 1,
+      suffix: '',
+      prefix: ''
+    }
   }
 
   // Load widget-specific edit dialog component
@@ -521,6 +537,8 @@ function createWidget() {
     newWidget.data = { value: 0 }
   } else if (selectedType.value === 'chart') {
     newWidget.data = { data: [] }
+  } else if (selectedType.value === 'gauge') {
+    newWidget.data = { value: 0 }
   }
 
   dashboardStore.addWidget(newWidget, props.parentId)

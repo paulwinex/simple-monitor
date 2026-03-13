@@ -91,7 +91,8 @@ class DataRefreshService {
     const widgetHostId = widget.hostId || parentHostId
     if (!widget.slots || widget.slots.length === 0) return
 
-    const queryType = widget.type === 'number' ? 'latest' : 'range'
+    // Gauge uses latest query like number, chart uses range
+    const queryType = widget.type === 'chart' ? 'range' : 'latest'
     const interval = widget.refreshInterval || 5000
 
     for (const slot of widget.slots) {
