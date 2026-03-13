@@ -324,6 +324,21 @@
                   class="q-mb-sm"
                 />
                 
+                <!-- Font Size Slider -->
+                <div class="q-mb-sm">
+                  <div class="text-caption text-grey-7 q-mb-xs">Font Size: {{ widgetOptions.fontSize }}%</div>
+                  <q-slider
+                    v-model="widgetOptions.fontSize"
+                    :min="20"
+                    :max="100"
+                    :step="5"
+                    label
+                    label-always
+                    color="primary"
+                    markers
+                  />
+                </div>
+                
                 <!-- Color -->
                 <q-input
                   v-model="widgetOptions.color"
@@ -656,7 +671,8 @@ function selectWidgetType(type) {
     widgetOptions.value = {
       decimals: 1,
       suffix: '',
-      color: '#4CAF50'
+      color: '#4CAF50',
+      fontSize: 50
     }
   }
 

@@ -1,7 +1,7 @@
 <template>
   <BaseWidget :title="title" :show-header="showHeader">
     <template #content>
-      <div class="number-widget">
+      <div class="number-widget" ref="widgetRef">
         <div v-if="loading" class="text-center">
           <q-spinner size="2em" color="primary" />
         </div>
@@ -13,7 +13,7 @@
             v-for="slot in validSlots"
             :key="slot.id"
             class="value"
-            :style="{ color: slotColor(slot) }"
+            :style="valueStyle(slot)"
           >
             {{ formatValue(slotValue(slot), slot) }}
           </div>
@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { computed, watch, ref } from 'vue'
+import { computed, watch, ref, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
 
@@ -39,6 +39,19 @@ const props = defineProps({
 })
 
 const dashboardStore = useDashboardStore()
+const widgetRef = ref(null)
+const valueFontSize = ref('2.5rem')
+
+// Calculate font size based on widget dimensions
+const calculateFontSize = () => {
+  if (!widgetRef.value) return
+
+  const rect = widgetRef.value.getBoundingClientRect()
+  const minDimension = Math.min(rect.width, rect.height)
+  const fontSizePercent = props.options?.fontSize ?? 50
+  const fontSizePx = (minDimension * fontSizePercent) / 100
+  valueFontSize.value = `${fontSizePx}px`
+}
 
 // Force reactivity by watching the entire widgets array
 const widgetsVersion = ref(0)
@@ -46,6 +59,29 @@ const widgetsVersion = ref(0)
 watch(() => dashboardStore.widgets, () => {
   widgetsVersion.value++
 }, { deep: true })
+
+// Recalculate font size when options change (including real-time slider updates)
+watch(() => [props.options?.fontSize, props.options?.color], () => {
+  nextTick(() => {
+    calculateFontSize()
+  })
+}, { immediate: true })
+
+onMounted(() => {
+  calculateFontSize()
+  
+  // Also recalculate on window resize
+  window.addEventListener('resize', calculateFontSize)
+})
+
+onUpdated(() => {
+  calculateFontSize()
+})
+
+// Cleanup
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', calculateFontSize)
+})
 
 // Get widget data directly from store with proper reactivity
 const getWidgetData = () => {
@@ -92,11 +128,6 @@ const validSlots = computed(() => {
   return reactiveSlots.value.filter(s => s.sensor && s.data)
 })
 
-// Force re-computation when widgets array changes (for reactivity)
-watch(() => dashboardStore.widgets, () => {
-  // This watch triggers re-computation of computed properties
-}, { deep: true })
-
 function slotValue(slot) {
   const slotData = slot.data
   if (!slotData) return null
@@ -110,9 +141,11 @@ function slotValue(slot) {
   return null
 }
 
-function slotColor(slot) {
-  // Use widget-level color first, then slot-level color, then default
-  return props.options?.color || slot.options?.color || '#4CAF50'
+function valueStyle(slot) {
+  return {
+    color: props.options?.color || slot.options?.color || '#4CAF50',
+    fontSize: valueFontSize.value
+  }
 }
 
 function formatValue(value, slot) {
@@ -145,9 +178,9 @@ function formatValue(value, slot) {
 }
 
 .value {
-  font-size: 2.5rem;
   font-weight: 700;
   line-height: 1;
+  transition: font-size 0.2s ease;
 }
 </style>
 
@@ -166,7 +199,8 @@ export const widgetDefinition = {
       defaultOptions: {
         decimals: 1,
         suffix: '',
-        color: '#4CAF50'
+        color: '#4CAF50',
+        fontSize: 50
       }
     }
   ]
