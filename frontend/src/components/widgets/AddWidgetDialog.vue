@@ -299,8 +299,11 @@
                 />
               </div>
 
-              <div v-if="selectedType === 'number'" class="widget-options">
+              <!-- Number Options -->
+              <div v-if="selectedType === 'number'" class="widget-options-column">
                 <div class="text-subtitle2 q-mb-sm">Number Options</div>
+                
+                <!-- Decimal Places -->
                 <q-input
                   v-model.number="widgetOptions.decimals"
                   label="Decimal Places"
@@ -311,6 +314,8 @@
                   dense
                   class="q-mb-sm"
                 />
+                
+                <!-- Suffix -->
                 <q-input
                   v-model="widgetOptions.suffix"
                   label="Suffix"
@@ -318,6 +323,8 @@
                   dense
                   class="q-mb-sm"
                 />
+                
+                <!-- Color -->
                 <q-input
                   v-model="widgetOptions.color"
                   label="Color"
@@ -325,15 +332,11 @@
                   dense
                 >
                   <template #append>
-                    <q-avatar square color="white" size="20px">
-                      <div
-                        :style="{
-                          backgroundColor: widgetOptions.color,
-                          width: '100%',
-                          height: '100%'
-                        }"
-                      />
-                    </q-avatar>
+                    <q-btn round dense flat icon="colorize">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-color v-model="widgetOptions.color" />
+                      </q-popup-proxy>
+                    </q-btn>
                   </template>
                 </q-input>
               </div>
@@ -611,12 +614,12 @@ function getSlotCount(widget) {
 function selectWidgetType(type) {
   selectedType.value = type
 
-  // GridContainer has no slots - go directly to step 3
+  // GridContainer has no slots - create immediately
   if (type === 'gridContainer') {
     widgetTitle.value = ''
     widgetOptions.value = { colNum: 12 }
     slotConfigs.value = {}
-    step.value = 3
+    createWidget()
     return
   }
 

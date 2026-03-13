@@ -239,12 +239,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   function addWidget(widget, parentId) {
+    console.log('[DashboardStore] addWidget called:', widget.type, 'parentId:', parentId)
+    
     if (parentId) {
       // Add to container widget
       const parentIndex = widgets.value.findIndex(w => w.id === parentId)
+      console.log('[DashboardStore] parentIndex:', parentIndex)
 
       if (parentIndex !== -1) {
         const parent = widgets.value[parentIndex]
+        console.log('[DashboardStore] parent found:', parent.id, 'existing children:', parent.children?.length || 0)
 
         // Initialize children and childLayout if not present
         const children = parent.children ? [...parent.children] : []
@@ -252,6 +256,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
         // Generate unique widget ID using timestamp and random number
         widget.id = `${parentId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+        console.log('[DashboardStore] new widget id:', widget.id)
         children.push(widget)
 
         // Auto-place in container grid - always place, even if it goes beyond visible area
@@ -303,7 +308,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
           children,
           childLayout
         }
+        
+        console.log('[DashboardStore] parent updated, new children count:', widgets.value[parentIndex].children.length)
       } else {
+        console.log('[DashboardStore] parent NOT found!')
       }
     } else {
       // Add to main dashboard

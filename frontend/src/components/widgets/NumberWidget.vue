@@ -111,7 +111,8 @@ function slotValue(slot) {
 }
 
 function slotColor(slot) {
-  return slot.options?.color || props.options?.color || '#4CAF50'
+  // Use widget-level color first, then slot-level color, then default
+  return props.options?.color || slot.options?.color || '#4CAF50'
 }
 
 function formatValue(value, slot) {

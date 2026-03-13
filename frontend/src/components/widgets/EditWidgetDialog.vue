@@ -160,8 +160,10 @@
         </div>
 
         <!-- Number Options -->
-        <div v-if="widget?.type === 'number'" class="widget-options q-mb-md">
+        <div v-if="widget?.type === 'number'" class="widget-options-column">
           <div class="text-subtitle2 q-mb-sm">Number Options</div>
+          
+          <!-- Decimal Places -->
           <q-input
             v-model.number="widgetOptions.decimals"
             label="Decimal Places"
@@ -172,6 +174,8 @@
             dense
             class="q-mb-sm"
           />
+          
+          <!-- Suffix -->
           <q-input
             v-model="widgetOptions.suffix"
             label="Suffix"
@@ -179,6 +183,8 @@
             dense
             class="q-mb-sm"
           />
+          
+          <!-- Color -->
           <q-input
             v-model="widgetOptions.color"
             label="Color"
@@ -186,15 +192,11 @@
             dense
           >
             <template #append>
-              <q-avatar square color="white" size="20px">
-                <div
-                  :style="{
-                    backgroundColor: widgetOptions.color,
-                    width: '100%',
-                    height: '100%'
-                  }"
-                />
-              </q-avatar>
+              <q-btn round dense flat icon="colorize">
+                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                  <q-color v-model="widgetOptions.color" />
+                </q-popup-proxy>
+              </q-btn>
             </template>
           </q-input>
         </div>

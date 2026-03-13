@@ -139,18 +139,25 @@ const emit = defineEmits([
   'remove-container'
 ])
 
-const internalLayout = ref([])
 const showAddWidget = ref(false)
 const showEditWidget = ref(false)
 const editingWidget = ref(null)
 const layoutChanged = ref(false)
 const containerRef = ref(null)
 
-// Computed property for internal widgets - directly references store for reactivity
+// Computed properties for internal widgets and layout - directly reference store for reactivity
 const internalWidgets = computed(() => {
   if (!props.containerId) return []
   const widget = dashboardStore.getWidget(props.containerId)
+  console.log('[GridContainer] internalWidgets computed:', widget?.children?.length || 0, 'children')
   return widget?.children || []
+})
+
+const internalLayout = computed(() => {
+  if (!props.containerId) return []
+  const widget = dashboardStore.getWidget(props.containerId)
+  console.log('[GridContainer] internalLayout computed:', widget?.childLayout?.length || 0, 'items')
+  return widget?.childLayout || []
 })
 
 // Get parent widget from store to access grid width
@@ -303,18 +310,19 @@ function updateInternalWidget(updatedWidget) {
 }
 
 function onLayoutUpdated(newLayout) {
-  internalLayout.value = newLayout
+  // Update store directly with new layout
+  if (props.containerId) {
+    dashboardStore.updateWidget(props.containerId, { childLayout: newLayout })
+  }
   layoutChanged.value = true
-  // Don't save immediately - wait until edit mode is exited
 }
 
 function removeWidget(widgetId) {
   const widget = dashboardStore.getWidget(props.containerId)
   if (!widget || !widget.children) return
-  
+
   const newChildren = widget.children.filter(w => w.id !== widgetId)
-  const newLayout = internalLayout.value.filter(l => l.i !== widgetId)
-  internalLayout.value = newLayout
+  const newLayout = (widget.childLayout || []).filter(l => l.i !== widgetId)
 
   // Update in store
   dashboardStore.updateWidget(props.containerId, {
