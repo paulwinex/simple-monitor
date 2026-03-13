@@ -237,9 +237,9 @@ class DataRefreshService {
   async executeRangeQuery(query) {
     const { key } = query
 
-    const now = Date.now()
+    const now = Math.floor(Date.now() / 1000)  // Convert to seconds
     const hours = key.rangeHours || 1
-    const startTs = now - (hours * 60 * 60 * 1000)
+    const startTs = now - (hours * 60 * 60)  // Seconds calculation
 
     const queries = [{
       device_id: key.deviceId,

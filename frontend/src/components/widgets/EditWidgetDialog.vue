@@ -1,36 +1,14 @@
 <template>
-  <q-dialog v-model="dialogVisible" persistent>
-    <q-card style="min-width: 600px">
+  <q-dialog v-model="dialogVisible">
+    <q-card style="min-width: 700px; max-height: 90vh;">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Edit Widget</div>
         <q-space />
-        <q-btn flat round dense icon="close" v-close-popup />
+        <q-btn flat round dense icon="close" @click="closeDialog" />
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <!-- GridContainer Options -->
-        <q-expansion-item
-          v-if="widget?.type === 'gridContainer'"
-          label="Grid Container Options"
-          icon="view_module"
-        >
-          <q-card>
-            <q-card-section class="q-pa-md">
-              <q-input
-                v-model.number="widgetOptions.colNum"
-                label="Number of Columns"
-                type="number"
-                :min="6"
-                :max="48"
-                outlined
-                dense
-                hint="Default is 12. Use 24 for finer control."
-              />
-            </q-card-section>
-          </q-card>
-        </q-expansion-item>
-
-        <!-- Widget Title -->
+        <!-- Widget Title (common for all widgets) -->
         <q-input
           v-model="widgetTitle"
           label="Widget Title"
@@ -39,9 +17,28 @@
           class="q-mb-md"
         />
 
+        <!-- GridContainer Options -->
+        <div v-if="widget?.type === 'gridContainer'" class="widget-options q-mb-md">
+          <div class="text-subtitle2 q-mb-sm">Grid Container Options</div>
+          <q-input
+            v-model.number="widgetOptions.colNum"
+            label="Number of Columns"
+            type="number"
+            :min="6"
+            :max="48"
+            outlined
+            dense
+            hint="Default is 12. Use 24 for finer control."
+          />
+        </div>
+
         <!-- Slots Configuration -->
-        <div class="q-mb-md">
+        <div v-if="widgetSlots.length > 0" class="q-mb-md">
           <div class="text-subtitle2 q-mb-sm">Data Sources</div>
+          <div class="text-caption text-grey-7 q-mb-md">
+            Click on a slot button to change Host → Device → Sensor. 
+            Slots without a sensor will be hidden in the widget.
+          </div>
 
           <q-list bordered separator>
             <q-item
@@ -75,24 +72,75 @@
           </q-list>
         </div>
 
-        <!-- Widget-level Options for Chart -->
-        <q-expansion-item
-          v-if="widget?.type === 'chart'"
-          label="Chart Options"
-          icon="settings"
-        >
-          <q-card>
-            <q-card-section class="q-pa-md">
-              <q-select
-                v-model="widgetOptions.timeRange"
-                label="Time Range"
-                :options="['1h', '6h', '12h', '24h', '7d']"
-                outlined
-                dense
-              />
-            </q-card-section>
-          </q-card>
-        </q-expansion-item>
+        <!-- Chart Options -->
+        <div v-if="widget?.type === 'chart'" class="widget-options q-mb-md">
+          <div class="text-subtitle2 q-mb-sm">Chart Options</div>
+          <q-select
+            v-model="widgetOptions.timeRange"
+            label="Time Range"
+            :options="['1h', '6h', '12h', '24h', '7d']"
+            outlined
+            dense
+            class="q-mb-sm"
+          />
+          <q-toggle
+            v-model="widgetOptions.showLegend"
+            label="Show Legend"
+            dense
+            class="q-mb-sm"
+          />
+          <q-toggle
+            v-model="widgetOptions.smooth"
+            label="Smooth Lines"
+            dense
+            class="q-mb-sm"
+          />
+          <q-toggle
+            v-model="widgetOptions.fill"
+            label="Fill Area"
+            dense
+          />
+        </div>
+
+        <!-- Number Options -->
+        <div v-if="widget?.type === 'number'" class="widget-options q-mb-md">
+          <div class="text-subtitle2 q-mb-sm">Number Options</div>
+          <q-input
+            v-model.number="widgetOptions.decimals"
+            label="Decimal Places"
+            type="number"
+            :min="0"
+            :max="5"
+            outlined
+            dense
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="widgetOptions.suffix"
+            label="Suffix"
+            outlined
+            dense
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="widgetOptions.color"
+            label="Color"
+            outlined
+            dense
+          >
+            <template #append>
+              <q-avatar square color="white" size="20px">
+                <div
+                  :style="{
+                    backgroundColor: widgetOptions.color,
+                    width: '100%',
+                    height: '100%'
+                  }"
+                />
+              </q-avatar>
+            </template>
+          </q-input>
+        </div>
       </q-card-section>
 
       <q-card-actions align="right">
@@ -101,12 +149,14 @@
       </q-card-actions>
     </q-card>
 
-    <!-- Cascade Menu with Nested Submenus -->
+    <!-- Cascade Menu with 3-level dropdown -->
     <q-menu
       v-model="cascadeMenuVisible"
-      :target="menuAnchorEl"
       position="bottom"
       :no-parent-event="true"
+      anchor="top middle"
+      self="top middle"
+      :offset="[0, 0]"
     >
       <q-card style="min-width: 350px">
         <q-card-section class="row items-center q-pb-sm bg-primary text-white">
@@ -116,7 +166,7 @@
         </q-card-section>
 
         <q-card-section class="q-pa-md-none">
-          <!-- Step 1: Host Selection -->
+          <!-- Level 1: Host Selection -->
           <div v-if="!currentHostSelection" class="menu-column">
             <q-list dense>
               <q-item
@@ -139,7 +189,7 @@
             </q-list>
           </div>
 
-          <!-- Step 2: Device Selection -->
+          <!-- Level 2: Device Selection -->
           <div v-else-if="!currentDeviceSelection" class="menu-column">
             <div class="menu-header">
               <q-btn flat dense round icon="arrow_back" size="sm" @click="currentHostSelection = null" />
@@ -167,8 +217,8 @@
             </q-list>
           </div>
 
-          <!-- Step 3: Sensor Selection -->
-          <div v-else-if="!currentSensorSelection" class="menu-column">
+          <!-- Level 3: Sensor Selection -->
+          <div v-else class="menu-column">
             <div class="menu-header">
               <q-btn flat dense round icon="arrow_back" size="sm" @click="currentDeviceSelection = null" />
               <span class="text-caption text-grey-7">{{ currentDeviceSelection }}</span>
@@ -194,50 +244,6 @@
               </q-item>
             </q-list>
           </div>
-
-          <!-- Step 4: Options -->
-          <div v-else class="menu-column">
-            <div class="menu-header">
-              <q-btn flat dense round icon="arrow_back" size="sm" @click="currentSensorSelection = null" />
-              <span class="text-caption text-grey-7">{{ currentSensorSelection }}</span>
-            </div>
-            <div class="q-pa-md">
-              <div class="text-subtitle2 q-mb-sm">Options</div>
-              <q-input
-                v-model.number="currentSlotOptions.decimals"
-                label="Decimals"
-                type="number"
-                outlined
-                dense
-                class="q-mb-sm"
-              />
-              <q-input
-                v-model="currentSlotOptions.suffix"
-                label="Suffix"
-                outlined
-                dense
-                class="q-mb-sm"
-              />
-              <q-input
-                v-model="currentSlotOptions.color"
-                label="Color"
-                outlined
-                dense
-              >
-                <template #append>
-                  <q-avatar square color="white" size="20px">
-                    <div
-                      :style="{
-                        backgroundColor: currentSlotOptions.color,
-                        width: '100%',
-                        height: '100%'
-                      }"
-                    />
-                  </q-avatar>
-                </template>
-              </q-input>
-            </div>
-          </div>
         </q-card-section>
       </q-card>
     </q-menu>
@@ -247,6 +253,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
+import { getSlotDefinitions } from './widget-registry'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -269,20 +276,16 @@ const dialogVisible = computed({
 const widgetTitle = ref('')
 const widgetOptions = ref({})
 const widgetSlots = ref([])
-const widgetType = ref('number')
+const widgetType = ref('')
 
 // Cascade menu state
 const cascadeMenuVisible = ref(false)
 const currentSlot = ref(null)
 
-// Menu positioning
-const menuAnchorEl = ref(null)
-
 // Selections for cascade menu
 const currentHostSelection = ref(null)
 const currentDeviceSelection = ref(null)
 const currentSensorSelection = ref(null)
-const currentSlotOptions = ref({})
 
 // Host options from store
 const hostOptions = computed(() => {
@@ -307,42 +310,22 @@ function getDeviceOptions(hostId) {
 function getSensorOptions(hostId, deviceId) {
   if (!hostId || !deviceId) return []
 
-  const sensorMap = {
-    cpu: [
-      { name: 'usage_percent', label: 'CPU Usage' },
-      { name: 'temperature', label: 'Temperature' },
-      { name: 'frequency', label: 'Frequency' }
-    ],
-    ram: [
-      { name: 'used_percent', label: 'RAM Usage' },
-      { name: 'used_gb', label: 'Used GB' },
-      { name: 'total_gb', label: 'Total GB' }
-    ],
-    disk: [
-      { name: 'used_percent', label: 'Disk Usage' },
-      { name: 'used_gb', label: 'Used GB' },
-      { name: 'total_gb', label: 'Total GB' },
-      { name: 'io_read', label: 'Read I/O' },
-      { name: 'io_write', label: 'Write I/O' }
-    ],
-    network: [
-      { name: 'bytes_sent', label: 'Bytes Sent' },
-      { name: 'bytes_recv', label: 'Bytes Received' },
-      { name: 'packets_sent', label: 'Packets Sent' },
-      { name: 'packets_recv', label: 'Packets Received' }
-    ]
-  }
-
   const host = dashboardStore.hosts.find(h => h.host_id === hostId)
   if (!host) return []
   const device = host.devices.find(d => d.name === deviceId)
   if (!device) return []
 
-  const sensors = sensorMap[device.type] || [{ name: 'value', label: 'Value' }]
+  // Use sensors array loaded from backend
+  const sensors = device.sensors || []
   return sensors.map(s => ({
-    label: s.label,
-    value: s.name
+    label: s,
+    value: s
   }))
+}
+
+// Get slot definitions for widget type
+function getSlotDefs(type) {
+  return getSlotDefinitions(type)
 }
 
 // Watch for widget changes
@@ -390,8 +373,6 @@ function openCascadeMenu(slot, event) {
   currentHostSelection.value = slot.hostId || null
   currentDeviceSelection.value = slot.deviceId || null
   currentSensorSelection.value = slot.sensor?.name || null
-  currentSlotOptions.value = { ...slot.options }
-  menuAnchorEl.value = event.currentTarget
   cascadeMenuVisible.value = true
 }
 
@@ -411,11 +392,13 @@ function selectDevice(deviceId) {
 // Select sensor in cascade menu
 function selectSensor(sensor) {
   currentSensorSelection.value = sensor
+  // Save the slot config immediately after sensor selection
+  saveSlotConfig()
 }
 
-// Save slot configuration when menu closes
-watch([cascadeMenuVisible, currentSensorSelection], ([closed, sensor]) => {
-  if (closed || !currentSlot.value || !sensor) return
+// Save slot configuration when sensor is selected
+function saveSlotConfig() {
+  if (!currentSlot.value || !currentSensorSelection.value) return
 
   const updatedSlot = {
     ...currentSlot.value,
@@ -424,15 +407,15 @@ watch([cascadeMenuVisible, currentSensorSelection], ([closed, sensor]) => {
     sensor: {
       name: currentSensorSelection.value,
       table: 'raw'
-    },
-    options: { ...currentSlotOptions.value }
+    }
   }
 
   const index = widgetSlots.value.findIndex(s => s.id === updatedSlot.id)
   if (index >= 0) {
     widgetSlots.value[index] = updatedSlot
   }
-})
+  cascadeMenuVisible.value = false
+}
 
 // Save widget
 function saveWidget() {
@@ -444,8 +427,12 @@ function saveWidget() {
       options: { ...widgetOptions.value }
     }
     emit('update:widget', updatedWidget)
-    dialogVisible.value = false
+    closeDialog()
   }
+}
+
+function closeDialog() {
+  dialogVisible.value = false
 }
 </script>
 
@@ -466,5 +453,10 @@ function saveWidget() {
   padding: 8px 12px;
   background: #f5f5f5;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.widget-options {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
 }
 </style>

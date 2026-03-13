@@ -140,12 +140,18 @@ const emit = defineEmits([
 ])
 
 const internalLayout = ref([])
-const internalWidgets = ref([])
 const showAddWidget = ref(false)
 const showEditWidget = ref(false)
 const editingWidget = ref(null)
 const layoutChanged = ref(false)
 const containerRef = ref(null)
+
+// Computed property for internal widgets - directly references store for reactivity
+const internalWidgets = computed(() => {
+  if (!props.containerId) return []
+  const widget = dashboardStore.getWidget(props.containerId)
+  return widget?.children || []
+})
 
 // Get parent widget from store to access grid width
 const parentWidget = computed(() => {
@@ -196,53 +202,34 @@ function isWidgetInTopRightCorner(widgetId) {
   return isAtTop && isNearRightEdge
 }
 
-// Watch for changes in parent widget from store - this is the primary source
-// Don't reload data while editing to prevent losing unsaved changes
-watch(() => parentWidget.value, (newParent) => {
-  // Skip reload if we're in edit mode and have unsaved changes
-  if (props.isEditing && layoutChanged.value) {
-    return
-  }
-  
-  if (newParent) {
-    if (newParent.children && newParent.children.length > 0) {
-      internalWidgets.value = JSON.parse(JSON.stringify(newParent.children))
-    } else {
-      internalWidgets.value = []
-    }
-    if (newParent.childLayout && newParent.childLayout.length > 0) {
-      internalLayout.value = JSON.parse(JSON.stringify(newParent.childLayout))
-    } else {
-      internalLayout.value = []
-    }
-  }
-}, { immediate: true, deep: true })
-
 // Watch for exit from edit mode - save layout changes only when editing stops
 watch(() => props.isEditing, (newEditing, oldEditing) => {
   // Save only when exiting edit mode (transition from true to false)
   if (oldEditing && !newEditing && layoutChanged.value && props.containerId) {
     // Save both layout and children with position/size info
-    const widgets = internalWidgets.value.map(w => {
-      const layoutItem = internalLayout.value.find(l => l.i === w.id)
-      if (layoutItem) {
-        return {
-          ...w,
-          x: layoutItem.x,
-          y: layoutItem.y,
-          w: layoutItem.w,
-          h: layoutItem.h
+    const widget = dashboardStore.getWidget(props.containerId)
+    if (widget && widget.children) {
+      const widgets = widget.children.map(w => {
+        const layoutItem = internalLayout.value.find(l => l.i === w.id)
+        if (layoutItem) {
+          return {
+            ...w,
+            x: layoutItem.x,
+            y: layoutItem.y,
+            w: layoutItem.w,
+            h: layoutItem.h
+          }
         }
-      }
-      return w
-    })
-    
-    dashboardStore.updateWidget(props.containerId, { 
-      childLayout: internalLayout.value,
-      children: widgets
-    })
-    dashboardStore.saveDashboard()
-    layoutChanged.value = false
+        return w
+      })
+
+      dashboardStore.updateWidget(props.containerId, {
+        childLayout: internalLayout.value,
+        children: widgets
+      })
+      dashboardStore.saveDashboard()
+      layoutChanged.value = false
+    }
   }
 })
 
@@ -252,12 +239,16 @@ function onDialogUpdate(value) {
 }
 
 function getWidget(id) {
-  return internalWidgets.value.find(w => w.id === id)
+  const widget = dashboardStore.getWidget(props.containerId)
+  if (!widget || !widget.children) return null
+  return widget.children.find(w => w.id === id)
 }
 
 function renderWidget(widget) {
   if (!widget) return null
 
+  // For nested widgets, pass slots directly with reactive data
+  // The child widgets will use the slots prop directly
   const commonProps = {
     title: widget.title,
     showHeader: !!widget.title,
@@ -288,7 +279,10 @@ function editWidget(widgetId) {
 }
 
 function updateInternalWidget(updatedWidget) {
-  const index = internalWidgets.value.findIndex(w => w.id === updatedWidget.id)
+  const widget = dashboardStore.getWidget(props.containerId)
+  if (!widget || !widget.children) return
+  
+  const index = widget.children.findIndex(w => w.id === updatedWidget.id)
   if (index !== -1) {
     // Preserve position and size from current layout
     const layoutItem = internalLayout.value.find(l => l.i === updatedWidget.id)
@@ -298,13 +292,13 @@ function updateInternalWidget(updatedWidget) {
       updatedWidget.w = layoutItem.w
       updatedWidget.h = layoutItem.h
     }
+
+    // Create new children array with updated widget
+    const newChildren = widget.children.map((c, i) => i === index ? updatedWidget : c)
     
-    internalWidgets.value[index] = updatedWidget
-    // Update in store but don't save immediately - wait until edit mode is exited
-    if (props.containerId) {
-      dashboardStore.updateWidget(props.containerId, { children: internalWidgets.value })
-      layoutChanged.value = true
-    }
+    // Update in store - this will trigger reactivity
+    dashboardStore.updateWidget(props.containerId, { children: newChildren })
+    layoutChanged.value = true
   }
 }
 
@@ -315,17 +309,19 @@ function onLayoutUpdated(newLayout) {
 }
 
 function removeWidget(widgetId) {
-  internalWidgets.value = internalWidgets.value.filter(w => w.id !== widgetId)
-  internalLayout.value = internalLayout.value.filter(l => l.i !== widgetId)
+  const widget = dashboardStore.getWidget(props.containerId)
+  if (!widget || !widget.children) return
+  
+  const newChildren = widget.children.filter(w => w.id !== widgetId)
+  const newLayout = internalLayout.value.filter(l => l.i !== widgetId)
+  internalLayout.value = newLayout
 
-  // Update in store but don't save immediately - wait until edit mode is exited
-  if (props.containerId) {
-    dashboardStore.updateWidget(props.containerId, {
-      children: internalWidgets.value,
-      childLayout: internalLayout.value
-    })
-    layoutChanged.value = true
-  }
+  // Update in store
+  dashboardStore.updateWidget(props.containerId, {
+    children: newChildren,
+    childLayout: newLayout
+  })
+  layoutChanged.value = true
 }
 
 function editContainer() {

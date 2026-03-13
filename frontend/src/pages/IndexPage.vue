@@ -110,6 +110,7 @@
           </div>
         </GridItem>
       </GridLayout>
+      <pre>{code}</pre>
     </div>
 
     <!-- Edit Widget Dialog -->
@@ -143,11 +144,6 @@ const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const uiStore = useUIStore()
 
-// Initialize data refresh service
-onMounted(() => {
-  dataRefreshService.init(dashboardStore)
-})
-
 // Create a computed that tracks only widget structure (not data changes)
 // This prevents restart loop when slot.data is updated
 const widgetStructure = computed(() => {
@@ -161,7 +157,7 @@ const widgetStructure = computed(() => {
       hostId: s.hostId,
       deviceId: s.deviceId,
       sensor: s.sensor
-    })),
+    })) || [],
     // Include children structure for gridContainer widgets
     children: w.children?.map(c => ({
       id: c.id,
@@ -173,8 +169,8 @@ const widgetStructure = computed(() => {
         hostId: s.hostId,
         deviceId: s.deviceId,
         sensor: s.sensor
-      }))
-    }))
+      })) || []
+    })) || []
   }))
 })
 
@@ -188,7 +184,7 @@ watch(
       dataRefreshService.start(widgets)
     }
   },
-  { deep: true }
+  { deep: true, immediate: true }
 )
 
 // Clean up on unmount
@@ -207,6 +203,7 @@ const showDashboardSettings = ref(false)
 
 onMounted(() => {
   dashboardStore.loadDashboard()
+  dataRefreshService.init(dashboardStore)
 })
 
 function layoutUpdatedEvent(newLayout) {

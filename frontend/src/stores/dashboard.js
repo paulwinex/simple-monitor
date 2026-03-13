@@ -375,26 +375,51 @@ export const useDashboardStore = defineStore('dashboard', () => {
   function updateSlotData(widgetId, slotId, data) {
     // First try to find in root widgets
     let widget = getWidget(widgetId)
-    
+    let parentWidget = null
+
     // If not found, search in container children
     if (!widget) {
       for (const w of widgets.value) {
         if (w.type === 'gridContainer' && w.children) {
           widget = w.children.find(c => c.id === widgetId)
-          if (widget) break
+          if (widget) {
+            parentWidget = w
+            break
+          }
         }
       }
     }
-    
+
     if (widget && widget.slots) {
-      const slot = widget.slots.find(s => s.id === slotId)
-      if (slot) {
-        // Replace the entire slot object to trigger reactivity
-        const slotIndex = widget.slots.findIndex(s => s.id === slotId)
-        if (slotIndex !== -1) {
-          widget.slots[slotIndex] = {
-            ...widget.slots[slotIndex],
-            data
+      const slotIndex = widget.slots.findIndex(s => s.id === slotId)
+      if (slotIndex !== -1) {
+        // Create new slots array to trigger reactivity
+        const newSlots = [...widget.slots]
+        newSlots[slotIndex] = {
+          ...newSlots[slotIndex],
+          data
+        }
+
+        if (parentWidget) {
+          // Update nested widget - need to update parent's children array
+          const parentIndex = widgets.value.findIndex(w => w.id === parentWidget.id)
+          if (parentIndex !== -1) {
+            const newChildren = parentWidget.children.map(c =>
+              c.id === widgetId ? { ...c, slots: newSlots } : c
+            )
+            widgets.value[parentIndex] = {
+              ...parentWidget,
+              children: newChildren
+            }
+          }
+        } else {
+          // Update root widget
+          const rootIndex = widgets.value.findIndex(w => w.id === widgetId)
+          if (rootIndex !== -1) {
+            widgets.value[rootIndex] = {
+              ...widget,
+              slots: newSlots
+            }
           }
         }
       }

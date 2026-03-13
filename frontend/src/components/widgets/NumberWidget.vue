@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
 
@@ -40,13 +40,44 @@ const props = defineProps({
 
 const dashboardStore = useDashboardStore()
 
-// Get reactive slot data from store
+// Force reactivity by watching the entire widgets array
+const widgetsVersion = ref(0)
+
+watch(() => dashboardStore.widgets, () => {
+  widgetsVersion.value++
+}, { deep: true })
+
+// Get widget data directly from store with proper reactivity
+const getWidgetData = () => {
+  if (!props.widgetId) return null
+  
+  // Access widgetsVersion to trigger re-computation when widgets change
+  widgetsVersion.value
+  
+  // Find widget in root widgets
+  let widget = dashboardStore.widgets.find(w => w.id === props.widgetId)
+  
+  // If not found, search in gridContainer children
+  if (!widget) {
+    for (const w of dashboardStore.widgets) {
+      if (w.type === 'gridContainer' && w.children) {
+        widget = w.children.find(c => c.id === props.widgetId)
+        if (widget) break
+      }
+    }
+  }
+  
+  return widget
+}
+
+// Get reactive slot data from store - watch the entire widgets array for reactivity
 const reactiveSlots = computed(() => {
   if (!props.widgetId || !props.slots) return []
+
+  const widget = getWidgetData()
   
-  const widget = dashboardStore.getWidget(props.widgetId)
   if (!widget || !widget.slots) return props.slots || []
-  
+
   // Merge slot config with reactive data from store
   return props.slots.map(slotConfig => {
     const storeSlot = widget.slots.find(s => s.id === slotConfig.id)
@@ -60,6 +91,11 @@ const reactiveSlots = computed(() => {
 const validSlots = computed(() => {
   return reactiveSlots.value.filter(s => s.sensor && s.data)
 })
+
+// Force re-computation when widgets array changes (for reactivity)
+watch(() => dashboardStore.widgets, () => {
+  // This watch triggers re-computation of computed properties
+}, { deep: true })
 
 function slotValue(slot) {
   const slotData = slot.data

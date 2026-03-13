@@ -19,6 +19,7 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
 
 Chart.register(...registerables)
@@ -35,14 +36,47 @@ const props = defineProps({
 
 const dashboardStore = useDashboardStore()
 
-// Get reactive slot data from store
+// Force reactivity by watching the entire widgets array
+const widgetsVersion = ref(0)
+
+watch(() => dashboardStore.widgets, () => {
+  widgetsVersion.value++
+}, { deep: true })
+
+// Get widget data directly from store with proper reactivity
+const getWidgetData = () => {
+  if (!props.widgetId) return null
+  
+  // Access widgetsVersion to trigger re-computation when widgets change
+  widgetsVersion.value
+  
+  // Find widget in root widgets
+  let widget = dashboardStore.widgets.find(w => w.id === props.widgetId)
+  
+  // If not found, search in gridContainer children
+  if (!widget) {
+    for (const w of dashboardStore.widgets) {
+      if (w.type === 'gridContainer' && w.children) {
+        widget = w.children.find(c => c.id === props.widgetId)
+        if (widget) break
+      }
+    }
+  }
+  
+  return widget
+}
+
+// Reactive slot data - computed from store
 const reactiveSlots = computed(() => {
-  if (!props.widgetId || !props.slots) return []
+  if (!props.slots || props.slots.length === 0) return []
   
-  const widget = dashboardStore.getWidget(props.widgetId)
-  if (!widget || !widget.slots) return props.slots || []
+  const widget = getWidgetData()
+  if (!widget || !widget.slots) {
+    // Return slots without data if widget not found
+    return props.slots.map(s => ({ ...s, data: null }))
+  }
   
-  // Merge slot config with reactive data from store
+  // Merge slot config with data from store
   return props.slots.map(slotConfig => {
     const storeSlot = widget.slots.find(s => s.id === slotConfig.id)
     return {
@@ -54,10 +88,41 @@ const reactiveSlots = computed(() => {
 
 const chartRef = ref(null)
 let chart = null
+const defaultColors = ['#2196F3', '#4CAF50', '#FF5722', '#9C27B0', '#FF9800']
 
 const validSlots = computed(() => {
   return reactiveSlots.value.filter(s => s.sensor && s.data)
 })
+
+// Watch for slot data changes - update chart when data arrives
+// Watch the actual slot data arrays, not just validSlots
+watch(
+  () => reactiveSlots.value.map(s => s.data),
+  (newData) => {
+    // Check if any slot has data
+    const hasData = newData.some(d => d !== null && d !== undefined)
+    
+    if (hasData && !chart) {
+      // Create chart on next tick to ensure DOM is ready
+      setTimeout(() => {
+        if (!chart && validSlots.value.length > 0 && chartRef.value) {
+          createChart()
+        }
+      }, 50)
+    } else if (chart && hasData) {
+      // Check if chart canvas is still valid
+      if (!chartRef.value) {
+        // Canvas was removed, destroy old chart
+        chart.destroy()
+        chart = null
+        return
+      }
+      // Update chart without animation for smooth data updates
+      updateChart(false)
+    }
+  },
+  { deep: true }
+)
 
 function createChart() {
   if (!chartRef.value) return
@@ -65,7 +130,6 @@ function createChart() {
   const ctx = chartRef.value.getContext('2d')
   if (!ctx) return
 
-  const defaultColors = ['#2196F3', '#4CAF50', '#FF5722', '#9C27B0', '#FF9800']
   const colors = props.options?.colors || defaultColors
 
   const datasets = validSlots.value.map((slot, index) => {
@@ -129,22 +193,47 @@ function createChart() {
   })
 }
 
-function updateChart() {
-  if (!chart) return
+function updateChart(animate = true) {
+  if (!chart || !chartRef.value) return
 
-  chart.data.labels = getLabels()
+  const colors = props.options?.colors || defaultColors
 
-  validSlots.value.forEach((slot, index) => {
-    if (chart && chart.data.datasets[index]) {
-      chart.data.datasets[index].data = getSlotData(slot)
-      chart.data.datasets[index].label = slot.label || slot.sensor?.name || 'Value'
+  const newDatasets = validSlots.value.map((slot, index) => {
+    const color = slot.options?.color || colors[index % colors.length]
+    const data = getSlotData(slot)
+
+    return {
+      label: slot.label || slot.sensor?.name || 'Value',
+      data: data.map(d => d.value),
+      borderColor: color,
+      backgroundColor: props.options?.fill ? color + '20' : 'transparent',
+      tension: props.options?.smooth ? 0.4 : 0,
+      fill: props.options?.fill ?? false,
+      pointRadius: 2,
+      pointHoverRadius: 4
     }
   })
 
-  // Remove extra datasets if slots were removed
-  chart.data.datasets = chart.data.datasets.slice(0, validSlots.value.length)
-
-  chart.update('none')
+  // Update chart data
+  chart.data.labels = getLabels()
+  chart.data.datasets = newDatasets
+  
+  // Update chart options
+  chart.options.plugins.legend.display = props.options?.showLegend ?? true
+  chart.options.plugins.tooltip.mode = 'index'
+  chart.options.plugins.tooltip.intersect = false
+  chart.options.scales.x.display = true
+  chart.options.scales.x.grid.display = false
+  chart.options.scales.x.ticks.maxTicksLimit = 6
+  chart.options.scales.x.ticks.maxRotation = 0
+  chart.options.scales.y.display = true
+  chart.options.scales.y.grid.color = 'rgba(0, 0, 0, 0.1)'
+  chart.options.interaction.mode = 'nearest'
+  chart.options.interaction.axis = 'x'
+  chart.options.interaction.intersect = false
+  
+  // Update with or without animation
+  chart.update(animate ? 'default' : 'none')
 }
 
 function getLabels() {
@@ -184,16 +273,19 @@ function formatTimestamp(timestamp) {
 
 watch(() => props.slots, () => {
   if (chart) {
-    updateChart()
-  } else if (!props.loading) {
-    createChart()
+    updateChart(false)
+  }
+}, { deep: true })
+
+// Watch for options changes (legend, timeRange, etc.)
+watch(() => props.options, () => {
+  if (chart) {
+    updateChart(false)
   }
 }, { deep: true })
 
 onMounted(() => {
-  if (!props.loading && validSlots.value.length > 0) {
-    createChart()
-  }
+  // Chart will be created by the watcher when data arrives
 })
 
 onBeforeUnmount(() => {
