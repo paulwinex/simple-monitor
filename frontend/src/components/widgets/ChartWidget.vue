@@ -133,8 +133,10 @@ function createChart() {
   const colors = props.options?.colors || defaultColors
 
   const datasets = validSlots.value.map((slot, index) => {
-    const color = slot.options?.color || colors[index % colors.length]
     const data = getSlotData(slot)
+    const showPoints = props.options?.showPoints ?? false
+    // Use chartColor from options, or fall back to slot color, or use default colors
+    const color = props.options?.chartColor || slot.options?.color || colors[index % colors.length]
 
     return {
       label: slot.label || slot.sensor?.name || 'Value',
@@ -143,8 +145,11 @@ function createChart() {
       backgroundColor: props.options?.fill ? color + '20' : 'transparent',
       tension: props.options?.smooth ? 0.4 : 0,
       fill: props.options?.fill ?? false,
-      pointRadius: 2,
-      pointHoverRadius: 4
+      pointRadius: showPoints ? 3 : 0,
+      pointHoverRadius: showPoints ? 5 : 0,
+      pointBackgroundColor: color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1
     }
   })
 
@@ -159,7 +164,7 @@ function createChart() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: props.options?.showLegend ?? true
+          display: props.options?.showLegend ?? false
         },
         tooltip: {
           mode: 'index',
@@ -168,19 +173,24 @@ function createChart() {
       },
       scales: {
         x: {
-          display: true,
+          display: props.options?.showXAxis ?? false,
           grid: {
-            display: false
+            display: props.options?.showGrid ?? false
           },
           ticks: {
+            display: props.options?.showAxisValues ?? false,
             maxTicksLimit: 6,
             maxRotation: 0
           }
         },
         y: {
-          display: true,
+          display: props.options?.showYAxis ?? false,
           grid: {
+            display: props.options?.showGrid ?? false,
             color: 'rgba(0, 0, 0, 0.1)'
+          },
+          ticks: {
+            display: props.options?.showAxisValues ?? false
           }
         }
       },
@@ -199,8 +209,10 @@ function updateChart(animate = true) {
   const colors = props.options?.colors || defaultColors
 
   const newDatasets = validSlots.value.map((slot, index) => {
-    const color = slot.options?.color || colors[index % colors.length]
     const data = getSlotData(slot)
+    const showPoints = props.options?.showPoints ?? false
+    // Use chartColor from options, or fall back to slot color, or use default colors
+    const color = props.options?.chartColor || slot.options?.color || colors[index % colors.length]
 
     return {
       label: slot.label || slot.sensor?.name || 'Value',
@@ -209,8 +221,11 @@ function updateChart(animate = true) {
       backgroundColor: props.options?.fill ? color + '20' : 'transparent',
       tension: props.options?.smooth ? 0.4 : 0,
       fill: props.options?.fill ?? false,
-      pointRadius: 2,
-      pointHoverRadius: 4
+      pointRadius: showPoints ? 3 : 0,
+      pointHoverRadius: showPoints ? 5 : 0,
+      pointBackgroundColor: color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1
     }
   })
 
@@ -219,15 +234,21 @@ function updateChart(animate = true) {
   chart.data.datasets = newDatasets
   
   // Update chart options
-  chart.options.plugins.legend.display = props.options?.showLegend ?? true
+  chart.options.plugins.legend.display = props.options?.showLegend ?? false
   chart.options.plugins.tooltip.mode = 'index'
   chart.options.plugins.tooltip.intersect = false
-  chart.options.scales.x.display = true
-  chart.options.scales.x.grid.display = false
+  
+  chart.options.scales.x.display = props.options?.showXAxis ?? false
+  chart.options.scales.x.grid.display = props.options?.showGrid ?? false
+  chart.options.scales.x.ticks.display = props.options?.showAxisValues ?? false
   chart.options.scales.x.ticks.maxTicksLimit = 6
   chart.options.scales.x.ticks.maxRotation = 0
-  chart.options.scales.y.display = true
+  
+  chart.options.scales.y.display = props.options?.showYAxis ?? false
+  chart.options.scales.y.grid.display = props.options?.showGrid ?? false
   chart.options.scales.y.grid.color = 'rgba(0, 0, 0, 0.1)'
+  chart.options.scales.y.ticks.display = props.options?.showAxisValues ?? false
+  
   chart.options.interaction.mode = 'nearest'
   chart.options.interaction.axis = 'x'
   chart.options.interaction.intersect = false
@@ -324,9 +345,15 @@ export const widgetDefinition = {
       allowMultiple: true,
       defaultOptions: {
         timeRange: '1h',
+        chartColor: '#2196F3',
         showLegend: false,
-        smooth: true,
-        fill: true
+        smooth: false,
+        fill: false,
+        showPoints: false,
+        showXAxis: false,
+        showYAxis: false,
+        showGrid: false,
+        showAxisValues: false
       }
     }
   ]

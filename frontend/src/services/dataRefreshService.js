@@ -137,13 +137,21 @@ class DataRefreshService {
    */
   getTimeRangeHours(options) {
     const timeRange = options?.timeRange || '1h'
-    const match = timeRange.match(/^(\d+)([hd])$/)
+    const match = timeRange.match(/^(\d+)([mhd])$/)
     if (!match) return 1
 
     const value = parseInt(match[1], 10)
     const unit = match[2]
 
-    return unit === 'h' ? value : value * 24
+    if (unit === 'm') {
+      // Minutes - convert to hours (e.g., 30m = 0.5 hours)
+      return value / 60
+    } else if (unit === 'h') {
+      return value
+    } else {
+      // Days
+      return value * 24
+    }
   }
 
   /**

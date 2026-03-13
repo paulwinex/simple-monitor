@@ -212,32 +212,90 @@
               />
 
               <!-- Widget-specific options -->
-              <div v-if="selectedType === 'chart'" class="widget-options">
+              <!-- Chart Options -->
+              <div v-if="selectedType === 'chart'" class="widget-options-column">
                 <div class="text-subtitle2 q-mb-sm">Chart Options</div>
+
+                <!-- Time Range -->
                 <q-select
                   v-model="widgetOptions.timeRange"
                   label="Time Range"
-                  :options="['1h', '6h', '12h', '24h', '7d']"
+                  :options="['1m', '5m', '15m', '30m', '1h', '6h', '12h', '24h', '7d']"
                   outlined
                   dense
                   class="q-mb-sm"
                 />
+
+                <!-- Chart Color -->
+                <q-input
+                  v-model="widgetOptions.chartColor"
+                  label="Chart Color"
+                  outlined
+                  dense
+                  class="q-mb-sm"
+                >
+                  <template #append>
+                    <q-btn round dense flat icon="colorize">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-color v-model="widgetOptions.chartColor" />
+                      </q-popup-proxy>
+                    </q-btn>
+                  </template>
+                </q-input>
+
+                <!-- Legend -->
                 <q-toggle
                   v-model="widgetOptions.showLegend"
                   label="Show Legend"
-                  dense
                   class="q-mb-sm"
                 />
+
+                <!-- Smooth Lines -->
                 <q-toggle
                   v-model="widgetOptions.smooth"
                   label="Smooth Lines"
-                  dense
                   class="q-mb-sm"
                 />
+
+                <!-- Fill Area -->
                 <q-toggle
                   v-model="widgetOptions.fill"
                   label="Fill Area"
-                  dense
+                  class="q-mb-sm"
+                />
+
+                <!-- Show Points -->
+                <q-toggle
+                  v-model="widgetOptions.showPoints"
+                  label="Show Points"
+                  class="q-mb-sm"
+                />
+
+                <!-- Show X Axis -->
+                <q-toggle
+                  v-model="widgetOptions.showXAxis"
+                  label="Show X Axis"
+                  class="q-mb-sm"
+                />
+
+                <!-- Show Y Axis -->
+                <q-toggle
+                  v-model="widgetOptions.showYAxis"
+                  label="Show Y Axis"
+                  class="q-mb-sm"
+                />
+
+                <!-- Show Grid -->
+                <q-toggle
+                  v-model="widgetOptions.showGrid"
+                  label="Show Grid"
+                  class="q-mb-sm"
+                />
+
+                <!-- Show Axis Values -->
+                <q-toggle
+                  v-model="widgetOptions.showAxisValues"
+                  label="Show Axis Values"
                 />
               </div>
 
@@ -581,9 +639,15 @@ function selectWidgetType(type) {
   if (type === 'chart') {
     widgetOptions.value = {
       timeRange: '1h',
-      showLegend: true,
-      smooth: true,
-      fill: false
+      chartColor: '#2196F3',
+      showLegend: false,
+      smooth: false,
+      fill: false,
+      showPoints: false,
+      showXAxis: false,
+      showYAxis: false,
+      showGrid: false,
+      showAxisValues: false
     }
   } else if (type === 'number') {
     widgetOptions.value = {
@@ -702,5 +766,12 @@ watch(dialogVisible, (newVal) => {
 .widget-options {
   border-top: 1px solid #e0e0e0;
   padding-top: 16px;
+}
+
+.widget-options-column {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
 }
 </style>
