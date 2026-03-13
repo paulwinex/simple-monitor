@@ -69,7 +69,7 @@ watch(() => [props.options?.fontSize, props.options?.color], () => {
 
 onMounted(() => {
   calculateFontSize()
-  
+
   // Also recalculate on window resize
   window.addEventListener('resize', calculateFontSize)
 })
@@ -86,13 +86,13 @@ onBeforeUnmount(() => {
 // Get widget data directly from store with proper reactivity
 const getWidgetData = () => {
   if (!props.widgetId) return null
-  
+
   // Access widgetsVersion to trigger re-computation when widgets change
   widgetsVersion.value
-  
+
   // Find widget in root widgets
   let widget = dashboardStore.widgets.find(w => w.id === props.widgetId)
-  
+
   // If not found, search in gridContainer children
   if (!widget) {
     for (const w of dashboardStore.widgets) {
@@ -102,7 +102,7 @@ const getWidgetData = () => {
       }
     }
   }
-  
+
   return widget
 }
 
@@ -111,7 +111,7 @@ const reactiveSlots = computed(() => {
   if (!props.widgetId || !props.slots) return []
 
   const widget = getWidgetData()
-  
+
   if (!widget || !widget.slots) return props.slots || []
 
   // Merge slot config with reactive data from store
@@ -151,22 +151,21 @@ function valueStyle(slot) {
 function formatValue(value, slot) {
   if (value === null || value === undefined) return '—'
 
-  // Check slot options first, then widget options, then default to 1
-  const decimals = (slot.options?.decimals !== undefined) 
-    ? slot.options.decimals 
-    : ((props.options?.decimals !== undefined) 
-        ? props.options.decimals 
-        : 1)
-  
-  let formatted
-  
-  // If decimals is 0, format as integer
-  if (decimals === 0) {
-    formatted = Math.round(Number(value)).toString()
-  } else {
-    formatted = Number(value).toFixed(decimals)
+  const numValue = Number(value)
+  let decimals = 1
+  if (slot.options && slot.options.decimals !== undefined) {
+    decimals = Number(slot.options.decimals)
+  } else if (props.options && props.options.decimals !== undefined) {
+    decimals = Number(props.options.decimals)
   }
-
+  let formatted
+  if (decimals === 0) {
+    // Format as integer - use parseInt to ensure no decimal
+    formatted = parseInt(numValue, 10).toString()
+  } else {
+    // Format with specified decimal places
+    formatted = numValue.toFixed(decimals)
+  }
   if (slot.options?.prefix) {
     formatted = slot.options.prefix + formatted
   }
@@ -175,7 +174,6 @@ function formatValue(value, slot) {
   } else if (props.options?.suffix) {
     formatted = formatted + props.options.suffix
   }
-
   return formatted
 }
 </script>

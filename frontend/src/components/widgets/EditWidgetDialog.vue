@@ -443,10 +443,22 @@ function cancelChanges() {
 // Save widget
 function saveWidget() {
   if (props.widget) {
+    // Apply widget-level options to each slot
+    const updatedSlots = widgetSlots.value.map(slot => ({
+      ...slot,
+      options: {
+        ...slot.options,
+        decimals: widgetOptions.value.decimals,
+        color: widgetOptions.value.color,
+        suffix: widgetOptions.value.suffix,
+        fontSize: widgetOptions.value.fontSize
+      }
+    }))
+    
     const updatedWidget = {
       ...props.widget,
       title: widgetTitle.value,
-      slots: widgetSlots.value,
+      slots: updatedSlots,
       options: { ...widgetOptions.value }
     }
     emit('update:widget', updatedWidget)

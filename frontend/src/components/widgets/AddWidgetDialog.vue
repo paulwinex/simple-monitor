@@ -634,7 +634,13 @@ function createWidget() {
         name: config.sensor,
         table: 'raw'
       } : undefined,
-      options: config.options
+      // Merge slot options with widget-level options (decimals, color, suffix)
+      options: {
+        ...config.options,
+        decimals: widgetOptions.value.decimals,
+        color: widgetOptions.value.color,
+        suffix: widgetOptions.value.suffix
+      }
     }
   })
 
