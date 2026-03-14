@@ -119,6 +119,7 @@ const arcAngle = computed(() => Math.min(360, Math.max(30, props.options?.arcAng
 const rangeMin = computed(() => props.options?.rangeMin ?? 0)
 const rangeMax = computed(() => props.options?.rangeMax ?? 100)
 const displayMode = computed(() => props.options?.displayMode ?? 'fill')
+const gradientMode = computed(() => props.options?.gradientMode ?? 'smooth') // 'smooth' or 'sharp'
 const scale = computed(() => Math.min(150, Math.max(10, props.options?.scale ?? 100))) // 10-150%
 
 // Value percentage (0 to 1)
@@ -217,33 +218,47 @@ const drawGauge = () => {
     ctx.strokeStyle = backgroundColor.value
     ctx.stroke()
 
-    // Progress arc with gradient
+    // Progress arc with gradient or sharp colors
     if (fill > 0) {
       ctx.beginPath()
       ctx.arc(center, center + verticalOffset, radius, startRad, progressRad)
 
-      const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
-      const norm = totalAngleDeg / 360
-      const rawColors = props.options?.gradientColors || [
-        { color: '#2ecc71', position: 0 },
-        { color: '#f1c40f', position: 0.5 },
-        { color: '#e74c3c', position: 1 }
-      ]
-      
-      // Handle both old format (array of colors) and new format (array of {color, position})
-      const colors = rawColors.map((item, index) => {
-        if (typeof item === 'string') {
-          return { color: item, position: index / (rawColors.length - 1) }
-        }
-        return item
-      })
+      if (gradientMode.value === 'sharp') {
+        // Sharp mode: draw segments with solid colors
+        drawSharpGradient(ctx, center, center + verticalOffset, radius, startRad, progressRad, sw)
+      } else {
+        // Smooth mode: use conic gradient
+        const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
+        const norm = totalAngleDeg / 360
+        const rawColors = props.options?.gradientColors || [
+          { color: '#2ecc71', position: 0 },
+          { color: '#f1c40f', position: 0.5 },
+          { color: '#e74c3c', position: 1 }
+        ]
 
-      colors.forEach(({ color, position }) => {
-        gradient.addColorStop(position * norm, color)
-      })
+        // Handle both old format (array of colors) and new format (array of {color, position})
+        const colors = rawColors.map((item, index) => {
+          if (typeof item === 'string') {
+            return { color: item, position: index / (rawColors.length - 1) }
+          }
+          // Validate color - must be a valid hex/rgb string starting with # or rgb/rgba
+          let color = item.color
+          if (typeof color !== 'string' || !color.startsWith('#')) {
+            color = '#cccccc'
+          }
+          return {
+            color: color,
+            position: Math.max(0, Math.min(1, Number(item.position) || 0))
+          }
+        })
 
-      ctx.strokeStyle = gradient
-      ctx.stroke()
+        colors.forEach(({ color, position }) => {
+          gradient.addColorStop(position * norm, color)
+        })
+
+        ctx.strokeStyle = gradient
+        ctx.stroke()
+      }
     }
 
     // Value text - also shifted with the arc
@@ -262,32 +277,89 @@ const drawGauge = () => {
     ctx.beginPath()
     ctx.arc(center, center + verticalOffset, radius, startRad, endRad)
 
-    const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
-    const norm = totalAngleDeg / 360
-    const rawColors = props.options?.gradientColors || [
-      { color: '#2ecc71', position: 0 },
-      { color: '#f1c40f', position: 0.5 },
-      { color: '#e74c3c', position: 1 }
-    ]
-    
-    // Handle both old format (array of colors) and new format (array of {color, position})
-    const colors = rawColors.map((item, index) => {
-      if (typeof item === 'string') {
-        return { color: item, position: index / (rawColors.length - 1) }
-      }
-      return item
-    })
+    if (gradientMode.value === 'sharp') {
+      // Sharp mode: draw segments with solid colors
+      drawSharpGradient(ctx, center, center + verticalOffset, radius, startRad, endRad, sw)
+    } else {
+      // Smooth mode: use conic gradient
+      const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
+      const norm = totalAngleDeg / 360
+      const rawColors = props.options?.gradientColors || [
+        { color: '#2ecc71', position: 0 },
+        { color: '#f1c40f', position: 0.5 },
+        { color: '#e74c3c', position: 1 }
+      ]
 
-    colors.forEach(({ color, position }) => {
-      gradient.addColorStop(position * norm, color)
-    })
+      // Handle both old format (array of colors) and new format (array of {color, position})
+      const colors = rawColors.map((item, index) => {
+        if (typeof item === 'string') {
+          return { color: item, position: index / (rawColors.length - 1) }
+        }
+        // Validate color - must be a valid hex/rgb string starting with # or rgb/rgba
+        let color = item.color
+        if (typeof color !== 'string' || !color.startsWith('#')) {
+          color = '#cccccc'
+        }
+        return {
+          color: color,
+          position: Math.max(0, Math.min(1, Number(item.position) || 0))
+        }
+      })
 
-    ctx.strokeStyle = gradient
-    ctx.stroke()
+      colors.forEach(({ color, position }) => {
+        gradient.addColorStop(position * norm, color)
+      })
+
+      ctx.strokeStyle = gradient
+      ctx.stroke()
+    }
 
     // Draw needle
     const needleRad = startRad + (endRad - startRad) * (fill / 100)
     drawNeedle(ctx, center, center + verticalOffset, radius, needleRad, sw)
+  }
+}
+
+const drawSharpGradient = (ctx, cx, cy, radius, startRad, endRad, lineWidth) => {
+  const rawColors = props.options?.gradientColors || [
+    { color: '#2ecc71', position: 0 },
+    { color: '#f1c40f', position: 0.5 },
+    { color: '#e74c3c', position: 1 }
+  ]
+
+  // Handle both old format (array of colors) and new format (array of {color, position})
+  let colors = rawColors.map((item, index) => {
+    if (typeof item === 'string') {
+      return { color: item, position: index / (rawColors.length - 1) }
+    }
+    // Validate color - must be a valid hex/rgb string starting with # or rgb/rgba
+    let color = item.color
+    if (typeof color !== 'string' || !color.startsWith('#')) {
+      color = '#cccccc'
+    }
+    return {
+      color: color,
+      position: Math.max(0, Math.min(1, Number(item.position) || 0))
+    }
+  })
+
+  // Sort colors by position
+  colors = colors.sort((a, b) => a.position - b.position)
+
+  // Draw each color segment
+  for (let i = 0; i < colors.length - 1; i++) {
+    const currentColor = colors[i]
+    const nextColor = colors[i + 1]
+
+    const segmentStartRad = startRad + (endRad - startRad) * currentColor.position
+    const segmentEndRad = startRad + (endRad - startRad) * nextColor.position
+
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius, segmentStartRad, segmentEndRad)
+    ctx.strokeStyle = currentColor.color
+    ctx.lineWidth = lineWidth
+    ctx.lineCap = 'butt'
+    ctx.stroke()
   }
 }
 
@@ -318,7 +390,7 @@ const drawNeedle = (ctx, cx, cy, radius, angle, sw) => {
 }
 
 watch(
-  [currentValue, arcAngle, strokeWidth, displayMode, backgroundColor, textColor, needleColor, needleAxisColor, () => props.options?.gradientColors],
+  [currentValue, arcAngle, strokeWidth, displayMode, gradientMode, backgroundColor, textColor, needleColor, needleAxisColor, () => props.options?.gradientColors],
   () => {
     nextTick(() => {
       drawGauge()
@@ -406,6 +478,7 @@ export const widgetDefinition = {
         rangeMin: 0,
         rangeMax: 100,
         displayMode: 'fill',
+        gradientMode: 'smooth', // 'smooth' or 'sharp'
         scale: 100,
         gradientAutoDistribute: true,
         gradientColors: [

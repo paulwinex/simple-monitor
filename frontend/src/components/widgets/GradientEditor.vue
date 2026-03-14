@@ -3,12 +3,20 @@
     <!-- Mode toggle -->
     <div class="gradient-editor__header">
       <span class="gradient-editor__label">{{ label }}</span>
-      <q-toggle
-        :model-value="localAutoDistribute"
-        label="Auto distribute"
-        dense
-        @update:model-value="onModeChange"
-      />
+      <div class="gradient-editor__toggles">
+        <q-toggle
+          :model-value="localAutoDistribute"
+          label="Auto distribute"
+          dense
+          @update:model-value="onModeChange"
+        />
+        <q-toggle
+          :model-value="props.gradientMode === 'sharp'"
+          label="Sharp"
+          dense
+          @update:model-value="onGradientModeChange"
+        />
+      </div>
     </div>
 
     <!-- Gradient preview bar -->
@@ -67,6 +75,8 @@
         <span v-if="!localAutoDistribute">Drag: move</span>
         <span v-else>Auto mode: markers are static</span>
         <span>Middle-click: remove</span>
+        <span v-if="props.gradientMode === 'sharp'">Sharp mode</span>
+        <span v-else>Smooth mode</span>
       </div>
     </div>
   </div>
@@ -91,10 +101,18 @@ const props = defineProps({
   autoDistribute: {
     type: Boolean,
     default: true
+  },
+  gradientMode: {
+    type: String,
+    default: 'smooth' // 'smooth' or 'sharp'
   }
 })
 
-const emit = defineEmits(['update:model-value', 'update:auto-distribute'])
+const emit = defineEmits({
+  'update:model-value': null,
+  'update:auto-distribute': null,
+  'update:gradient-mode': null
+})
 
 const barRef = ref(null)
 const activeMarkerId = ref(null)
@@ -119,6 +137,10 @@ const localAutoDistribute = computed({
   set: (value) => emit('update:auto-distribute', value)
 })
 
+const onGradientModeChange = (value) => {
+  emit('update:gradient-mode', value ? 'sharp' : 'smooth')
+}
+
 // Internal stops with stable unique IDs
 const stops = ref([])
 let stopIdCounter = 0
@@ -135,8 +157,14 @@ const getMarkerStyle = (stop) => {
 
 // Initialize stops with stable unique IDs
 const initStops = () => {
+  if (!props.modelValue || !Array.isArray(props.modelValue) || props.modelValue.length === 0) return
+
   // Sort incoming modelValue by position to maintain order
-  const sortedModelValue = [...props.modelValue].sort((a, b) => a.position - b.position)
+  const sortedModelValue = [...props.modelValue].sort((a, b) => {
+    const posA = Number(a?.position) || 0
+    const posB = Number(b?.position) || 0
+    return posA - posB
+  })
 
   const newStops = sortedModelValue.map((stop) => {
     // Try to find matching existing stop
@@ -146,6 +174,8 @@ const initStops = () => {
 
     return {
       ...stop,
+      color: stop.color || '#cccccc',
+      position: Math.max(0, Math.min(1, Number(stop.position) || 0)),
       id: existingStop?.id || `stop-${stopIdCounter++}`
     }
   })
@@ -163,9 +193,32 @@ const sortedStops = computed(() => {
 const gradientBackground = computed(() => {
   if (stops.value.length === 0) return '#cccccc'
 
-  const sorted = sortedStops.value
-  const gradientStops = sorted.map(stop => `${stop.color} ${stop.position * 100}%`)
-  return `linear-gradient(to right, ${gradientStops.join(', ')})`
+  const sorted = [...stops.value].sort((a, b) => a.position - b.position)
+  const isSharp = props.gradientMode === 'sharp'
+
+  if (isSharp) {
+    // Sharp mode: create hard stops between colors
+    // Each color spans from its position to the next color's position
+    const gradientStops = []
+    sorted.forEach((stop, index) => {
+      const pos = stop.position * 100
+      if (index === sorted.length - 1) {
+        // Last color: from its position to 100%
+        gradientStops.push(`${stop.color} ${pos}%`)
+        gradientStops.push(`${stop.color} 100%`)
+      } else {
+        // Other colors: from their position to the next color's position
+        const nextPos = sorted[index + 1].position * 100
+        gradientStops.push(`${stop.color} ${pos}%`)
+        gradientStops.push(`${stop.color} ${nextPos}%`)
+      }
+    })
+    return `linear-gradient(to right, ${gradientStops.join(', ')})`
+  } else {
+    // Smooth mode: normal gradient
+    const gradientStops = sorted.map(stop => `${stop.color} ${stop.position * 100}%`)
+    return `linear-gradient(to right, ${gradientStops.join(', ')})`
+  }
 })
 
 const activeMarker = computed(() => {
@@ -436,6 +489,12 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.gradient-editor__toggles {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .gradient-editor__label {

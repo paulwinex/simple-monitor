@@ -90,10 +90,12 @@
     <GradientEditor
       v-model="localOptions.gradientColors"
       v-model:auto-distribute="localOptions.gradientAutoDistribute"
+      v-model:gradient-mode="localOptions.gradientMode"
       label="Gradient Colors"
       class="q-mb-sm"
       @update:model-value="emitUpdate"
       @update:auto-distribute="emitUpdate"
+      @update:gradient-mode="emitUpdate"
     />
 
     <!-- Show Value Text (Fill mode only) -->
@@ -236,6 +238,7 @@ const defaultOptions = {
   rangeMin: 0,
   rangeMax: 100,
   displayMode: 'fill',
+  gradientMode: 'smooth', // 'smooth' or 'sharp'
   scale: 100,
   gradientAutoDistribute: true,
   gradientColors: [
