@@ -21,14 +21,14 @@
         class="gradient-editor__gradient"
         :style="{ background: gradientBackground }"
       />
-      
+
       <!-- Color markers -->
       <div
         v-for="(stop, index) in sortedStops"
         :key="stop.id"
         :data-stop-id="stop.id"
         class="gradient-editor__marker"
-        :class="{ 
+        :class="{
           'gradient-editor__marker--active': activeMarkerId === stop.id,
           'gradient-editor__marker--dragging': isDraggingMarker && activeMarkerId === stop.id
         }"
@@ -104,16 +104,10 @@ const dragStartPosition = ref(0)
 
 // Watch for color changes and update the stop
 watch(activeColor, (newColor, oldColor) => {
-  console.log('Color changed:', { oldColor, newColor, activeMarkerId: activeMarkerId.value })
-  console.log('Stops:', stops.value.map(s => ({ id: s.id, color: s.color })))
-  
   if (!activeMarkerId.value || !newColor) return
-  
+
   const stop = stops.value.find(s => s.id === activeMarkerId.value)
-  console.log('Found stop:', stop)
-  
   if (stop) {
-    console.log('Updating stop color:', stop.id, 'from', stop.color, 'to', newColor)
     stop.color = newColor
   }
   emitUpdate()
@@ -141,18 +135,21 @@ const getMarkerStyle = (stop) => {
 
 // Initialize stops with stable unique IDs
 const initStops = () => {
-  const newStops = props.modelValue.map((stop) => {
+  // Sort incoming modelValue by position to maintain order
+  const sortedModelValue = [...props.modelValue].sort((a, b) => a.position - b.position)
+
+  const newStops = sortedModelValue.map((stop) => {
     // Try to find matching existing stop
-    const existingStop = stops.value.find(s => 
+    const existingStop = stops.value.find(s =>
       s.position === stop.position && s.color === stop.color
     )
-    
+
     return {
       ...stop,
       id: existingStop?.id || `stop-${stopIdCounter++}`
     }
   })
-  
+
   stops.value = newStops
 }
 
@@ -168,9 +165,7 @@ const gradientBackground = computed(() => {
 
   const sorted = sortedStops.value
   const gradientStops = sorted.map(stop => `${stop.color} ${stop.position * 100}%`)
-  const result = `linear-gradient(to right, ${gradientStops.join(', ')})`
-  console.log('Gradient updated:', result)
-  return result
+  return `linear-gradient(to right, ${gradientStops.join(', ')})`
 })
 
 const activeMarker = computed(() => {
@@ -192,13 +187,13 @@ const onModeChange = (value) => {
 const onBarMouseDown = (event) => {
   // Don't create new marker if we just finished dragging
   if (isDraggingMarker) return
-  
+
   // Only handle left mouse button
   if (event.button !== 0) return
-  
+
   // Prevent default to avoid text selection
   event.preventDefault()
-  
+
   if (!barRef.value) return
 
   const rect = barRef.value.getBoundingClientRect()
@@ -209,11 +204,11 @@ const onBarMouseDown = (event) => {
   let color = '#cccccc'
   if (stops.value.length >= 2) {
     const sorted = sortedStops.value
-    
+
     // Find the two stops that surround this position
     let leftStop = sorted[0]
     let rightStop = sorted[sorted.length - 1]
-    
+
     for (let i = 0; i < sorted.length - 1; i++) {
       if (sorted[i].position <= position && sorted[i + 1].position >= position) {
         leftStop = sorted[i]
@@ -221,18 +216,18 @@ const onBarMouseDown = (event) => {
         break
       }
     }
-    
+
     // Interpolate color between left and right stops
     const range = rightStop.position - leftStop.position
     const ratio = range === 0 ? 0.5 : (position - leftStop.position) / range
-    
+
     const leftColor = hexToRgb(leftStop.color)
     const rightColor = hexToRgb(rightStop.color)
-    
+
     const r = Math.round(leftColor.r + (rightColor.r - leftColor.r) * ratio)
     const g = Math.round(leftColor.g + (rightColor.g - leftColor.g) * ratio)
     const b = Math.round(leftColor.b + (rightColor.b - leftColor.b) * ratio)
-    
+
     color = rgbToHex(r, g, b)
   }
 
@@ -247,7 +242,7 @@ const onBarMouseDown = (event) => {
     // In auto mode: insert at the correct position based on click location
     const sorted = sortedStops.value
     let insertIndex = sorted.length
-    
+
     // Find where to insert based on position
     for (let i = 0; i < sorted.length; i++) {
       if (sorted[i].position > position) {
@@ -255,18 +250,30 @@ const onBarMouseDown = (event) => {
         break
       }
     }
-    
+
     // Insert at the correct position
     stops.value.splice(insertIndex, 0, newStop)
-    
+
     // Re-distribute all stops evenly
     stops.value = stops.value.map((stop, index) => ({
       ...stop,
       position: index / (stops.value.length - 1)
     }))
   } else {
-    // In manual mode: just add to the end
-    stops.value.push(newStop)
+    // In manual mode: insert at the correct position based on click location
+    const sorted = sortedStops.value
+    let insertIndex = sorted.length
+
+    // Find where to insert based on position
+    for (let i = 0; i < sorted.length; i++) {
+      if (sorted[i].position > position) {
+        insertIndex = i
+        break
+      }
+    }
+
+    // Insert at the correct position (maintains sorted order)
+    stops.value.splice(insertIndex, 0, newStop)
   }
 
   activeMarkerId.value = newStop.id
@@ -295,7 +302,7 @@ const rgbToHex = (r, g, b) => {
 const onMarkerMouseDown = (event, stopId) => {
   // Prevent event from bubbling to bar
   event.stopPropagation()
-  
+
   if (event.button === 1) {
     // Middle click - remove marker
     event.preventDefault()
@@ -311,53 +318,38 @@ const onMarkerMouseDown = (event, stopId) => {
   // Select the marker first
   activeMarkerId.value = stopId
   activeColor.value = stop.color
-  
+
   // In auto distribute mode, markers are static - don't allow dragging
   if (props.autoDistribute) {
-    console.log('Auto distribute mode: markers are static')
     return
   }
-  
+
   event.preventDefault()
-  
-  // Log selected marker info
-  console.log('Selected marker:', {
-    id: stop.id,
-    color: stop.color,
-    position: stop.position.toFixed(3)
-  })
-  
+
   // Initialize drag state
   isDraggingMarker = false
   draggingMarkerPosition.value = null
   dragStartX.value = event.clientX
   dragStartPosition.value = stop.position
-  
+
   event.preventDefault()
-  
-  // Log selected marker info
-  console.log('Selected marker:', {
-    id: stop.id,
-    color: stop.color,
-    position: stop.position.toFixed(3)
-  })
-  
+
   // Get bar rect for position calculations
   const barRect = barRef.value.getBoundingClientRect()
 
   const onMove = (moveEvent) => {
     moveEvent.preventDefault()
-    
+
     const deltaX = moveEvent.clientX - dragStartX.value
     const deltaPosition = deltaX / barRect.width
     const newPosition = Math.max(0, Math.min(1, dragStartPosition.value + deltaPosition))
-    
+
     // Update visual position for smooth dragging (uses draggingMarkerPosition ref)
     draggingMarkerPosition.value = newPosition
-    
+
     // Also update stop.position so gradient updates in real-time
     stop.position = newPosition
-    
+
     // Mark as dragging if moved more than 5px
     if (!isDraggingMarker && Math.abs(deltaX) > 5) {
       isDraggingMarker = true
@@ -369,16 +361,16 @@ const onMarkerMouseDown = (event, stopId) => {
     upEvent.preventDefault()
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
-    
+
     // Final position update
     const deltaX = upEvent.clientX - dragStartX.value
     const deltaPosition = deltaX / barRect.width
     stop.position = Math.max(0, Math.min(1, dragStartPosition.value + deltaPosition))
-    
+
     // Reset dragging state
     draggingMarkerPosition.value = null
     isDraggingMarker = false
-    
+
     // Emit update once at the end
     emitUpdate()
   }
@@ -396,12 +388,12 @@ const onMarkerContextMenu = (event, stopId) => {
 
 const removeMarker = (stopId) => {
   if (stops.value.length <= 2) return
-  
+
   const index = stops.value.findIndex(s => s.id === stopId)
   if (index === -1) return
-  
+
   stops.value.splice(index, 1)
-  
+
   if (props.autoDistribute) {
     // Re-distribute remaining stops
     stops.value = stops.value.map((stop, i) => ({
@@ -409,17 +401,19 @@ const removeMarker = (stopId) => {
       position: i / (stops.value.length - 1)
     }))
   }
-  
+
   if (activeMarkerId.value === stopId) {
     activeMarkerId.value = null
     activeColor.value = ''
   }
-  
+
   emitUpdate()
 }
 
 const emitUpdate = () => {
-  const output = stops.value.map(({ id, ...rest }) => rest)
+  // Sort stops by position before emitting
+  const sorted = [...stops.value].sort((a, b) => a.position - b.position)
+  const output = sorted.map(({ id, ...rest }) => rest)
   emit('update:model-value', output)
 }
 
