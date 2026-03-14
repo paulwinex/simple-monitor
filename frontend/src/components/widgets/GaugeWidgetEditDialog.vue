@@ -2,6 +2,21 @@
   <div class="widget-options-column">
     <div class="text-subtitle2 q-mb-sm">Gauge Options</div>
 
+    <!-- Display Mode -->
+    <div class="q-mb-sm">
+      <div class="text-caption text-grey-7 q-mb-xs">Display Mode</div>
+      <q-btn-toggle
+        v-model="localOptions.displayMode"
+        toggle-color="primary"
+        :options="[
+          { label: 'Fill', value: 'fill' },
+          { label: 'Needle', value: 'needle' }
+        ]"
+        unelevated
+        @update:model-value="emitUpdate"
+      />
+    </div>
+
     <!-- Stroke Width -->
     <q-input
       v-model.number="localOptions.strokeWidth"
@@ -20,7 +35,7 @@
       <div class="text-caption text-grey-7 q-mb-xs">Arc Angle: {{ localOptions.arcAngle }}°</div>
       <q-slider
         v-model="localOptions.arcAngle"
-        :min="90"
+        :min="180"
         :max="360"
         :step="10"
         label
@@ -81,38 +96,26 @@
           </q-input>
         </div>
       </div>
+      <q-btn
+        label="Add Color"
+        size="sm"
+        class="q-mt-xs"
+        @click="addGradientColor"
+      />
     </div>
 
-    <!-- Display Mode: Arrow or Number -->
+    <!-- Show Value Text (Fill mode only) -->
     <q-toggle
-      v-model="localOptions.showArrow"
-      label="Show Arrow (instead of number)"
+      v-if="localOptions.displayMode === 'fill'"
+      v-model="localOptions.showValue"
+      label="Show Value in Center"
       class="q-mb-sm"
       @update:model-value="emitUpdate"
     />
 
-    <!-- Arrow Color (if showArrow is true) -->
+    <!-- Text Color (Fill mode only) -->
     <q-input
-      v-if="localOptions.showArrow"
-      v-model="localOptions.arrowColor"
-      label="Arrow Color"
-      outlined
-      dense
-      class="q-mb-sm"
-      @update:model-value="emitUpdate"
-    >
-      <template #append>
-        <q-btn round dense flat icon="colorize">
-          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-            <q-color v-model="localOptions.arrowColor" @update:model-value="emitUpdate" />
-          </q-popup-proxy>
-        </q-btn>
-      </template>
-    </q-input>
-
-    <!-- Text Color (if showArrow is false) -->
-    <q-input
-      v-else
+      v-if="localOptions.displayMode === 'fill' && localOptions.showValue"
       v-model="localOptions.textColor"
       label="Text Color"
       outlined
@@ -129,8 +132,9 @@
       </template>
     </q-input>
 
-    <!-- Background Color -->
+    <!-- Background Color (Fill mode only) -->
     <q-input
+      v-if="localOptions.displayMode === 'fill'"
       v-model="localOptions.backgroundColor"
       label="Background Color"
       outlined
@@ -142,6 +146,44 @@
         <q-btn round dense flat icon="colorize">
           <q-popup-proxy cover transition-show="scale" transition-hide="scale">
             <q-color v-model="localOptions.backgroundColor" @update:model-value="emitUpdate" />
+          </q-popup-proxy>
+        </q-btn>
+      </template>
+    </q-input>
+
+    <!-- Needle Color (Needle mode only) -->
+    <q-input
+      v-if="localOptions.displayMode === 'needle'"
+      v-model="localOptions.needleColor"
+      label="Needle Color"
+      outlined
+      dense
+      class="q-mb-sm"
+      @update:model-value="emitUpdate"
+    >
+      <template #append>
+        <q-btn round dense flat icon="colorize">
+          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+            <q-color v-model="localOptions.needleColor" @update:model-value="emitUpdate" />
+          </q-popup-proxy>
+        </q-btn>
+      </template>
+    </q-input>
+
+    <!-- Needle Axis Color (Needle mode only) -->
+    <q-input
+      v-if="localOptions.displayMode === 'needle'"
+      v-model="localOptions.needleAxisColor"
+      label="Needle Axis Color"
+      outlined
+      dense
+      class="q-mb-sm"
+      @update:model-value="emitUpdate"
+    >
+      <template #append>
+        <q-btn round dense flat icon="colorize">
+          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+            <q-color v-model="localOptions.needleAxisColor" @update:model-value="emitUpdate" />
           </q-popup-proxy>
         </q-btn>
       </template>
@@ -200,11 +242,13 @@ const defaultOptions = {
   arcAngle: 270,
   rangeMin: 0,
   rangeMax: 100,
-  gradientColors: ['#4CAF50', '#8BC34A', '#FFC107', '#F44336'],
-  showArrow: false,
-  arrowColor: '#ffffff',
-  textColor: '#ffffff',
-  backgroundColor: '#424242',
+  displayMode: 'fill',
+  gradientColors: ['#2ecc71', '#f1c40f', '#e74c3c'],
+  showValue: true,
+  textColor: '#2c3e50',
+  backgroundColor: '#ebeef2',
+  needleColor: '#2c3e50',
+  needleAxisColor: '#95a5a6',
   decimals: 1,
   suffix: '',
   prefix: ''
@@ -227,6 +271,12 @@ watch(() => props.widgetOptions, (newOptions) => {
 // Emit changes to parent
 function emitUpdate() {
   emit('update:widget-options', { ...localOptions.value })
+}
+
+// Add gradient color
+function addGradientColor() {
+  localOptions.value.gradientColors.push('#cccccc')
+  emitUpdate()
 }
 </script>
 
