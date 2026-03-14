@@ -31,6 +31,7 @@
         :class="{ 'gradient-editor__marker--active': activeMarkerId === stop.id }"
         :style="{ left: `${stop.position * 100}%` }"
         @mousedown="onMarkerMouseDown($event, stop.id)"
+        @click.stop="onMarkerClick($event, stop.id)"
         @contextmenu.prevent="onMarkerContextMenu($event, stop.id)"
       >
         <div
@@ -49,14 +50,20 @@
           label="Color"
           dense
           outlined
-          readonly
           class="gradient-editor__color-input"
-        />
+        >
+          <template #append>
+            <q-btn round dense flat icon="colorize">
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-color v-model="activeColor" />
+              </q-popup-proxy>
+            </q-btn>
+          </template>
+        </q-input>
       </div>
       <div class="gradient-editor__hint">
         <span>Drag: move</span>
         <span>Middle-click: remove</span>
-        <span>Console: see selected marker</span>
       </div>
     </div>
   </div>
@@ -92,21 +99,48 @@ const activeColor = ref('')
 const dragStartX = ref(0)
 const dragStartPosition = ref(0)
 
+// Watch for color changes and update the stop
+watch(activeColor, (newColor, oldColor) => {
+  console.log('Color changed:', { oldColor, newColor, activeMarkerId: activeMarkerId.value })
+  console.log('Stops:', stops.value.map(s => ({ id: s.id, color: s.color })))
+  
+  if (!activeMarkerId.value || !newColor) return
+  
+  const stop = stops.value.find(s => s.id === activeMarkerId.value)
+  console.log('Found stop:', stop)
+  
+  if (stop) {
+    console.log('Updating stop color:', stop.id, 'from', stop.color, 'to', newColor)
+    stop.color = newColor
+  }
+  emitUpdate()
+}, { deep: true, immediate: false })
+
 // Local computed for autoDistribute with getter/setter
 const localAutoDistribute = computed({
   get: () => props.autoDistribute,
   set: (value) => emit('update:auto-distribute', value)
 })
 
-// Internal stops with unique IDs
+// Internal stops with stable unique IDs
 const stops = ref([])
+let stopIdCounter = 0
 
-// Initialize stops with IDs
+// Initialize stops with stable unique IDs
 const initStops = () => {
-  stops.value = props.modelValue.map((stop, index) => ({
-    ...stop,
-    id: `stop-${index}-${Date.now()}`
-  }))
+  const newStops = props.modelValue.map((stop) => {
+    // Try to find matching existing stop
+    const existingStop = stops.value.find(s => 
+      s.position === stop.position && s.color === stop.color
+    )
+    
+    return {
+      ...stop,
+      id: existingStop?.id || `stop-${stopIdCounter++}`
+    }
+  })
+  
+  stops.value = newStops
 }
 
 watch(() => props.modelValue, initStops, { deep: true })
@@ -118,10 +152,12 @@ const sortedStops = computed(() => {
 
 const gradientBackground = computed(() => {
   if (stops.value.length === 0) return '#cccccc'
-  
+
   const sorted = sortedStops.value
   const gradientStops = sorted.map(stop => `${stop.color} ${stop.position * 100}%`)
-  return `linear-gradient(to right, ${gradientStops.join(', ')})`
+  const result = `linear-gradient(to right, ${gradientStops.join(', ')})`
+  console.log('Gradient updated:', result)
+  return result
 })
 
 const activeMarker = computed(() => {
@@ -217,7 +253,9 @@ const onMarkerMouseDown = (event, stopId) => {
     markerEl.style.left = `${newPosition * 100}%`
   }
 
-  const onUp = () => {
+  const onUp = (upEvent) => {
+    upEvent.stopPropagation()
+    upEvent.preventDefault()
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
     emitUpdate()
@@ -225,6 +263,23 @@ const onMarkerMouseDown = (event, stopId) => {
 
   document.addEventListener('mousemove', onMove, { passive: false })
   document.addEventListener('mouseup', onUp)
+}
+
+const onMarkerClick = (event, stopId) => {
+  // Prevent click from bubbling to bar (which would create new marker)
+  event.stopPropagation()
+  
+  // Just select the marker
+  const stop = stops.value.find(s => s.id === stopId)
+  if (stop) {
+    activeMarkerId.value = stopId
+    activeColor.value = stop.color
+    console.log('Selected marker (click):', {
+      id: stop.id,
+      color: stop.color,
+      position: stop.position.toFixed(3)
+    })
+  }
 }
 
 const onMarkerContextMenu = (event, stopId) => {
@@ -256,14 +311,6 @@ const removeMarker = (stopId) => {
   }
   
   emitUpdate()
-}
-
-const onColorChange = (color) => {
-  const stop = stops.value.find(s => s.id === activeMarkerId.value)
-  if (stop) {
-    stop.color = color
-    emitUpdate()
-  }
 }
 
 const emitUpdate = () => {
