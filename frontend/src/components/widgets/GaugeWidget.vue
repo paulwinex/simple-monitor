@@ -224,11 +224,22 @@ const drawGauge = () => {
 
       const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
       const norm = totalAngleDeg / 360
-      const colors = props.options?.gradientColors || ['#2ecc71', '#f1c40f', '#e74c3c']
+      const rawColors = props.options?.gradientColors || [
+        { color: '#2ecc71', position: 0 },
+        { color: '#f1c40f', position: 0.5 },
+        { color: '#e74c3c', position: 1 }
+      ]
+      
+      // Handle both old format (array of colors) and new format (array of {color, position})
+      const colors = rawColors.map((item, index) => {
+        if (typeof item === 'string') {
+          return { color: item, position: index / (rawColors.length - 1) }
+        }
+        return item
+      })
 
-      colors.forEach((color, i) => {
-        const pos = (i / (colors.length - 1)) * norm
-        gradient.addColorStop(pos, color)
+      colors.forEach(({ color, position }) => {
+        gradient.addColorStop(position * norm, color)
       })
 
       ctx.strokeStyle = gradient
@@ -253,11 +264,22 @@ const drawGauge = () => {
 
     const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
     const norm = totalAngleDeg / 360
-    const colors = props.options?.gradientColors || ['#2ecc71', '#f1c40f', '#e74c3c']
+    const rawColors = props.options?.gradientColors || [
+      { color: '#2ecc71', position: 0 },
+      { color: '#f1c40f', position: 0.5 },
+      { color: '#e74c3c', position: 1 }
+    ]
+    
+    // Handle both old format (array of colors) and new format (array of {color, position})
+    const colors = rawColors.map((item, index) => {
+      if (typeof item === 'string') {
+        return { color: item, position: index / (rawColors.length - 1) }
+      }
+      return item
+    })
 
-    colors.forEach((color, i) => {
-      const pos = (i / (colors.length - 1)) * norm
-      gradient.addColorStop(pos, color)
+    colors.forEach(({ color, position }) => {
+      gradient.addColorStop(position * norm, color)
     })
 
     ctx.strokeStyle = gradient
@@ -385,7 +407,12 @@ export const widgetDefinition = {
         rangeMax: 100,
         displayMode: 'fill',
         scale: 100,
-        gradientColors: ['#2ecc71', '#f1c40f', '#e74c3c'],
+        gradientAutoDistribute: true,
+        gradientColors: [
+          { color: '#2ecc71', position: 0 },
+          { color: '#f1c40f', position: 0.5 },
+          { color: '#e74c3c', position: 1 }
+        ],
         showValue: true,
         textColor: '#2c3e50',
         backgroundColor: '#ebeef2',

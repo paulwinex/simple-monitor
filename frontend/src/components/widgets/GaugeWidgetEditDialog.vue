@@ -87,38 +87,14 @@
     </div>
 
     <!-- Gradient Colors -->
-    <div class="q-mb-sm">
-      <div class="text-caption text-grey-7 q-mb-xs">Gradient Colors</div>
-      <div class="row q-col-gutter-xs">
-        <div
-          v-for="(color, index) in localOptions.gradientColors"
-          :key="index"
-          class="col-3"
-        >
-          <q-input
-            v-model="localOptions.gradientColors[index]"
-            :label="`Color ${index + 1}`"
-            outlined
-            dense
-            @update:model-value="emitUpdate"
-          >
-            <template #append>
-              <q-btn round dense flat icon="colorize">
-                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                  <q-color v-model="localOptions.gradientColors[index]" @update:model-value="emitUpdate" />
-                </q-popup-proxy>
-              </q-btn>
-            </template>
-          </q-input>
-        </div>
-      </div>
-      <q-btn
-        label="Add Color"
-        size="sm"
-        class="q-mt-xs"
-        @click="addGradientColor"
-      />
-    </div>
+    <GradientEditor
+      v-model="localOptions.gradientColors"
+      v-model:auto-distribute="localOptions.gradientAutoDistribute"
+      label="Gradient Colors"
+      class="q-mb-sm"
+      @update:model-value="emitUpdate"
+      @update:auto-distribute="emitUpdate"
+    />
 
     <!-- Show Value Text (Fill mode only) -->
     <q-toggle
@@ -241,6 +217,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import GradientEditor from './GradientEditor.vue'
 
 const props = defineProps({
   widget: Object,
@@ -260,7 +237,12 @@ const defaultOptions = {
   rangeMax: 100,
   displayMode: 'fill',
   scale: 100,
-  gradientColors: ['#2ecc71', '#f1c40f', '#e74c3c'],
+  gradientAutoDistribute: true,
+  gradientColors: [
+    { color: '#2ecc71', position: 0 },
+    { color: '#f1c40f', position: 0.5 },
+    { color: '#e74c3c', position: 1 }
+  ],
   showValue: true,
   textColor: '#2c3e50',
   backgroundColor: '#ebeef2',
@@ -288,12 +270,6 @@ watch(() => props.widgetOptions, (newOptions) => {
 // Emit changes to parent
 function emitUpdate() {
   emit('update:widget-options', { ...localOptions.value })
-}
-
-// Add gradient color
-function addGradientColor() {
-  localOptions.value.gradientColors.push('#cccccc')
-  emitUpdate()
 }
 </script>
 
