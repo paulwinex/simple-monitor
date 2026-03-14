@@ -15,7 +15,7 @@
     <div
       ref="barRef"
       class="gradient-editor__bar"
-      @click="onBarClick"
+      @mousedown="onBarMouseDown"
     >
       <div
         class="gradient-editor__gradient"
@@ -28,10 +28,12 @@
         :key="stop.id"
         :data-stop-id="stop.id"
         class="gradient-editor__marker"
-        :class="{ 'gradient-editor__marker--active': activeMarkerId === stop.id }"
-        :style="{ left: `${stop.position * 100}%` }"
+        :class="{ 
+          'gradient-editor__marker--active': activeMarkerId === stop.id,
+          'gradient-editor__marker--dragging': isDraggingMarker && activeMarkerId === stop.id
+        }"
+        :style="getMarkerStyle(stop)"
         @mousedown="onMarkerMouseDown($event, stop.id)"
-        @click.stop="onMarkerClick($event, stop.id)"
         @contextmenu.prevent="onMarkerContextMenu($event, stop.id)"
       >
         <div
@@ -62,7 +64,8 @@
         </q-input>
       </div>
       <div class="gradient-editor__hint">
-        <span>Drag: move</span>
+        <span v-if="!localAutoDistribute">Drag: move</span>
+        <span v-else>Auto mode: markers are static</span>
         <span>Middle-click: remove</span>
       </div>
     </div>
@@ -125,6 +128,16 @@ const localAutoDistribute = computed({
 // Internal stops with stable unique IDs
 const stops = ref([])
 let stopIdCounter = 0
+let isDraggingMarker = false
+const draggingMarkerPosition = ref(null)
+
+// Get marker style - uses dragging position if currently dragging
+const getMarkerStyle = (stop) => {
+  if (isDraggingMarker && activeMarkerId.value === stop.id && draggingMarkerPosition.value !== null) {
+    return { left: `${draggingMarkerPosition.value * 100}%` }
+  }
+  return { left: `${stop.position * 100}%` }
+}
 
 // Initialize stops with stable unique IDs
 const initStops = () => {
@@ -176,28 +189,84 @@ const onModeChange = (value) => {
   }
 }
 
-const onBarClick = (event) => {
+const onBarMouseDown = (event) => {
+  // Don't create new marker if we just finished dragging
+  if (isDraggingMarker) return
+  
+  // Only handle left mouse button
+  if (event.button !== 0) return
+  
+  // Prevent default to avoid text selection
+  event.preventDefault()
+  
   if (!barRef.value) return
 
   const rect = barRef.value.getBoundingClientRect()
   const x = event.clientX - rect.left
   const position = Math.max(0, Math.min(1, x / rect.width))
 
+  // Calculate color at this position from existing gradient
+  let color = '#cccccc'
+  if (stops.value.length >= 2) {
+    const sorted = sortedStops.value
+    
+    // Find the two stops that surround this position
+    let leftStop = sorted[0]
+    let rightStop = sorted[sorted.length - 1]
+    
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].position <= position && sorted[i + 1].position >= position) {
+        leftStop = sorted[i]
+        rightStop = sorted[i + 1]
+        break
+      }
+    }
+    
+    // Interpolate color between left and right stops
+    const range = rightStop.position - leftStop.position
+    const ratio = range === 0 ? 0.5 : (position - leftStop.position) / range
+    
+    const leftColor = hexToRgb(leftStop.color)
+    const rightColor = hexToRgb(rightStop.color)
+    
+    const r = Math.round(leftColor.r + (rightColor.r - leftColor.r) * ratio)
+    const g = Math.round(leftColor.g + (rightColor.g - leftColor.g) * ratio)
+    const b = Math.round(leftColor.b + (rightColor.b - leftColor.b) * ratio)
+    
+    color = rgbToHex(r, g, b)
+  }
+
   // Add new color stop at this position
   const newStop = {
-    id: `stop-${Date.now()}`,
-    color: '#cccccc',
+    id: `stop-${stopIdCounter++}`,
+    color,
     position
   }
 
-  stops.value.push(newStop)
-
   if (props.autoDistribute) {
+    // In auto mode: insert at the correct position based on click location
+    const sorted = sortedStops.value
+    let insertIndex = sorted.length
+    
+    // Find where to insert based on position
+    for (let i = 0; i < sorted.length; i++) {
+      if (sorted[i].position > position) {
+        insertIndex = i
+        break
+      }
+    }
+    
+    // Insert at the correct position
+    stops.value.splice(insertIndex, 0, newStop)
+    
     // Re-distribute all stops evenly
     stops.value = stops.value.map((stop, index) => ({
       ...stop,
       position: index / (stops.value.length - 1)
     }))
+  } else {
+    // In manual mode: just add to the end
+    stops.value.push(newStop)
   }
 
   activeMarkerId.value = newStop.id
@@ -205,13 +274,31 @@ const onBarClick = (event) => {
   emitUpdate()
 }
 
+// Helper: Convert hex to RGB
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 204, g: 204, b: 204 }
+}
+
+// Helper: Convert RGB to hex
+const rgbToHex = (r, g, b) => {
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
+
 const onMarkerMouseDown = (event, stopId) => {
   // Prevent event from bubbling to bar
   event.stopPropagation()
-  event.preventDefault()
   
   if (event.button === 1) {
     // Middle click - remove marker
+    event.preventDefault()
     removeMarker(stopId)
     return
   }
@@ -221,8 +308,17 @@ const onMarkerMouseDown = (event, stopId) => {
   const stop = stops.value.find(s => s.id === stopId)
   if (!stop) return
 
+  // Select the marker first
   activeMarkerId.value = stopId
   activeColor.value = stop.color
+  
+  // In auto distribute mode, markers are static - don't allow dragging
+  if (props.autoDistribute) {
+    console.log('Auto distribute mode: markers are static')
+    return
+  }
+  
+  event.preventDefault()
   
   // Log selected marker info
   console.log('Selected marker:', {
@@ -232,11 +328,21 @@ const onMarkerMouseDown = (event, stopId) => {
   })
   
   // Initialize drag state
+  isDraggingMarker = false
+  draggingMarkerPosition.value = null
   dragStartX.value = event.clientX
   dragStartPosition.value = stop.position
-
-  // Get marker element for direct position update
-  const markerEl = event.currentTarget
+  
+  event.preventDefault()
+  
+  // Log selected marker info
+  console.log('Selected marker:', {
+    id: stop.id,
+    color: stop.color,
+    position: stop.position.toFixed(3)
+  })
+  
+  // Get bar rect for position calculations
   const barRect = barRef.value.getBoundingClientRect()
 
   const onMove = (moveEvent) => {
@@ -246,11 +352,16 @@ const onMarkerMouseDown = (event, stopId) => {
     const deltaPosition = deltaX / barRect.width
     const newPosition = Math.max(0, Math.min(1, dragStartPosition.value + deltaPosition))
     
-    // Update position directly
+    // Update visual position for smooth dragging (uses draggingMarkerPosition ref)
+    draggingMarkerPosition.value = newPosition
+    
+    // Also update stop.position so gradient updates in real-time
     stop.position = newPosition
     
-    // Update marker position visually
-    markerEl.style.left = `${newPosition * 100}%`
+    // Mark as dragging if moved more than 5px
+    if (!isDraggingMarker && Math.abs(deltaX) > 5) {
+      isDraggingMarker = true
+    }
   }
 
   const onUp = (upEvent) => {
@@ -258,28 +369,22 @@ const onMarkerMouseDown = (event, stopId) => {
     upEvent.preventDefault()
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
+    
+    // Final position update
+    const deltaX = upEvent.clientX - dragStartX.value
+    const deltaPosition = deltaX / barRect.width
+    stop.position = Math.max(0, Math.min(1, dragStartPosition.value + deltaPosition))
+    
+    // Reset dragging state
+    draggingMarkerPosition.value = null
+    isDraggingMarker = false
+    
+    // Emit update once at the end
     emitUpdate()
   }
 
   document.addEventListener('mousemove', onMove, { passive: false })
   document.addEventListener('mouseup', onUp)
-}
-
-const onMarkerClick = (event, stopId) => {
-  // Prevent click from bubbling to bar (which would create new marker)
-  event.stopPropagation()
-  
-  // Just select the marker
-  const stop = stops.value.find(s => s.id === stopId)
-  if (stop) {
-    activeMarkerId.value = stopId
-    activeColor.value = stop.color
-    console.log('Selected marker (click):', {
-      id: stop.id,
-      color: stop.color,
-      position: stop.position.toFixed(3)
-    })
-  }
 }
 
 const onMarkerContextMenu = (event, stopId) => {
@@ -365,7 +470,8 @@ defineExpose({
 
 .gradient-editor__marker {
   position: absolute;
-  bottom: -4px;
+  bottom: 0;
+  left: 0;
   transform: translateX(-50%);
   cursor: grab;
   display: flex;
@@ -374,6 +480,7 @@ defineExpose({
   z-index: 1;
   touch-action: none;
   user-select: none;
+  will-change: left;
 }
 
 .gradient-editor__marker:active {
@@ -382,6 +489,11 @@ defineExpose({
 
 .gradient-editor__marker--active {
   z-index: 2;
+}
+
+.gradient-editor__marker--dragging {
+  z-index: 3;
+  cursor: grabbing;
 }
 
 .gradient-editor__marker--active .gradient-editor__marker-color {
