@@ -115,10 +115,11 @@ const displayValue = computed(() => {
 
 // Gauge configuration
 const strokeWidth = computed(() => props.options?.strokeWidth ?? 20)
-const arcAngle = computed(() => Math.min(360, Math.max(180, props.options?.arcAngle ?? 270)))
+const arcAngle = computed(() => Math.min(360, Math.max(30, props.options?.arcAngle ?? 270)))
 const rangeMin = computed(() => props.options?.rangeMin ?? 0)
 const rangeMax = computed(() => props.options?.rangeMax ?? 100)
 const displayMode = computed(() => props.options?.displayMode ?? 'fill')
+const scale = computed(() => Math.min(150, Math.max(10, props.options?.scale ?? 100))) // 10-150%
 
 // Value percentage (0 to 1)
 const valuePercentage = computed(() => {
@@ -152,13 +153,17 @@ const setupCanvas = () => {
 
   containerSize = newSize
 
+  // Apply scale factor to canvas size
+  const scaleFactor = scale.value / 100
+  const scaledSize = newSize * scaleFactor
+
   const dpr = window.devicePixelRatio || 1
-  const pixelSize = Math.floor(newSize * dpr)
+  const pixelSize = Math.floor(scaledSize * dpr)
   
   canvasRef.value.width = pixelSize
   canvasRef.value.height = pixelSize
-  canvasRef.value.style.width = newSize + 'px'
-  canvasRef.value.style.height = newSize + 'px'
+  canvasRef.value.style.width = scaledSize + 'px'
+  canvasRef.value.style.height = scaledSize + 'px'
 
   nextTick(() => {
     drawGauge()
@@ -173,6 +178,15 @@ const drawGauge = () => {
   
   if (size <= 0) return
 
+  const currentAngle = arcAngle.value
+  
+  // Calculate vertical offset based on arc angle
+  // Smaller angles = more offset upward to reduce empty space at bottom
+  // At 360°: no offset, at 30°: max offset
+  const angleFactor = (360 - currentAngle) / 330 // 0 to 1
+  const maxOffset = size * 0.25 // Maximum offset at 30°
+  const verticalOffset = maxOffset * angleFactor
+
   const center = size / 2
   const padding = size * 0.12
   const radius = (size / 2) - padding
@@ -180,7 +194,7 @@ const drawGauge = () => {
   ctx.clearRect(0, 0, size, size)
 
   const fill = valuePercentage.value * 100
-  let totalAngleDeg = arcAngle.value
+  let totalAngleDeg = currentAngle
 
   if (totalAngleDeg >= 360) totalAngleDeg = 359.99
 
@@ -199,16 +213,16 @@ const drawGauge = () => {
   if (displayMode.value === 'fill') {
     // Background arc
     ctx.beginPath()
-    ctx.arc(center, center, radius, startRad, endRad)
+    ctx.arc(center, center + verticalOffset, radius, startRad, endRad)
     ctx.strokeStyle = backgroundColor.value
     ctx.stroke()
 
     // Progress arc with gradient
     if (fill > 0) {
       ctx.beginPath()
-      ctx.arc(center, center, radius, startRad, progressRad)
+      ctx.arc(center, center + verticalOffset, radius, startRad, progressRad)
 
-      const gradient = ctx.createConicGradient(startRad, center, center)
+      const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
       const norm = totalAngleDeg / 360
       const colors = props.options?.gradientColors || ['#2ecc71', '#f1c40f', '#e74c3c']
 
@@ -221,10 +235,10 @@ const drawGauge = () => {
       ctx.stroke()
     }
 
-    // Value text
+    // Value text - also shifted with the arc
     if (showValueText.value) {
       ctx.save()
-      ctx.translate(center, center)
+      ctx.translate(center, center + verticalOffset)
       ctx.fillStyle = textColor.value
       ctx.font = `bold ${radius * 0.35}px sans-serif`
       ctx.textAlign = 'center'
@@ -235,9 +249,9 @@ const drawGauge = () => {
   } else {
     // Needle mode - full gradient
     ctx.beginPath()
-    ctx.arc(center, center, radius, startRad, endRad)
+    ctx.arc(center, center + verticalOffset, radius, startRad, endRad)
 
-    const gradient = ctx.createConicGradient(startRad, center, center)
+    const gradient = ctx.createConicGradient(startRad, center, center + verticalOffset)
     const norm = totalAngleDeg / 360
     const colors = props.options?.gradientColors || ['#2ecc71', '#f1c40f', '#e74c3c']
 
@@ -251,7 +265,7 @@ const drawGauge = () => {
 
     // Draw needle
     const needleRad = startRad + (endRad - startRad) * (fill / 100)
-    drawNeedle(ctx, center, center, radius, needleRad, sw)
+    drawNeedle(ctx, center, center + verticalOffset, radius, needleRad, sw)
   }
 }
 
@@ -289,6 +303,17 @@ watch(
     })
   },
   { deep: true }
+)
+
+// Watch for scale changes - need to resize canvas
+watch(
+  scale,
+  () => {
+    nextTick(() => {
+      setupCanvas()
+    })
+  },
+  { immediate: false }
 )
 
 const setupResizeObserver = () => {
@@ -359,6 +384,7 @@ export const widgetDefinition = {
         rangeMin: 0,
         rangeMax: 100,
         displayMode: 'fill',
+        scale: 100,
         gradientColors: ['#2ecc71', '#f1c40f', '#e74c3c'],
         showValue: true,
         textColor: '#2c3e50',

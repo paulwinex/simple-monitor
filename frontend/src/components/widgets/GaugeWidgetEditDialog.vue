@@ -2,6 +2,22 @@
   <div class="widget-options-column">
     <div class="text-subtitle2 q-mb-sm">Gauge Options</div>
 
+    <!-- Scale -->
+    <div class="q-mb-sm">
+      <div class="text-caption text-grey-7 q-mb-xs">Scale: {{ localOptions.scale }}%</div>
+      <q-slider
+        v-model="localOptions.scale"
+        :min="10"
+        :max="150"
+        :step="5"
+        label
+        label-always
+        color="primary"
+        markers
+        @update:model-value="emitUpdate"
+      />
+    </div>
+
     <!-- Display Mode -->
     <div class="q-mb-sm">
       <div class="text-caption text-grey-7 q-mb-xs">Display Mode</div>
@@ -35,7 +51,7 @@
       <div class="text-caption text-grey-7 q-mb-xs">Arc Angle: {{ localOptions.arcAngle }}°</div>
       <q-slider
         v-model="localOptions.arcAngle"
-        :min="180"
+        :min="30"
         :max="360"
         :step="10"
         label
@@ -243,6 +259,7 @@ const defaultOptions = {
   rangeMin: 0,
   rangeMax: 100,
   displayMode: 'fill',
+  scale: 100,
   gradientColors: ['#2ecc71', '#f1c40f', '#e74c3c'],
   showValue: true,
   textColor: '#2c3e50',
