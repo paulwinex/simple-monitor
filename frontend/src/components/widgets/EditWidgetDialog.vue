@@ -19,115 +19,13 @@
 
         <!-- Slots Configuration -->
         <div v-if="widgetSlots.length > 0" class="q-mb-md">
-          <div class="text-subtitle2 q-mb-sm">Data Sources</div>
-          <div class="text-caption text-grey-7 q-mb-md">
-            Click on a slot button to change Host → Device → Sensor.
-            Slots without a sensor will be hidden in the widget.
-          </div>
-
-          <q-list bordered separator>
-            <q-item
-              v-for="slot in widgetSlots"
-              :key="slot.id"
-            >
-              <q-item-section avatar>
-                <q-icon
-                  :name="getSlotIcon(slot.id)"
-                  :color="getSlotColor(slot)"
-                />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ slot.label || slot.id }}</q-item-label>
-                <q-item-label caption>
-                  {{ getSlotSummary(slot) }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-btn flat dense :color="slot.sensor ? 'primary' : 'grey'" :label="slot.sensor ? slot.sensor.name : 'Configure'">
-                  <q-menu v-model="menuVisible" anchor="top middle" self="top middle">
-                    <!-- Level 1: Host Selection -->
-                    <q-list v-if="!tempHostSelection" dense style="min-width: 150px">
-                      <q-item
-                        v-for="host in hostOptions"
-                        :key="host.value"
-                        clickable
-                        @click="tempHostSelection = host.value; tempDeviceSelection = null"
-                      >
-                        <q-item-section avatar>
-                          <q-icon name="dns" color="primary" />
-                        </q-item-section>
-                        <q-item-section>
-                          <q-item-label>{{ host.label }}</q-item-label>
-                        </q-item-section>
-                        <q-item-section side>
-                          <q-icon name="chevron_right" color="grey-7" />
-                        </q-item-section>
-                      </q-item>
-                    </q-list>
-
-                    <!-- Level 2: Device Selection -->
-                    <q-list v-else-if="!tempDeviceSelection" dense style="min-width: 150px">
-                      <q-item clickable @click="tempHostSelection = null; tempDeviceSelection = null">
-                        <q-item-section side>
-                          <q-icon name="arrow_back" size="xs" />
-                        </q-item-section>
-                        <q-item-section>
-                          <q-item-label caption>Back</q-item-label>
-                        </q-item-section>
-                      </q-item>
-                      <q-separator />
-                      <q-item
-                        v-for="device in getDeviceOptions(tempHostSelection)"
-                        :key="device.value"
-                        clickable
-                        @click="tempDeviceSelection = device.value"
-                      >
-                        <q-item-section avatar>
-                          <q-icon name="memory" color="primary" />
-                        </q-item-section>
-                        <q-item-section>
-                          <q-item-label>{{ device.label }}</q-item-label>
-                          <q-item-label caption>{{ device.value }}</q-item-label>
-                        </q-item-section>
-                        <q-item-section side>
-                          <q-icon name="chevron_right" color="grey-7" />
-                        </q-item-section>
-                      </q-item>
-                    </q-list>
-
-                    <!-- Level 3: Sensor Selection -->
-                    <q-list v-else dense style="min-width: 150px">
-                      <q-item clickable @click="tempDeviceSelection = null">
-                        <q-item-section side>
-                          <q-icon name="arrow_back" size="xs" />
-                        </q-item-section>
-                        <q-item-section>
-                          <q-item-label caption>Back to {{ tempHostSelection }}</q-item-label>
-                        </q-item-section>
-                      </q-item>
-                      <q-separator />
-                      <q-item
-                        v-for="sensor in getSensorOptions(tempHostSelection, tempDeviceSelection)"
-                        :key="sensor.value"
-                        clickable
-                        @click="selectSensor(slot, sensor.value)"
-                      >
-                        <q-item-section avatar>
-                          <q-icon name="sensors" color="primary" />
-                        </q-item-section>
-                        <q-item-section>
-                          <q-item-label>{{ sensor.label }}</q-item-label>
-                        </q-item-section>
-                        <q-item-section side>
-                          <q-icon name="check" v-if="slot.sensor?.name === sensor.value" color="primary" />
-                        </q-item-section>
-                      </q-item>
-                    </q-list>
-                  </q-menu>
-                </q-btn>
-              </q-item-section>
-            </q-item>
-          </q-list>
+          <WidgetSlotsSelector
+            :slot-definitions="widgetSlotDefinitions"
+            :initial-slot-configs="slotConfigsForSelector"
+            title="Data Sources"
+            description="Click on a slot button to change Host → Device → Sensor. Slots without a sensor will be hidden in the widget."
+            @update:slot-configs="updateSlotConfigsFromSelector"
+          />
         </div>
 
         <!-- Widget-specific options slot -->
@@ -138,6 +36,7 @@
           :widget="widget"
           :widget-options="widgetOptions"
           @update:widget-options="updateWidgetOptions"
+          @update:widget="updateWidgetFromChild"
         />
       </q-card-section>
 
@@ -152,7 +51,8 @@
 <script setup>
 import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import { getWidgetEditDialog } from './widget-registry'
+import { getWidgetEditDialog, getSlotDefinitions } from './widget-registry'
+import WidgetSlotsSelector from './WidgetSlotsSelector.vue'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -176,54 +76,15 @@ const widgetTitle = ref('')
 const widgetOptions = ref({})
 const widgetSlots = ref([])
 const widgetType = ref('')
+const widgetSlotDefinitions = ref([])
+const slotConfigsForSelector = ref({})
 const widgetEditComponent = ref(null)
 const widgetEditRef = ref(null)
-
-// Temporary selections for nested menu
-const tempHostSelection = ref(null)
-const tempDeviceSelection = ref(null)
-const menuVisible = ref(false)
 
 // Backup for cancel functionality
 const backupSlots = ref([])
 const backupTitle = ref('')
 const backupOptions = ref({})
-
-// Host options from store
-const hostOptions = computed(() => {
-  return dashboardStore.hosts.map(h => ({
-    label: h.host_id,
-    value: h.host_id
-  }))
-})
-
-// Get device options for a host
-function getDeviceOptions(hostId) {
-  if (!hostId) return []
-  const host = dashboardStore.hosts.find(h => h.host_id === hostId)
-  if (!host) return []
-  return host.devices.map(d => ({
-    label: d.label || d.name,
-    value: d.name
-  }))
-}
-
-// Get sensor options for a device
-function getSensorOptions(hostId, deviceId) {
-  if (!hostId || !deviceId) return []
-
-  const host = dashboardStore.hosts.find(h => h.host_id === hostId)
-  if (!host) return []
-  const device = host.devices.find(d => d.name === deviceId)
-  if (!device) return []
-
-  // Use sensors array loaded from backend
-  const sensors = device.sensors || []
-  return sensors.map(s => ({
-    label: s,
-    value: s
-  }))
-}
 
 // Watch for widget changes - create backup for cancel
 watch(() => props.widget, async (newWidget) => {
@@ -236,6 +97,21 @@ watch(() => props.widget, async (newWidget) => {
     backupTitle.value = newWidget.title || ''
     backupOptions.value = { ...newWidget.options }
 
+    // Load slot definitions for this widget type
+    const defs = getSlotDefinitions(newWidget.type)
+    widgetSlotDefinitions.value = defs
+
+    // Convert slots to format expected by WidgetSlotsSelector
+    const configs = {}
+    for (const slot of (newWidget.slots || [])) {
+      configs[slot.id] = {
+        hostId: slot.hostId || null,
+        deviceId: slot.deviceId || null,
+        sensor: slot.sensor?.name || null
+      }
+    }
+    slotConfigsForSelector.value = configs
+
     // Load widget-specific edit dialog component
     const editDialog = getWidgetEditDialog(newWidget.type)
     if (editDialog) {
@@ -246,58 +122,46 @@ watch(() => props.widget, async (newWidget) => {
   }
 }, { immediate: true })
 
-// Get slot icon based on slot ID
-function getSlotIcon(slotId) {
-  const iconMap = {
-    number: 'format_list_numbered',
-    chart: 'insert_chart',
-    load: 'speed',
-    temperature: 'thermometer',
-    primary: 'looks_one',
-    secondary: 'looks_two'
-  }
-  return iconMap[slotId] || 'data_usage'
-}
-
-// Get slot color based on configuration
-function getSlotColor(slot) {
-  if (slot.sensor) return 'primary'
-  return 'grey-7'
-}
-
-// Get slot summary text
-function getSlotSummary(slot) {
-  if (!slot.sensor) return ''
-  const parts = []
-  if (slot.hostId) parts.push(slot.hostId)
-  if (slot.deviceId) parts.push(slot.deviceId)
-  if (slot.sensor?.name) parts.push(slot.sensor.name)
-  return parts.join(' / ')
-}
-
-// Select sensor from nested menu - updates slot immediately
-function selectSensor(slot, sensor) {
-  const index = widgetSlots.value.findIndex(s => s.id === slot.id)
-  if (index >= 0) {
-    widgetSlots.value[index] = {
-      ...widgetSlots.value[index],
-      hostId: tempHostSelection.value || undefined,
-      deviceId: tempDeviceSelection.value || undefined,
-      sensor: {
-        name: sensor,
+// Update slot configs from WidgetSlotsSelector
+function updateSlotConfigsFromSelector(newConfigs) {
+  // Convert configs back to slot format
+  const newSlots = widgetSlots.value.map(slot => {
+    const config = newConfigs[slot.id]
+    if (!config) return slot
+    return {
+      ...slot,
+      hostId: config.hostId || undefined,
+      deviceId: config.deviceId || undefined,
+      sensor: config.sensor ? {
+        name: config.sensor,
         table: 'raw'
-      }
+      } : undefined
     }
-  }
-  // Close menu and reset temp selections
-  menuVisible.value = false
-  tempHostSelection.value = null
-  tempDeviceSelection.value = null
+  })
+  widgetSlots.value = newSlots
 }
 
 // Update widget options from child component
 function updateWidgetOptions(newOptions) {
   widgetOptions.value = newOptions
+}
+
+// Update widget from child component (e.g., sensor change)
+function updateWidgetFromChild(updatedWidget) {
+  if (updatedWidget?.slots) {
+    widgetSlots.value = JSON.parse(JSON.stringify(updatedWidget.slots))
+    
+    // Also update slot configs for selector
+    const configs = {}
+    for (const slot of (updatedWidget.slots || [])) {
+      configs[slot.id] = {
+        hostId: slot.hostId || null,
+        deviceId: slot.deviceId || null,
+        sensor: slot.sensor?.name || null
+      }
+    }
+    slotConfigsForSelector.value = configs
+  }
 }
 
 // Cancel changes and restore backup
@@ -330,20 +194,6 @@ function closeDialog() {
 <style scoped>
 .q-card {
   max-height: 90vh;
-}
-
-.menu-column {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.menu-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
 }
 
 .widget-options {

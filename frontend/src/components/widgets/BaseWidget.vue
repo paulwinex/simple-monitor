@@ -89,7 +89,7 @@ const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 .widget-content {
   flex: 1;
-  padding: 12px;
+  padding: 4px;
   overflow: hidden;
 }
 </style>

@@ -16,7 +16,7 @@
     <!-- Chart Color -->
     <q-input
       v-model="localOptions.chartColor"
-      label="Chart Color"
+      label="Color"
       outlined
       dense
       class="q-mb-sm"
@@ -30,14 +30,6 @@
         </q-btn>
       </template>
     </q-input>
-
-    <!-- Legend -->
-    <q-toggle
-      v-model="localOptions.showLegend"
-      label="Show Legend"
-      class="q-mb-sm"
-      @update:model-value="emitUpdate"
-    />
 
     <!-- Smooth Lines -->
     <q-toggle

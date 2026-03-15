@@ -91,8 +91,6 @@ class DataRefreshService {
     const widgetHostId = widget.hostId || parentHostId
     if (!widget.slots || widget.slots.length === 0) return
 
-    // Gauge uses latest query like number, chart uses range
-    const queryType = widget.type === 'chart' ? 'range' : 'latest'
     const interval = widget.refreshInterval || 5000
 
     for (const slot of widget.slots) {
@@ -104,6 +102,14 @@ class DataRefreshService {
       const hostId = slot.hostId || widgetHostId
       if (!hostId) {
         continue
+      }
+
+      // Determine query type based on widget type and slot id
+      // - number widgets and 'number' slots use 'latest'
+      // - chart widgets and 'chart' slots use 'range'
+      let queryType = 'latest'
+      if (widget.type === 'chart' || slot.id === 'chart') {
+        queryType = 'range'
       }
 
       const key = {

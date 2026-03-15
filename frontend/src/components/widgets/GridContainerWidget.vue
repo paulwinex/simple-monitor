@@ -116,6 +116,7 @@ import { useDashboardStore } from 'stores/dashboard'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
 import GaugeWidget from './GaugeWidget.vue'
+import DualViewWidget from './DualViewWidget.vue'
 import AddWidgetDialog from './AddWidgetDialog.vue'
 import EditWidgetDialog from './EditWidgetDialog.vue'
 
@@ -277,6 +278,10 @@ function renderWidget(widget) {
 
   if (widget.type === 'gauge') {
     return h(GaugeWidget, commonProps)
+  }
+
+  if (widget.type === 'dualView') {
+    return h(DualViewWidget, commonProps)
   }
 
   return null
