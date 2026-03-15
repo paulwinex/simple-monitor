@@ -191,7 +191,9 @@ function createChart() {
           },
           ticks: {
             display: props.options?.showAxisValues ?? false
-          }
+          },
+          min: props.options?.yAxisMin ?? undefined,
+          max: props.options?.yAxisMax ?? undefined
         }
       },
       interaction: {
@@ -353,7 +355,9 @@ export const widgetDefinition = {
         showXAxis: false,
         showYAxis: false,
         showGrid: false,
-        showAxisValues: false
+        showAxisValues: false,
+        yAxisMin: null,
+        yAxisMax: null
       }
     }
   ]

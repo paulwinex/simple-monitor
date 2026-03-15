@@ -52,7 +52,7 @@
 import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
 import { getWidgetEditDialog, getSlotDefinitions } from './widget-registry'
-import WidgetSlotsSelector from './WidgetSlotsSelector.vue'
+import WidgetSlotsSelector from '../common/WidgetSlotsSelector.vue'
 
 const props = defineProps({
   modelValue: Boolean,

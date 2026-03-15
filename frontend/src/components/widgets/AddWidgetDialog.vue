@@ -136,7 +136,7 @@
 import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
 import { widgetRegistry, getSlotDefinitions, getWidgetEditDialog } from './widget-registry'
-import WidgetSlotsSelector from './WidgetSlotsSelector.vue'
+import WidgetSlotsSelector from '../common/WidgetSlotsSelector.vue'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -209,7 +209,7 @@ function getWidgetIcon(type) {
     gauge: 'speed',
     gridContainer: 'view_module',
     cpu: 'memory',
-    dualView: 'view_module'
+    numberChart: 'view_module'
   }
   return iconMap[type] || 'widgets'
 }
@@ -264,7 +264,9 @@ function selectWidgetType(type) {
       showXAxis: false,
       showYAxis: false,
       showGrid: false,
-      showAxisValues: false
+      showAxisValues: false,
+      yAxisMin: undefined,
+      yAxisMax: undefined
     }
   } else if (type === 'number') {
     widgetOptions.value = {
@@ -287,8 +289,11 @@ function selectWidgetType(type) {
       suffix: '',
       prefix: ''
     }
-  } else if (type === 'dualView') {
+  } else if (type === 'numberChart') {
     widgetOptions.value = {
+      gap: 16,
+      contentPadding: 8,
+      numberFontSize: 50,
       numberDecimals: 1,
       numberSuffix: '',
       numberPrefix: '',
@@ -302,7 +307,9 @@ function selectWidgetType(type) {
       showXAxis: false,
       showYAxis: false,
       showGrid: false,
-      showAxisValues: false
+      showAxisValues: false,
+      yAxisMin: undefined,
+      yAxisMax: undefined
     }
   }
 

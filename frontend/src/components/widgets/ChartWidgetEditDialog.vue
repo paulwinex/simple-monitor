@@ -85,6 +85,27 @@
       label="Show Axis Values"
       @update:model-value="emitUpdate"
     />
+
+    <!-- Y-Axis Min -->
+    <q-input
+      v-model.number="localOptions.yAxisMin"
+      label="Y-Axis Min (empty = auto)"
+      type="number"
+      outlined
+      dense
+      class="q-mb-sm"
+      @update:model-value="emitUpdate"
+    />
+
+    <!-- Y-Axis Max -->
+    <q-input
+      v-model.number="localOptions.yAxisMax"
+      label="Y-Axis Max (empty = auto)"
+      type="number"
+      outlined
+      dense
+      @update:model-value="emitUpdate"
+    />
   </div>
 </template>
 
@@ -113,6 +134,8 @@ const localOptions = ref({
   showYAxis: false,
   showGrid: false,
   showAxisValues: false,
+  yAxisMin: undefined,
+  yAxisMax: undefined,
   ...props.widgetOptions
 })
 
@@ -129,6 +152,8 @@ watch(() => props.widgetOptions, (newOptions) => {
     showYAxis: false,
     showGrid: false,
     showAxisValues: false,
+    yAxisMin: undefined,
+    yAxisMax: undefined,
     ...newOptions
   }
 }, { deep: true, immediate: true })

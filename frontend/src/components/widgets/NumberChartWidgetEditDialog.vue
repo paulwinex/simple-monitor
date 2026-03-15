@@ -1,8 +1,37 @@
 <template>
-  <div class="dual-view-edit-dialog">
+  <div class="number-chart-edit-dialog">
+    <!-- Common Options Tab -->
+    <div class="text-subtitle2 q-mb-sm">Common Options</div>
+
+    <!-- Gap between sections -->
+    <q-input
+      v-model.number="localOptions.gap"
+      label="Gap between sections (px)"
+      type="number"
+      :min="0"
+      :max="50"
+      outlined
+      dense
+      class="q-mb-sm"
+      @update:model-value="emitUpdate"
+    />
+
+    <!-- Padding from edges -->
+    <q-input
+      v-model.number="localOptions.contentPadding"
+      label="Padding from edges (px)"
+      type="number"
+      :min="0"
+      :max="50"
+      outlined
+      dense
+      class="q-mb-sm"
+      @update:model-value="emitUpdate"
+    />
+
     <q-tabs
       v-model="activeTab"
-      class="text-grey"
+      class="text-grey q-mt-md"
       active-color="primary"
       indicator-color="primary"
       align="left"
@@ -24,6 +53,22 @@
       <!-- Number Tab -->
       <q-tab-panel name="number">
         <div class="text-subtitle2 q-mb-sm">Number Options</div>
+
+        <!-- Font Size Slider -->
+        <div class="q-mb-sm">
+          <div class="text-caption text-grey-7 q-mb-xs">Font Size: {{ localOptions.numberFontSize }}%</div>
+          <q-slider
+            v-model="localOptions.numberFontSize"
+            :min="30"
+            :max="150"
+            :step="5"
+            label
+            label-always
+            color="primary"
+            markers
+            @update:model-value="emitUpdate"
+          />
+        </div>
 
         <!-- Decimal Places -->
         <q-input
@@ -163,6 +208,27 @@
           label="Show Axis Values"
           @update:model-value="emitUpdate"
         />
+
+        <!-- Y-Axis Min -->
+        <q-input
+          v-model.number="localOptions.yAxisMin"
+          label="Y-Axis Min (empty = auto)"
+          type="number"
+          outlined
+          dense
+          class="q-mb-sm"
+          @update:model-value="emitUpdate"
+        />
+
+        <!-- Y-Axis Max -->
+        <q-input
+          v-model.number="localOptions.yAxisMax"
+          label="Y-Axis Max (empty = auto)"
+          type="number"
+          outlined
+          dense
+          @update:model-value="emitUpdate"
+        />
       </q-tab-panel>
     </q-tab-panels>
   </div>
@@ -185,6 +251,9 @@ const activeTab = ref('number')
 
 // Local copy of options with defaults
 const localOptions = ref({
+  gap: 16,
+  contentPadding: 8,
+  numberFontSize: 50,
   numberDecimals: 1,
   numberSuffix: '',
   numberPrefix: '',
@@ -199,12 +268,17 @@ const localOptions = ref({
   showYAxis: false,
   showGrid: false,
   showAxisValues: false,
+  yAxisMin: undefined,
+  yAxisMax: undefined,
   ...props.widgetOptions
 })
 
 // Watch for external changes
 watch(() => props.widgetOptions, (newOptions) => {
   localOptions.value = {
+    gap: 16,
+    contentPadding: 8,
+    numberFontSize: 50,
     numberDecimals: 1,
     numberSuffix: '',
     numberPrefix: '',
@@ -219,6 +293,8 @@ watch(() => props.widgetOptions, (newOptions) => {
     showYAxis: false,
     showGrid: false,
     showAxisValues: false,
+    yAxisMin: undefined,
+    yAxisMax: undefined,
     ...newOptions
   }
 }, { deep: true, immediate: true })
@@ -230,7 +306,7 @@ function emitUpdate() {
 </script>
 
 <style scoped>
-.dual-view-edit-dialog {
+.number-chart-edit-dialog {
   border-top: 1px solid #e0e0e0;
   padding-top: 16px;
 }

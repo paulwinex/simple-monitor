@@ -136,7 +136,7 @@ import { dataRefreshService } from 'src/services/dataRefreshService'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GaugeWidget from 'components/widgets/GaugeWidget.vue'
-import DualViewWidget from 'components/widgets/DualViewWidget.vue'
+import NumberChartWidget from 'components/widgets/NumberChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
 import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
@@ -264,8 +264,8 @@ function renderWidget(widget) {
     })
   }
 
-  if (widget.type === 'dualView') {
-    return h(DualViewWidget, {
+  if (widget.type === 'numberChart') {
+    return h(NumberChartWidget, {
       ...commonProps
     })
   }

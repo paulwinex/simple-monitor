@@ -8,7 +8,7 @@
         <div v-else-if="error" class="text-center text-negative">
           {{ error }}
         </div>
-        <div v-else class="dual-view-container">
+        <div v-else class="dual-view-container" :style="containerStyle">
           <!-- Left: Number Display (always square) -->
           <div class="number-section" :style="numberSectionStyle">
             <div class="number-value" :style="numberValueStyle">
@@ -158,7 +158,8 @@ const numberSectionStyle = computed(() => {
 
 const numberValueStyle = computed(() => {
   const size = numberSectionSize.value
-  const fontSize = size * 0.35
+  const fontSizePercent = props.options?.numberFontSize ?? 50
+  const fontSize = size * (fontSizePercent / 100)
   return {
     fontSize: `${fontSize}px`,
     color: props.options?.numberColor || '#4CAF50',
@@ -166,16 +167,38 @@ const numberValueStyle = computed(() => {
   }
 })
 
+// Computed styles for padding/gap
+const gapStyle = computed(() => {
+  const gap = props.options?.gap ?? props.options?.padding ?? 16
+  return `${gap}px`
+})
+
+const paddingStyle = computed(() => {
+  const padding = props.options?.contentPadding ?? props.options?.padding ?? 8
+  return `${padding}px`
+})
+
+const containerStyle = computed(() => ({
+  gap: gapStyle.value,
+  padding: paddingStyle.value
+}))
+
 // Create chart
 function createChart() {
   if (!chartRef.value || chartData.value.length === 0) return
-
+  
+  // Check if chart already exists and destroy it
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
+  
   const ctx = chartRef.value.getContext('2d')
   if (!ctx) return
 
   const color = props.options?.chartColor || '#2196F3'
   const data = chartData.value
-
+  
   // Get chart options from widget options
   const showPoints = props.options?.showPoints ?? false
   const smooth = props.options?.smooth ?? false
@@ -237,7 +260,9 @@ function createChart() {
           },
           ticks: {
             display: showAxisValues
-          }
+          },
+          min: props.options?.yAxisMin ?? undefined,
+          max: props.options?.yAxisMax ?? undefined
         }
       },
       interaction: {
@@ -251,12 +276,14 @@ function createChart() {
 
 // Watch for chart data changes
 watch(() => chartData.value, () => {
+  // Destroy existing chart first
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
+  // Create chart on next tick
   nextTick(() => {
-    if (chart) {
-      chart.destroy()
-      chart = null
-    }
-    if (chartData.value.length > 0 && chartRef.value) {
+    if (chartData.value.length > 0 && chartRef.value && !chart) {
       createChart()
     }
   })
@@ -264,15 +291,17 @@ watch(() => chartData.value, () => {
 
 // Watch for options changes to update chart appearance
 watch(() => props.options, () => {
+  // Destroy existing chart first
   if (chart) {
     chart.destroy()
     chart = null
-    nextTick(() => {
-      if (chartData.value.length > 0 && chartRef.value) {
-        createChart()
-      }
-    })
   }
+  // Recreate chart on next tick
+  nextTick(() => {
+    if (chartData.value.length > 0 && chartRef.value && !chart) {
+      createChart()
+    }
+  })
 }, { deep: true })
 
 onMounted(() => {
@@ -301,8 +330,6 @@ onBeforeUnmount(() => {
   flex-direction: row;
   height: 100%;
   width: 100%;
-  gap: 16px;
-  padding: 4px;
   align-items: center;
   justify-content: flex-start;
 }
@@ -340,8 +367,8 @@ onBeforeUnmount(() => {
 <!-- Widget metadata -->
 <script>
 export const widgetDefinition = {
-  type: 'dualView',
-  label: 'Dual View',
+  type: 'numberChart',
+  label: 'Number + Chart',
   defaultSize: { w: 8, h: 6 },
   slotDefinitions: [
     {
@@ -360,7 +387,9 @@ export const widgetDefinition = {
       allowMultiple: false,
       defaultOptions: {
         timeRange: '1h',
-        chartColor: '#2196F3'
+        chartColor: '#2196F3',
+        yAxisMin: null,
+        yAxisMax: null
       }
     }
   ]
