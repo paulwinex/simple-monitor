@@ -5,9 +5,9 @@
     <div class="floating-menu-container">
       <q-btn
         v-if="!isEditMode"
-        round
         dense
         flat
+        size="sm"
         icon="edit"
         color="grey-7"
         @click="toggleEditMode"
@@ -46,8 +46,8 @@
           dense
           flat
           icon="close"
-          @click="toggleEditMode"
-          title="Cancel (Discard Changes)"
+          @click="confirmCancelEditMode"
+          title="Discard Changes and Exit"
         />
       </div>
     </div>
@@ -323,6 +323,28 @@ function updateContainerWidget(containerId, updates) {
 
 function toggleEditMode() {
   uiStore.toggleEditMode()
+}
+
+// Confirm before canceling edit mode (discard changes)
+function confirmCancelEditMode() {
+  $q.dialog({
+    title: 'Discard Changes?',
+    message: 'You have unsaved changes. Are you sure you want to discard them and reload the last saved dashboard?',
+    cancel: {
+      label: 'Keep Editing',
+      color: 'primary',
+      flat: true
+    },
+    ok: {
+      label: 'Discard',
+      color: 'negative',
+      flat: true
+    },
+    persistent: true
+  }).onOk(async () => {
+    // User confirmed - cancel edit mode and reload from server
+    await uiStore.cancelEditMode()
+  })
 }
 
 function handleAddWidget() {

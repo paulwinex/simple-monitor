@@ -128,10 +128,48 @@ const displayNumberValue = computed(() => {
   if (!slot?.data) return 'NO DATA'
   const metrics = slot.data.data
   if (Array.isArray(metrics) && metrics.length > 0) {
-    return metrics[metrics.length - 1].value
+    const value = metrics[metrics.length - 1].value
+    return formatNumberValue(value, slot)
   }
   return 'EMPTY'
 })
+
+// Format number value based on options
+function formatNumberValue(value, slot) {
+  if (value === null || value === undefined) return '—'
+  
+  const numValue = Number(value)
+  let decimals = 1
+  
+  // Get decimals from widget options first (user settings), then slot options (defaults)
+  if (props.options && props.options.numberDecimals != null) {
+    decimals = Number(props.options.numberDecimals)
+  } else if (slot?.options && slot.options.decimals != null) {
+    decimals = Number(slot.options.decimals)
+  }
+  
+  let formatted
+  if (decimals === 0) {
+    formatted = Math.round(numValue).toString()
+  } else {
+    formatted = numValue.toFixed(decimals)
+  }
+  
+  // Add prefix/suffix - widget options first, then slot options
+  if (props.options?.numberPrefix) {
+    formatted = props.options.numberPrefix + formatted
+  } else if (slot?.options?.prefix) {
+    formatted = slot.options.prefix + formatted
+  }
+  
+  if (props.options?.numberSuffix) {
+    formatted = formatted + props.options.numberSuffix
+  } else if (slot?.options?.suffix) {
+    formatted = formatted + slot.options.suffix
+  }
+  
+  return formatted
+}
 
 // Get chart data
 const chartData = computed(() => {

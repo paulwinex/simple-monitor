@@ -153,15 +153,18 @@ function formatValue(value, slot) {
 
   const numValue = Number(value)
   let decimals = 1
-  if (slot.options && slot.options.decimals !== undefined) {
-    decimals = Number(slot.options.decimals)
-  } else if (props.options && props.options.decimals !== undefined) {
+
+  // Check widget options first (user settings), then slot options (defaults)
+  if (props.options && props.options.decimals != null) {
     decimals = Number(props.options.decimals)
+  } else if (slot.options && slot.options.decimals != null) {
+    decimals = Number(slot.options.decimals)
   }
+
   let formatted
   if (decimals === 0) {
-    // Format as integer - use parseInt to ensure no decimal
-    formatted = parseInt(numValue, 10).toString()
+    // Format as integer - use Math.round to ensure no decimal
+    formatted = Math.round(numValue).toString()
   } else {
     // Format with specified decimal places
     formatted = numValue.toFixed(decimals)

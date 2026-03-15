@@ -25,9 +25,18 @@ export const useUIStore = defineStore('ui', () => {
     }
   }
 
+  // Cancel edit mode without saving - reloads dashboard from server
+  async function cancelEditMode() {
+    if (isEditMode.value) {
+      isEditMode.value = false
+      await dashboardStore.reloadDashboard()
+    }
+  }
+
   return {
     isEditMode,
     toggleEditMode,
-    setEditMode
+    setEditMode,
+    cancelEditMode
   }
 })

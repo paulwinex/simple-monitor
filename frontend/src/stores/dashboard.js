@@ -225,6 +225,24 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
+  // Reload dashboard from server (used when canceling edit mode)
+  async function reloadDashboard() {
+    loading.value = true
+    error.value = null
+
+    try {
+      const data = await fetchDashboardFromApi()
+      layout.value = data.layout
+      widgets.value = data.widgets
+      gridOptions.value = data.gridOptions || DEFAULT_GRID_OPTIONS
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to reload dashboard'
+      console.error('Failed to reload dashboard:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function saveDashboard() {
     try {
       await saveDashboardToApi({ layout: layout.value, widgets: widgets.value, gridOptions: gridOptions.value })
@@ -460,6 +478,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     isLoading,
     hasError,
     loadDashboard,
+    reloadDashboard,
     saveDashboard,
     loadHosts,
     addWidget,
