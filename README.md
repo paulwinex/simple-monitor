@@ -32,3 +32,5 @@ Add widget
 TODO:
 - alerting
 - customize widget style
+- mode special widgets
+- multiple dashboards supporting
