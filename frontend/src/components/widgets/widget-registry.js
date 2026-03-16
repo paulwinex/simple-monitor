@@ -2,6 +2,7 @@ import { widgetDefinition as numberDefinition } from './NumberWidget.vue'
 import { widgetDefinition as chartDefinition } from './ChartWidget.vue'
 import { widgetDefinition as gaugeDefinition } from './GaugeWidget.vue'
 import { widgetDefinition as numberChartDefinition } from './NumberChartWidget.vue'
+import { widgetDefinition as multiChartDefinition } from './MultiChartWidget.vue'
 
 // GridContainer definition inline to avoid circular dependency
 const gridContainerDefinition = {
@@ -17,6 +18,7 @@ export const widgetRegistry = [
   chartDefinition,
   gaugeDefinition,
   numberChartDefinition,
+  multiChartDefinition,
   gridContainerDefinition
   // Add new widgets here when created
 ]
@@ -27,6 +29,7 @@ export const widgetEditDialogs = {
   chart: 'ChartWidgetEditDialog.vue',
   gauge: 'GaugeWidgetEditDialog.vue',
   numberChart: 'NumberChartWidgetEditDialog.vue',
+  multiChart: 'MultiChartWidgetEditDialog.vue',
   gridContainer: 'GridContainerWidgetEditDialog.vue'
   // Add new widget edit dialogs here when created
 }

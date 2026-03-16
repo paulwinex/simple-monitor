@@ -107,8 +107,9 @@ class DataRefreshService {
       // Determine query type based on widget type and slot id
       // - number widgets and 'number' slots use 'latest'
       // - chart widgets and 'chart' slots use 'range'
+      // - multiChart widget slots (chart1, chart2, etc.) use 'range'
       let queryType = 'latest'
-      if (widget.type === 'chart' || slot.id === 'chart') {
+      if (widget.type === 'chart' || widget.type === 'multiChart' || slot.id === 'chart' || slot.id.startsWith('chart')) {
         queryType = 'range'
       }
 

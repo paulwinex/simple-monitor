@@ -117,6 +117,7 @@ import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
 import GaugeWidget from './GaugeWidget.vue'
 import NumberChartWidget from './NumberChartWidget.vue'
+import MultiChartWidget from './MultiChartWidget.vue'
 import AddWidgetDialog from './AddWidgetDialog.vue'
 import EditWidgetDialog from './EditWidgetDialog.vue'
 
@@ -282,6 +283,10 @@ function renderWidget(widget) {
 
   if (widget.type === 'numberChart') {
     return h(NumberChartWidget, commonProps)
+  }
+
+  if (widget.type === 'multiChart') {
+    return h(MultiChartWidget, commonProps)
   }
 
   return null

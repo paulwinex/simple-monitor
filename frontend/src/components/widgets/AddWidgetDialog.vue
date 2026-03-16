@@ -209,7 +209,8 @@ function getWidgetIcon(type) {
     gauge: 'speed',
     gridContainer: 'view_module',
     cpu: 'memory',
-    numberChart: 'view_module'
+    numberChart: 'view_module',
+    multiChart: 'multichart'
   }
   return iconMap[type] || 'widgets'
 }
@@ -311,6 +312,21 @@ function selectWidgetType(type) {
       yAxisMin: undefined,
       yAxisMax: undefined
     }
+  } else if (type === 'multiChart') {
+    widgetOptions.value = {
+      timeRange: '1h',
+      showLegend: true,
+      legendPosition: 'top',
+      smooth: false,
+      fill: false,
+      showPoints: false,
+      showXAxis: false,
+      showYAxis: false,
+      showGrid: false,
+      showAxisValues: false,
+      yAxisMin: undefined,
+      yAxisMax: undefined
+    }
   }
 
   // Load widget-specific edit dialog component
@@ -337,12 +353,18 @@ function createWidget() {
         name: config.sensor,
         table: 'raw'
       } : undefined,
-      // Merge slot options with widget-level options (decimals, color, suffix)
+      // Merge slot options with widget-level options
+      // For multiChart, preserve slot-level color
       options: {
         ...config.options,
-        decimals: widgetOptions.value.decimals,
-        color: widgetOptions.value.color,
-        suffix: widgetOptions.value.suffix
+        // Override with widget-level options for specific widget types
+        ...(selectedType.value === 'number' ? {
+          decimals: widgetOptions.value.decimals,
+          color: widgetOptions.value.color,
+          suffix: widgetOptions.value.suffix
+        } : selectedType.value === 'chart' ? {
+          chartColor: widgetOptions.value.chartColor
+        } : {})
       }
     }
   })

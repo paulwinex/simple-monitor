@@ -137,6 +137,7 @@ import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GaugeWidget from 'components/widgets/GaugeWidget.vue'
 import NumberChartWidget from 'components/widgets/NumberChartWidget.vue'
+import MultiChartWidget from 'components/widgets/MultiChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
 import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
@@ -266,6 +267,12 @@ function renderWidget(widget) {
 
   if (widget.type === 'numberChart') {
     return h(NumberChartWidget, {
+      ...commonProps
+    })
+  }
+
+  if (widget.type === 'multiChart') {
+    return h(MultiChartWidget, {
       ...commonProps
     })
   }
