@@ -8,6 +8,30 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none selector-list-container">
+        <!-- Breadcrumb navigation - show only on device/sensor levels -->
+        <div v-if="currentLevel === 'device' || currentLevel === 'sensor'" class="breadcrumb-nav q-mb-sm">
+          <div
+            class="breadcrumb-item clickable"
+            @click="currentLevel = 'host'; selectedDevice = null; selectedSensor = null"
+          >
+            <q-icon name="dns" size="xs" />
+            {{ selectedHost }}
+          </div>
+          <q-icon
+            v-if="selectedHost && currentLevel === 'sensor'"
+            name="chevron_right"
+            size="xs"
+            color="grey-7"
+          />
+          <div
+            v-if="selectedHost && currentLevel === 'sensor'"
+            class="breadcrumb-item"
+          >
+            <q-icon name="memory" size="xs" />
+            {{ selectedDevice }}
+          </div>
+        </div>
+
         <q-list bordered separator class="selector-list">
           <!-- Loading state -->
           <div v-if="isLoading" class="loading-container">
@@ -284,6 +308,52 @@ function closeDialog() {
 .selector-list-container {
   padding: 0;
   position: relative;
+}
+
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #757575;
+}
+
+.breadcrumb-item.clickable {
+  cursor: pointer;
+  color: #1976d2;
+}
+
+.breadcrumb-item.clickable:hover {
+  color: #1565c0;
+  text-decoration: underline;
+}
+
+/* Dark theme support */
+:deep(.dark .breadcrumb-nav) {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #616161;
+}
+
+:deep(.dark .breadcrumb-item) {
+  color: #9e9e9e;
+}
+
+:deep(.dark .breadcrumb-item.clickable) {
+  color: #64b5f6;
+}
+
+:deep(.dark .breadcrumb-item.clickable:hover) {
+  color: #42a5f5;
 }
 
 .loading-container {
