@@ -13,8 +13,8 @@ class TestDashboardsAPI:
                 "id": 1,
                 "name": "Test Dashboard",
                 "version": 1,
-                "layout": [
-                    {
+                "layout": {
+                    "widget-1": {
                         "i": "widget-1",
                         "x": 0,
                         "y": 0,
@@ -26,9 +26,9 @@ class TestDashboardsAPI:
                         "max_h": 24,
                         "static": False
                     }
-                ],
-                "widgets": [
-                    {
+                },
+                "widgets": {
+                    "widget-1": {
                         "id": "widget-1",
                         "type": "line-chart",
                         "title": "CPU Usage",
@@ -40,7 +40,7 @@ class TestDashboardsAPI:
                         "options": {},
                         "refresh_interval": 5000
                     }
-                ],
+                },
                 "updated_at": int(time.time())
             }
         }
@@ -93,6 +93,8 @@ class TestDashboardsAPI:
         assert "id" in data
         assert "version" in data
         assert "dashboard" in data
+        dashboard = data["dashboard"]
+        assert dashboard["name"] == "Test Dashboard"
 
     @pytest.mark.asyncio
     async def test_get_default_dashboard_empty(self, client: AsyncClient):
@@ -112,8 +114,8 @@ class TestDashboardsAPI:
                 "id": 1,
                 "name": "Updated Dashboard",
                 "version": 2,
-                "layout": [],
-                "widgets": [],
+                "layout": {},
+                "widgets": {},
                 "updated_at": int(time.time())
             }
         }
@@ -154,16 +156,18 @@ class TestDashboardsAPI:
                 "id": 1,
                 "name": "Test Dashboard",
                 "version": 1,
-                "layout": [],
-                "widgets": [],
+                "layout": {},
+                "widgets": {},
                 "updated_at": int(time.time())
             }
         }
         resp1 = await client.put("/api/v1/dashboards/1", json=payload)
+        assert resp1.status_code == status.HTTP_200_OK
         version1 = resp1.json()["version"]
 
         payload["dashboard"]["name"] = "Updated Name"
         resp2 = await client.put("/api/v1/dashboards/1", json=payload)
+        assert resp2.status_code == status.HTTP_200_OK
         version2 = resp2.json()["version"]
 
         assert version2 > version1
@@ -172,9 +176,16 @@ class TestDashboardsAPI:
     async def test_list_dashboards(self, client: AsyncClient, sample_dashboard_payload):
         await client.put("/api/v1/dashboards/10", json=sample_dashboard_payload)
 
-        payload2 = sample_dashboard_payload.copy()
-        payload2["dashboard"]["id"] = 11
-        payload2["dashboard"]["name"] = "Second Dashboard"
+        payload2 = {
+            "dashboard": {
+                "id": 11,
+                "name": "Second Dashboard",
+                "version": 1,
+                "layout": {},
+                "widgets": {},
+                "updated_at": int(time.time())
+            }
+        }
         await client.put("/api/v1/dashboards/11", json=payload2)
 
         resp = await client.get("/api/v1/dashboards")
