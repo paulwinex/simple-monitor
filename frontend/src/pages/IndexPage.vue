@@ -325,7 +325,6 @@ function duplicateWidget(widgetId) {
     // Create a deep copy of the widget with a new unique ID
     const newWidget = JSON.parse(JSON.stringify(widget))
     newWidget.id = `widget-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-    newWidget.title = `${widget.title} (Copy)`
     
     // Add the new widget to the store (null parentId = add to main dashboard)
     dashboardStore.addWidget(newWidget, null)

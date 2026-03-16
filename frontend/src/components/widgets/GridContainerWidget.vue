@@ -362,7 +362,6 @@ function duplicateWidget(widgetId) {
     // Create a deep copy of the widget with a new unique ID
     const newWidget = JSON.parse(JSON.stringify(widget))
     newWidget.id = `${props.containerId}-copy-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-    newWidget.title = `${widget.title} (Copy)`
     
     // Get parent container widget
     const parentWidget = dashboardStore.getWidget(props.containerId)
