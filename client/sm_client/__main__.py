@@ -1,12 +1,13 @@
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.14"
 # dependencies = [
-#   "httpx",
-#   "psutil",
-#   "apscheduler",
-#   "python-dotenv",
+#     "apscheduler>=3.10.4",
+#     "httpx>=0.26.0",
+#     "psutil>=5.9.8",
+#     "python-dotenv>=1.0.0",
 # ]
 # ///
+
 """
 Smart Monitor Client - Collects system metrics and sends to backend.
 

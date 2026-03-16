@@ -80,8 +80,14 @@ class StorageCollector(BaseCollector):
             if capacity_match:
                 info['capacity_bytes'] = int(capacity_match.group(1))
             
-            # Parse temperature
+            # Parse temperature (try multiple formats)
             temp_match = re.search(r'Temperature.*?\s(\d+)\s*C', output)
+            if not temp_match:
+                # Try parsing from SMART attributes (e.g., "194 Temperature_Celsius ... 44 (Min/Max 20/62)")
+                temp_match = re.search(r'Temperature_Celsius.*?\s(\d+)\s*\(', output)
+            if not temp_match:
+                # Alternative: just temperature value at the end of line
+                temp_match = re.search(r'Temperature.*?RAW_VALUE.*?\n.*?\s(\d+)$', output, re.MULTILINE)
             if temp_match:
                 info['temperature'] = int(temp_match.group(1))
             
