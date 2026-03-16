@@ -42,12 +42,6 @@ backend-logs:
 front-up:
     yarn dev
 
-# Start client locally
-[working-directory: 'client']
-client:
-    uv run --package client python -m sm_client
-
-
 # Test commands
 # Build test image
 [working-directory: 'backend']

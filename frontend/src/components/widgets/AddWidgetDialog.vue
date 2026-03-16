@@ -285,14 +285,28 @@ function selectWidgetType(type) {
       showGrid: false,
       showAxisValues: false,
       yAxisMin: undefined,
-      yAxisMax: undefined
+      yAxisMax: undefined,
+      labelEnabled: false,
+      labelText: '',
+      labelFontSize: 14,
+      labelVerticalAlign: 'bottom',
+      labelHorizontalAlign: 'right',
+      labelPadding: 8,
+      labelColor: '#ffffff'
     }
   } else if (type === 'number') {
     widgetOptions.value = {
       decimals: 0,
       suffix: '',
       color: '#4CAF50',
-      fontSize: 50
+      fontSize: 50,
+      labelEnabled: false,
+      labelText: '',
+      labelFontSize: 14,
+      labelVerticalAlign: 'bottom',
+      labelHorizontalAlign: 'right',
+      labelPadding: 8,
+      labelColor: '#ffffff'
     }
   } else if (type === 'gauge') {
     widgetOptions.value = {
@@ -310,7 +324,14 @@ function selectWidgetType(type) {
       backgroundColor: '#424242',
       decimals: 0,
       suffix: '',
-      prefix: ''
+      prefix: '',
+      labelEnabled: false,
+      labelText: '',
+      labelFontSize: 14,
+      labelVerticalAlign: 'bottom',
+      labelHorizontalAlign: 'right',
+      labelPadding: 8,
+      labelColor: '#ffffff'
     }
   } else if (type === 'numberChart') {
     widgetOptions.value = {
@@ -332,7 +353,14 @@ function selectWidgetType(type) {
       showGrid: false,
       showAxisValues: false,
       yAxisMin: undefined,
-      yAxisMax: undefined
+      yAxisMax: undefined,
+      labelEnabled: false,
+      labelText: '',
+      labelFontSize: 14,
+      labelVerticalAlign: 'bottom',
+      labelHorizontalAlign: 'right',
+      labelPadding: 8,
+      labelColor: '#ffffff'
     }
   } else if (type === 'multiChart') {
     widgetOptions.value = {
@@ -347,7 +375,14 @@ function selectWidgetType(type) {
       showGrid: false,
       showAxisValues: false,
       yAxisMin: undefined,
-      yAxisMax: undefined
+      yAxisMax: undefined,
+      labelEnabled: false,
+      labelText: '',
+      labelFontSize: 14,
+      labelVerticalAlign: 'bottom',
+      labelHorizontalAlign: 'right',
+      labelPadding: 8,
+      labelColor: '#ffffff'
     }
   }
 

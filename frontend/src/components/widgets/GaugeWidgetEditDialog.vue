@@ -214,12 +214,20 @@
       dense
       @update:model-value="emitUpdate"
     />
+
+    <!-- Label Options -->
+    <LabelOptionsEditor
+      :widget="widget"
+      :widget-options="localOptions"
+      @update:widget-options="updateOptionsFromLabelEditor"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
 import GradientEditor from '../common/GradientEditor.vue'
+import LabelOptionsEditor from './common/LabelOptionsEditor.vue'
 
 const props = defineProps({
   widget: Object,
@@ -253,7 +261,14 @@ const defaultOptions = {
   needleAxisColor: '#95a5a6',
   decimals: 0,
   suffix: '',
-  prefix: ''
+  prefix: '',
+  labelEnabled: false,
+  labelText: '',
+  labelFontSize: 14,
+  labelVerticalAlign: 'bottom',
+  labelHorizontalAlign: 'right',
+  labelPadding: 8,
+  labelColor: '#ffffff'
 }
 
 // Local copy of options
@@ -273,6 +288,15 @@ watch(() => props.widgetOptions, (newOptions) => {
 // Emit changes to parent
 function emitUpdate() {
   emit('update:widget-options', { ...localOptions.value })
+}
+
+// Update options from label editor
+function updateOptionsFromLabelEditor(newOptions) {
+  localOptions.value = {
+    ...localOptions.value,
+    ...newOptions
+  }
+  emitUpdate()
 }
 </script>
 

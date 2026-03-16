@@ -362,49 +362,52 @@ function duplicateWidget(widgetId) {
     // Create a deep copy of the widget with a new unique ID
     const newWidget = JSON.parse(JSON.stringify(widget))
     newWidget.id = `${props.containerId}-copy-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-    
+
     // Get parent container widget
     const parentWidget = dashboardStore.getWidget(props.containerId)
     if (!parentWidget) return
-    
+
+    // Get the original widget's layout item to preserve size
+    const originalLayoutItem = internalLayout.value.find(l => l.i === widgetId)
+    const itemW = originalLayoutItem?.w || 6
+    const itemH = originalLayoutItem?.h || 6
+
     // Create new children array with the duplicated widget
     const newChildren = [...(parentWidget.children || []), newWidget]
-    
+
     // Auto-place widget in next available slot
     const containerWidth = internalGridColNum.value
-    const itemW = 6
-    const itemH = 6
-    
+
     let x = 0
     let y = 0
     let placed = false
-    
+
     // Try to find a non-overlapping position
     for (let row = 0; row < 100 && !placed; row++) {
-      for (let col = 0; col < containerWidth && !placed; col += itemW) {
+      for (let col = 0; col < containerWidth && !placed; col += 1) {
         x = col
-        y = row * itemH
-        
+        y = row
+
         const overlaps = (parentWidget.childLayout || []).some(item =>
           x < item.x + item.w &&
           x + itemW > item.x &&
           y < item.y + item.h &&
           y + itemH > item.y
         )
-        
+
         if (!overlaps) {
           placed = true
         }
       }
     }
-    
+
     // If no position found, place at the end
     if (!placed) {
-      const maxRow = Math.max(...(parentWidget.childLayout || []).map(item => Math.floor(item.y / itemH)), -1)
-      y = (maxRow + 1) * itemH
+      const maxRow = Math.max(...(parentWidget.childLayout || []).map(item => item.y + item.h), 0)
+      y = maxRow
       x = 0
     }
-    
+
     // Create new layout item
     const newLayoutItem = {
       i: newWidget.id,

@@ -57,11 +57,19 @@
         </q-btn>
       </template>
     </q-input>
+
+    <!-- Label Options -->
+    <LabelOptionsEditor
+      :widget="widget"
+      :widget-options="localOptions"
+      @update:widget-options="updateOptionsFromLabelEditor"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
+import LabelOptionsEditor from './common/LabelOptionsEditor.vue'
 
 const props = defineProps({
   widget: Object,
@@ -79,6 +87,13 @@ const localOptions = ref({
   suffix: '',
   color: '#4CAF50',
   fontSize: 50,
+  labelEnabled: false,
+  labelText: '',
+  labelFontSize: 14,
+  labelVerticalAlign: 'bottom',
+  labelHorizontalAlign: 'right',
+  labelPadding: 8,
+  labelColor: '#ffffff',
   ...props.widgetOptions
 })
 
@@ -89,6 +104,13 @@ watch(() => props.widgetOptions, (newOptions) => {
     suffix: '',
     color: '#4CAF50',
     fontSize: 50,
+    labelEnabled: false,
+    labelText: '',
+    labelFontSize: 14,
+    labelVerticalAlign: 'bottom',
+    labelHorizontalAlign: 'right',
+    labelPadding: 8,
+    labelColor: '#ffffff',
     ...newOptions
   }
 }, { deep: true, immediate: true })
@@ -96,6 +118,15 @@ watch(() => props.widgetOptions, (newOptions) => {
 // Emit changes to parent
 function emitUpdate() {
   emit('update:widget-options', { ...localOptions.value })
+}
+
+// Update options from label editor
+function updateOptionsFromLabelEditor(newOptions) {
+  localOptions.value = {
+    ...localOptions.value,
+    ...newOptions
+  }
+  emitUpdate()
 }
 </script>
 

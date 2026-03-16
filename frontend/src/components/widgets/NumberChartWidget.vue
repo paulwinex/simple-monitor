@@ -1,5 +1,15 @@
 <template>
-  <BaseWidget :title="title" :show-header="showHeader">
+  <BaseWidget
+    :title="title"
+    :label-enabled="options?.labelEnabled ?? false"
+    :label-text="options?.labelText ?? ''"
+    :label-font-size="options?.labelFontSize ?? 14"
+    :label-vertical-align="options?.labelVerticalAlign ?? 'bottom'"
+    :label-horizontal-align="options?.labelHorizontalAlign ?? 'right'"
+    :label-padding="options?.labelPadding ?? 8"
+    :label-color="options?.labelColor ?? '#ffffff'"
+    :show-header="showHeader"
+  >
     <template #content>
       <div class="dual-view-widget" ref="widgetRef">
         <div v-if="loading" class="text-center">
