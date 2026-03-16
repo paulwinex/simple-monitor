@@ -198,10 +198,13 @@ function selectSensor(sensor) {
     sensor: sensor
   }
   emit('update:slot-config', localSlotConfig.value)
-  // Close dropdown
-  if (dropdownRef.value) {
-    dropdownRef.value.show(false)
-  }
+  
+  // Close dropdown on next tick to ensure emit is processed
+  setTimeout(() => {
+    if (dropdownRef.value) {
+      dropdownRef.value.hide()
+    }
+  }, 50)
 }
 </script>
 

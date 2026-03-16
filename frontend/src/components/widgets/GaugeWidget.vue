@@ -491,7 +491,7 @@ export const widgetDefinition = {
         backgroundColor: '#ebeef2',
         needleColor: '#2c3e50',
         needleAxisColor: '#95a5a6',
-        decimals: 1,
+        decimals: 0,
         suffix: '',
         prefix: ''
       }

@@ -137,10 +137,10 @@ const displayNumberValue = computed(() => {
 // Format number value based on options
 function formatNumberValue(value, slot) {
   if (value === null || value === undefined) return '—'
-  
+
   const numValue = Number(value)
-  let decimals = 1
-  
+  let decimals = 0
+
   // Get decimals from widget options first (user settings), then slot options (defaults)
   if (props.options && props.options.numberDecimals != null) {
     decimals = Number(props.options.numberDecimals)

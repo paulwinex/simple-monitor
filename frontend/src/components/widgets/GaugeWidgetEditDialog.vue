@@ -18,20 +18,6 @@
       />
     </div>
 
-    <!-- Display Mode -->
-    <div class="q-mb-sm">
-      <div class="text-caption text-grey-7 q-mb-xs">Display Mode</div>
-      <q-btn-toggle
-        v-model="localOptions.displayMode"
-        toggle-color="primary"
-        :options="[
-          { label: 'Fill', value: 'fill' },
-          { label: 'Needle', value: 'needle' }
-        ]"
-        unelevated
-        @update:model-value="emitUpdate"
-      />
-    </div>
 
     <!-- Stroke Width -->
     <q-input
@@ -98,6 +84,20 @@
       @update:gradient-mode="emitUpdate"
     />
 
+    <!-- Display Mode -->
+    <div class="q-mb-sm">
+      <div class="text-caption text-grey-7 q-mb-xs">Display Mode</div>
+      <q-btn-toggle
+        v-model="localOptions.displayMode"
+        toggle-color="primary"
+        :options="[
+          { label: 'Fill', value: 'fill' },
+          { label: 'Needle', value: 'needle' }
+        ]"
+        unelevated
+        @update:model-value="emitUpdate"
+      />
+    </div>
     <!-- Show Value Text (Fill mode only) -->
     <q-toggle
       v-if="localOptions.displayMode === 'fill'"
@@ -251,7 +251,7 @@ const defaultOptions = {
   backgroundColor: '#ebeef2',
   needleColor: '#2c3e50',
   needleAxisColor: '#95a5a6',
-  decimals: 1,
+  decimals: 0,
   suffix: '',
   prefix: ''
 }

@@ -211,7 +211,7 @@ export const widgetDefinition = {
       required: true,
       allowMultiple: false,
       defaultOptions: {
-        decimals: 1,
+        decimals: 0,
         suffix: '',
         color: '#4CAF50',
         fontSize: 50

@@ -271,7 +271,7 @@ function selectWidgetType(type) {
     }
   } else if (type === 'number') {
     widgetOptions.value = {
-      decimals: 1,
+      decimals: 0,
       suffix: '',
       color: '#4CAF50',
       fontSize: 50
@@ -290,7 +290,7 @@ function selectWidgetType(type) {
       showValue: true,
       textColor: '#ffffff',
       backgroundColor: '#424242',
-      decimals: 1,
+      decimals: 0,
       suffix: '',
       prefix: ''
     }
@@ -299,7 +299,7 @@ function selectWidgetType(type) {
       gap: 16,
       contentPadding: 8,
       numberFontSize: 50,
-      numberDecimals: 1,
+      numberDecimals: 0,
       numberSuffix: '',
       numberPrefix: '',
       numberColor: '#4CAF50',

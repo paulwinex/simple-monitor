@@ -75,7 +75,7 @@ const emit = defineEmits(['update:widget-options'])
 
 // Local copy of options
 const localOptions = ref({
-  decimals: 1,
+  decimals: 0,
   suffix: '',
   color: '#4CAF50',
   fontSize: 50,
@@ -85,7 +85,7 @@ const localOptions = ref({
 // Watch for external changes
 watch(() => props.widgetOptions, (newOptions) => {
   localOptions.value = {
-    decimals: 1,
+    decimals: 0,
     suffix: '',
     color: '#4CAF50',
     fontSize: 50,
