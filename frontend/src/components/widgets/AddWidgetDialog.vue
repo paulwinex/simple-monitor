@@ -282,7 +282,11 @@ function selectWidgetType(type) {
       arcAngle: 270,
       rangeMin: 0,
       rangeMax: 100,
-      gradientColors: ['#4CAF50', '#8BC34A', '#FFC107', '#F44336'],
+      gradientColors: [
+        { color: '#4CAF50', position: 0 },
+        { color: '#FF9800', position: 0.5 },
+        { color: '#F44336', position: 1 }
+      ],
       showValue: true,
       textColor: '#ffffff',
       backgroundColor: '#424242',

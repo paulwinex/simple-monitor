@@ -89,9 +89,9 @@ const props = defineProps({
   modelValue: {
     type: Array,
     default: () => [
-      { color: '#2ecc71', position: 0 },
-      { color: '#f1c40f', position: 0.5 },
-      { color: '#e74c3c', position: 1 }
+      { color: '#4CAF50', position: 0 },    // Green
+      { color: '#FF9800', position: 0.5 },  // Orange
+      { color: '#F44336', position: 1 }     // Red
     ]
   },
   label: {

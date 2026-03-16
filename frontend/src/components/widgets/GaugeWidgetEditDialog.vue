@@ -219,7 +219,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import GradientEditor from './GradientEditor.vue'
+import GradientEditor from '../common/GradientEditor.vue'
 
 const props = defineProps({
   widget: Object,
@@ -242,9 +242,9 @@ const defaultOptions = {
   scale: 100,
   gradientAutoDistribute: true,
   gradientColors: [
-    { color: '#2ecc71', position: 0 },
-    { color: '#f1c40f', position: 0.5 },
-    { color: '#e74c3c', position: 1 }
+    { color: '#4CAF50', position: 0 },
+    { color: '#FF9800', position: 0.5 },
+    { color: '#F44336', position: 1 }
   ],
   showValue: true,
   textColor: '#2c3e50',
