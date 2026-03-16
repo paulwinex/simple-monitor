@@ -103,6 +103,15 @@
                 dense
                 round
                 size="sm"
+                icon="content_copy"
+                @click.stop="duplicateWidget(item.i)"
+                title="Duplicate Widget"
+              />
+              <q-btn
+                flat
+                dense
+                round
+                size="sm"
                 icon="close"
                 @click.stop="removeWidget(item.i)"
               />
@@ -308,6 +317,20 @@ function renderWidget(widget) {
 
 function removeWidget(widgetId) {
   dashboardStore.removeWidget(widgetId)
+}
+
+function duplicateWidget(widgetId) {
+  const widget = getWidget(widgetId)
+  if (widget) {
+    // Create a deep copy of the widget with a new unique ID
+    const newWidget = JSON.parse(JSON.stringify(widget))
+    newWidget.id = `widget-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+    newWidget.title = `${widget.title} (Copy)`
+    
+    // Add the new widget to the store (null parentId = add to main dashboard)
+    dashboardStore.addWidget(newWidget, null)
+    dashboardStore.saveDashboard()
+  }
 }
 
 function openEditWidget(widgetId) {
