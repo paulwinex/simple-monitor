@@ -23,15 +23,15 @@ export const widgetRegistry = [
   // Add new widgets here when created
 ]
 
-// Map widget types to their edit dialog components
-export const widgetEditDialogs = {
-  number: 'NumberWidgetEditDialog.vue',
-  chart: 'ChartWidgetEditDialog.vue',
-  gauge: 'GaugeWidgetEditDialog.vue',
-  numberChart: 'NumberChartWidgetEditDialog.vue',
-  multiChart: 'MultiChartWidgetEditDialog.vue',
-  gridContainer: 'GridContainerWidgetEditDialog.vue'
-  // Add new widget edit dialogs here when created
+// Map widget types to their edit dialog component names (for reference only)
+// Actual imports are done directly in EditWidgetDialog.vue and AddWidgetDialog.vue
+const widgetEditDialogs = {
+  number: 'NumberWidgetEditDialog',
+  chart: 'ChartWidgetEditDialog',
+  gauge: 'GaugeWidgetEditDialog',
+  numberChart: 'NumberChartWidgetEditDialog',
+  multiChart: 'MultiChartWidgetEditDialog',
+  gridContainer: 'GridContainerWidgetEditDialog'
 }
 
 /**
@@ -57,11 +57,4 @@ export function getWidgetTypes() {
     label: w.label,
     value: w.type
   }))
-}
-
-/**
- * Get edit dialog component name for a widget type
- */
-export function getWidgetEditDialog(type) {
-  return widgetEditDialogs[type] || null
 }

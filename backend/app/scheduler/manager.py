@@ -4,6 +4,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.persistence import get_session_context
 from app.services import ResampleService, RetentionService
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class SchedulerManager:
         self.scheduler = AsyncIOScheduler()
         self.resample_minute_interval = resample_minute_interval
         self.resample_hourly_interval = resample_hourly_interval
-    
+
     def start(self):
         self.scheduler.add_job(
             self._run_minute_resample,
@@ -77,10 +78,14 @@ class SchedulerManager:
     async def _run_retention_cleanup(self):
         logger.debug("Running retention cleanup job")
         async with get_session_context() as session:
-            service = RetentionService(session)
+            service = RetentionService(
+                session,
+                retention_raw_days=settings.RETENTION_RAW_DAYS,
+                retention_minute_days=settings.RETENTION_MINUTE_DAYS
+            )
             raw_deleted = await service.cleanup_raw()
-            hourly_deleted = await service.cleanup_hourly()
-            logger.debug(f"Retention cleanup completed: {raw_deleted} raw, {hourly_deleted} hourly deleted")
+            minute_deleted = await service.cleanup_minute()
+            logger.debug(f"Retention cleanup completed: {raw_deleted} raw, {minute_deleted} minute deleted")
     
     def shutdown(self):
         self.scheduler.shutdown()

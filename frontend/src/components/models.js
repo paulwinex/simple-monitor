@@ -26,7 +26,7 @@
 /**
  * @typedef {Object} WidgetSensorConfig
  * @property {string} name
- * @property {'raw' | 'hourly' | 'history'} table
+ * @property {'raw' | 'minute' | 'hourly' | 'history' | 'daily'} table
  */
 
 /**

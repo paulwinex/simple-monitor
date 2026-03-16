@@ -127,18 +127,19 @@ class MetricsService(BaseService):
         device = await self._get_device(host_id, device_id)
         if not device:
             return []
-        
+
         from app.persistence.models import (
-            RawMetric, ResampleMetricHourly, ResampleMetricHistory, ResampleMetricDaily
+            RawMetric, ResampleMetricMinute, ResampleMetricHourly, ResampleMetricHistory, ResampleMetricDaily
         )
-        
+
         model_class = {
             "raw": RawMetric,
+            "minute": ResampleMetricMinute,
             "hourly": ResampleMetricHourly,
             "history": ResampleMetricHistory,
             "daily": ResampleMetricDaily,
         }.get(table, RawMetric)
-        
+
         results = await model_class.get_range(
             self.session,
             device_id=device.id,
@@ -147,7 +148,7 @@ class MetricsService(BaseService):
             end_ts=end_ts,
             limit=limit
         )
-        
+
         return [MetricOut(timestamp=ts, value=val) for ts, val in results]
     
     async def query_latest(

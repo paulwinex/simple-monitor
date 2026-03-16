@@ -1,5 +1,23 @@
 import { api } from 'boot/axios'
 
+/**
+ * Automatically select the appropriate table based on time range
+ * - <= 1 hour: raw (for high-frequency data)
+ * - > 1 hour to <= 24 hours: minute (minute-aggregated data)
+ * - > 24 hours: hourly (hourly-aggregated data)
+ * @param {number} hours - Time range in hours
+ * @returns {string} Table name: 'raw', 'minute', or 'hourly'
+ */
+export function getTableForTimeRange(hours) {
+  if (hours <= 1) {
+    return 'raw'
+  } else if (hours <= 24) {
+    return 'minute'
+  } else {
+    return 'hourly'
+  }
+}
+
 // Hosts API
 export async function getDashboards() {
   const response = await api.get('/api/v1/dashboards')

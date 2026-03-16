@@ -133,10 +133,28 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import { widgetRegistry, getSlotDefinitions, getWidgetEditDialog } from './widget-registry'
+import { widgetRegistry, getSlotDefinitions } from './widget-registry'
 import WidgetSlotsSelector from '../common/WidgetSlotsSelector.vue'
+
+// Import all edit dialog components
+import NumberWidgetEditDialog from './NumberWidgetEditDialog.vue'
+import ChartWidgetEditDialog from './ChartWidgetEditDialog.vue'
+import GaugeWidgetEditDialog from './GaugeWidgetEditDialog.vue'
+import NumberChartWidgetEditDialog from './NumberChartWidgetEditDialog.vue'
+import MultiChartWidgetEditDialog from './MultiChartWidgetEditDialog.vue'
+import GridContainerWidgetEditDialog from './GridContainerWidgetEditDialog.vue'
+
+// Map of all edit dialog components
+const editDialogComponents = {
+  number: NumberWidgetEditDialog,
+  chart: ChartWidgetEditDialog,
+  gauge: GaugeWidgetEditDialog,
+  numberChart: NumberChartWidgetEditDialog,
+  multiChart: MultiChartWidgetEditDialog,
+  gridContainer: GridContainerWidgetEditDialog
+}
 
 const props = defineProps({
   modelValue: Boolean,
@@ -175,7 +193,7 @@ const selectedWidgetDef = computed(() =>
 const widgetTitle = ref('')
 const widgetOptions = ref({})
 const slotConfigs = ref({})
-const widgetEditComponent = ref(null)
+const widgetEditComponent = shallowRef(null)
 
 const slotDefinitions = computed(() => {
   if (!selectedType.value) return []
@@ -333,10 +351,9 @@ function selectWidgetType(type) {
     }
   }
 
-  // Load widget-specific edit dialog component
-  const editDialog = getWidgetEditDialog(type)
-  if (editDialog) {
-    widgetEditComponent.value = markRaw(defineAsyncComponent(() => import(`./${editDialog}.vue` /* @vite-ignore */)))
+  // Load widget-specific edit dialog component directly from map
+  if (editDialogComponents[type]) {
+    widgetEditComponent.value = editDialogComponents[type]
   } else {
     widgetEditComponent.value = null
   }

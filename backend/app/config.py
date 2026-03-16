@@ -23,8 +23,9 @@ class Settings(BaseSettings):
 
     RESAMPLE_MINUTE_INTERVAL: int = 60
     RESAMPLE_HOURLY_INTERVAL: int = 3600
-    
+
     RETENTION_RAW_DAYS: int = 90
+    RETENTION_MINUTE_DAYS: int = 90
     RETENTION_HOURLY_DAYS: int = 365
 
 

@@ -12,6 +12,23 @@ import {
  * - Automatically refreshes data at configured intervals
  * - Updates widget slot data directly in the dashboard store
  */
+
+/**
+ * Automatically select the appropriate table based on time range
+ * - < 1 hour: raw (for high-frequency data)
+ * - 1 hour to 1 day: minute (minute-aggregated data)
+ * - > 1 day: hourly (hourly-aggregated data)
+ */
+function getTableForTimeRange(hours) {
+  if (hours <= 1) {
+    return 'raw'
+  } else if (hours <= 24) {
+    return 'minute'
+  } else {
+    return 'hourly'
+  }
+}
+
 class DataRefreshService {
   constructor() {
     this.activeQueries = new Map()
@@ -113,13 +130,23 @@ class DataRefreshService {
         queryType = 'range'
       }
 
+      // Get time range for range queries
+      const rangeHours = queryType === 'range' ? this.getTimeRangeHours(widget.options) : undefined
+
+      // Auto-select table based on time range if not explicitly set
+      // User can override by explicitly setting slot.sensor.table
+      let table = slot.sensor.table || 'raw'
+      if (queryType === 'range' && !slot.sensor.table) {
+        table = getTableForTimeRange(rangeHours)
+      }
+
       const key = {
         hostId,
         deviceId: slot.deviceId,
         metricName: slot.sensor.name,
-        table: slot.sensor.table,
+        table,
         queryType,
-        rangeHours: queryType === 'range' ? this.getTimeRangeHours(widget.options) : undefined
+        rangeHours: queryType === 'range' ? rangeHours : undefined
       }
 
       const keyString = this.getQueryKeyString(key)

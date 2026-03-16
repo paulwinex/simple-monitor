@@ -62,6 +62,9 @@ class Device(Base):
     raw_metrics: Mapped[list["RawMetric"]] = relationship(
         "RawMetric", back_populates="device", cascade="all, delete-orphan"
     )
+    minute_metrics: Mapped[list["ResampleMetricMinute"]] = relationship(
+        "ResampleMetricMinute", back_populates="device", cascade="all, delete-orphan"
+    )
     hourly_metrics: Mapped[list["ResampleMetricHourly"]] = relationship(
         "ResampleMetricHourly", back_populates="device", cascade="all, delete-orphan"
     )
@@ -117,6 +120,50 @@ class RawMetric(Base):
             cls.timestamp < end_ts
         ).order_by(cls.timestamp).limit(limit)
         
+        result = await session.execute(stmt)
+        return result.fetchall()
+
+
+class ResampleMetricMinute(Base):
+    """
+    Minute resampled metrics - aggregated by minute from raw data.
+    Used for minute/hour views. Deleted after 90 days.
+    Contains float values for min/max/avg.
+    """
+    __tablename__ = "resample_minute"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    timestamp: Mapped[int] = mapped_column(Integer, index=True)  # Minute window start
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id"), index=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    min_value: Mapped[float] = mapped_column(BigInteger)
+    max_value: Mapped[float] = mapped_column(BigInteger)
+    avg_value: Mapped[float] = mapped_column(BigInteger)
+
+    device: Mapped[Device] = relationship("Device", back_populates="minute_metrics")
+
+    __table_args__ = (
+        Index("idx_minute_device_name_ts", "device_id", "name", "timestamp"),
+    )
+
+    @classmethod
+    async def get_range(
+        cls,
+        session,
+        device_id: int,
+        label: str,
+        start_ts: int,
+        end_ts: int,
+        limit: int = 1000
+    ):
+        """Get metrics in time range."""
+        stmt = select(cls.timestamp, cls.avg_value).where(
+            cls.device_id == device_id,
+            cls.name == label,
+            cls.timestamp >= start_ts,
+            cls.timestamp < end_ts
+        ).order_by(cls.timestamp).limit(limit)
+
         result = await session.execute(stmt)
         return result.fetchall()
 

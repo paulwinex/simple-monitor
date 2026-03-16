@@ -25,6 +25,7 @@ session_factory = async_sessionmaker(
 async def init_db():
     # temporary func
     async with engine.begin() as conn:
+        print('Init database...', flush=True)
         await conn.run_sync(Base.metadata.create_all)
     return engine
 

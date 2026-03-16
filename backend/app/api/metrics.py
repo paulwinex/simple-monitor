@@ -31,7 +31,7 @@ async def query_metrics(
     name: str = Query(...),
     start_ts: int = Query(...),
     end_ts: int = Query(...),
-    table: str = Query("raw", description="raw, hourly, history, daily"),
+    table: str = Query("raw", description="raw, minute, hourly, history, daily"),
     limit: int = Query(1000),
 ):
     """Query metrics in time range."""
