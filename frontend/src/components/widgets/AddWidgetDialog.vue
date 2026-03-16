@@ -336,7 +336,7 @@ function selectWidgetType(type) {
   // Load widget-specific edit dialog component
   const editDialog = getWidgetEditDialog(type)
   if (editDialog) {
-    widgetEditComponent.value = markRaw(defineAsyncComponent(() => import(`./${editDialog}`)))
+    widgetEditComponent.value = markRaw(defineAsyncComponent(() => import(`./${editDialog}.vue` /* @vite-ignore */)))
   } else {
     widgetEditComponent.value = null
   }
