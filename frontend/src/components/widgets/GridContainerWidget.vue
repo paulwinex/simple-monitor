@@ -576,14 +576,25 @@ defineExpose({
 }
 
 /* Dark theme for internal grid items */
-:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+.vue-grid-item:not(.vue-grid-placeholder) {
   background: #424242;
   border: 1px solid #616161;
+  border-radius: 4px;
 }
 
-:deep(.vue-grid-layout-light .vue-grid-item:not(.vue-grid-placeholder)) {
+.vue-grid-item.static {
+  background: #545454;
+}
+
+/* Light theme */
+.vue-grid-layout-light .vue-grid-item:not(.vue-grid-placeholder) {
   background: #ffffff;
   border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.vue-grid-layout-light .vue-grid-item.static {
+  background: #f5f5f5;
 }
 
 :deep(.vue-grid-item .vue-resizable-handle) {

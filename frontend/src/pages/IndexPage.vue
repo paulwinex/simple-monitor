@@ -30,8 +30,24 @@
           dense
           flat
           icon="save"
+          @click="handleSaveDashboard"
+          title="Save Dashboard"
+        />
+        <q-btn
+          round
+          dense
+          flat
+          icon="logout"
           @click="toggleEditMode"
           title="Save and Exit Edit Mode"
+        />
+        <q-btn
+          round
+          dense
+          flat
+          :icon="$q.dark.mode ? 'light_mode' : 'dark_mode'"
+          @click="toggleDarkMode"
+          :title="$q.dark.mode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
         />
         <q-btn
           round
@@ -355,7 +371,14 @@ function toggleEditMode() {
 }
 
 // Confirm before canceling edit mode (discard changes)
+// Only show dialog if there are actual changes
 function confirmCancelEditMode() {
+  if (!uiStore.hasDashboardChanges()) {
+    // No changes - just exit without confirmation
+    uiStore.cancelEditMode()
+    return
+  }
+  
   $q.dialog({
     title: 'Discard Changes?',
     message: 'You have unsaved changes. Are you sure you want to discard them and reload the last saved dashboard?',
@@ -378,6 +401,14 @@ function confirmCancelEditMode() {
 
 function handleAddWidget() {
   showAddWidget.value = true
+}
+
+function handleSaveDashboard() {
+  uiStore.saveDashboard()
+}
+
+function toggleDarkMode() {
+  $q.dark.set(!$q.dark.mode)
 }
 
 function handleDashboardSettings() {

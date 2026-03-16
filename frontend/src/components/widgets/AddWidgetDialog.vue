@@ -40,7 +40,7 @@
                     />
                     <div class="text-h6 q-mb-xs">{{ widget.label }}</div>
                     <div class="text-caption text-grey-7">
-                      {{ getSlotCount(widget) }} slot(s)
+                      {{ getSlotCount(widget) }} sensor(s)
                     </div>
                   </q-card-section>
                 </q-card>
@@ -228,7 +228,7 @@ function getWidgetIcon(type) {
     gridContainer: 'view_module',
     cpu: 'memory',
     numberChart: 'view_module',
-    multiChart: 'multichart'
+    multiChart: 'stacked_bar_chart'
   }
   return iconMap[type] || 'widgets'
 }
