@@ -28,16 +28,18 @@
           />
         </div>
 
-        <!-- Widget-specific options slot -->
-        <component
-          :is="widgetEditComponent"
-          v-if="widgetEditComponent"
-          ref="widgetEditRef"
-          :widget="widget"
-          :widget-options="widgetOptions"
-          @update:widget-options="updateWidgetOptions"
-          @update:widget="updateWidgetFromChild"
-        />
+        <!-- Widget-specific options -->
+        <div v-if="widgetEditComponent" class="widget-options-section">
+          <component
+            :is="widgetEditComponent"
+            v-if="widgetEditComponent"
+            ref="widgetEditRef"
+            :widget="widget"
+            :widget-options="widgetOptions"
+            @update:widget-options="updateWidgetOptions"
+            @update:widget="updateWidgetFromChild"
+          />
+        </div>
       </q-card-section>
 
       <q-card-actions align="right">
@@ -49,10 +51,28 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, defineAsyncComponent, markRaw } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import { getWidgetEditDialog, getSlotDefinitions } from './widget-registry'
+import { getSlotDefinitions } from './widget-registry'
 import WidgetSlotsSelector from '../common/WidgetSlotsSelector.vue'
+
+// Import all edit dialog components
+import NumberWidgetEditDialog from './NumberWidgetEditDialog.vue'
+import ChartWidgetEditDialog from './ChartWidgetEditDialog.vue'
+import GaugeWidgetEditDialog from './GaugeWidgetEditDialog.vue'
+import NumberChartWidgetEditDialog from './NumberChartWidgetEditDialog.vue'
+import MultiChartWidgetEditDialog from './MultiChartWidgetEditDialog.vue'
+import GridContainerWidgetEditDialog from './GridContainerWidgetEditDialog.vue'
+
+// Map of all edit dialog components
+const editDialogComponents = {
+  number: NumberWidgetEditDialog,
+  chart: ChartWidgetEditDialog,
+  gauge: GaugeWidgetEditDialog,
+  numberChart: NumberChartWidgetEditDialog,
+  multiChart: MultiChartWidgetEditDialog,
+  gridContainer: GridContainerWidgetEditDialog
+}
 
 const props = defineProps({
   modelValue: Boolean,
@@ -78,7 +98,7 @@ const widgetSlots = ref([])
 const widgetType = ref('')
 const widgetSlotDefinitions = ref([])
 const slotConfigsForSelector = ref({})
-const widgetEditComponent = ref(null)
+const widgetEditComponent = shallowRef(null)
 const widgetEditRef = ref(null)
 
 // Backup for cancel functionality
@@ -112,10 +132,9 @@ watch(() => props.widget, async (newWidget) => {
     }
     slotConfigsForSelector.value = configs
 
-    // Load widget-specific edit dialog component
-    const editDialog = getWidgetEditDialog(newWidget.type)
-    if (editDialog) {
-      widgetEditComponent.value = markRaw(defineAsyncComponent(() => import(`./${editDialog}.vue` /* @vite-ignore */)))
+    // Load widget-specific edit dialog component directly from map
+    if (editDialogComponents[newWidget.type]) {
+      widgetEditComponent.value = editDialogComponents[newWidget.type]
     } else {
       widgetEditComponent.value = null
     }
@@ -206,5 +225,9 @@ function closeDialog() {
   padding-top: 16px;
   display: flex;
   flex-direction: column;
+}
+
+.widget-options-section {
+  margin-top: 16px;
 }
 </style>

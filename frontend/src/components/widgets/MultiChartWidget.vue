@@ -24,6 +24,8 @@ import BaseWidget from './BaseWidget.vue'
 
 Chart.register(...registerables)
 
+let resizeObserver = null
+
 const props = defineProps({
   title: String,
   showHeader: Boolean,
@@ -339,10 +341,25 @@ watch(() => dashboardStore.hosts, () => {
 }, { deep: true })
 
 onMounted(() => {
+  // Set up ResizeObserver to handle container size changes
+  if (chartRef.value?.parentElement) {
+    resizeObserver = new ResizeObserver(() => {
+      if (chart) {
+        // Chart.js automatically handles resize when canvas size changes
+        // We just need to ensure the chart is aware of the new size
+        chart.resize()
+      }
+    })
+    resizeObserver.observe(chartRef.value.parentElement)
+  }
+  
   // Chart will be created by the watcher when data arrives
 })
 
 onBeforeUnmount(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
   if (chart) {
     chart.destroy()
     chart = null
@@ -361,6 +378,13 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 </style>
 

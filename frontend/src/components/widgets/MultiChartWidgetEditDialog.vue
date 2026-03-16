@@ -1,6 +1,5 @@
 <template>
-  <div class="multi-chart-edit-dialog">
-    <!-- Common Options -->
+  <div class="widget-options-column">
     <div class="text-subtitle2 q-mb-sm">Common Options</div>
 
     <!-- Time Range -->
@@ -242,8 +241,10 @@ function emitColorUpdate(slotId) {
 </script>
 
 <style scoped>
-.multi-chart-edit-dialog {
+.widget-options-column {
   border-top: 1px solid #e0e0e0;
   padding-top: 16px;
+  display: flex;
+  flex-direction: column;
 }
 </style>
