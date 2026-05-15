@@ -20,7 +20,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /backend
 
-COPY pyproject.toml .
+COPY backend/pyproject.toml .
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv $VIRTUAL_ENV && \
@@ -48,7 +48,7 @@ ENV PATH="/venv/bin:$PATH" \
 
 WORKDIR /backend
 COPY --link --from=builder /venv /venv
-COPY ./app /backend/app
+COPY backend/app /backend/app
 EXPOSE 8000
 RUN chmod +x /backend/app/start.sh
 ENTRYPOINT ["/backend/app/start.sh"]
@@ -70,8 +70,8 @@ ENV PATH="/venv/bin:$PATH" \
 
 WORKDIR /backend
 COPY --link --from=builder /venv /venv
-COPY ./app /backend/app
-COPY ./tests /backend/tests
+COPY backend/app /backend/app
+COPY backend/tests /backend/tests
 
 RUN chmod +x /backend/app/start-testing.sh
 ENTRYPOINT ["/backend/app/start-testing.sh"]

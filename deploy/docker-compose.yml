@@ -1,0 +1,48 @@
+
+services:
+  backend:
+    image: sm-api
+    build:
+      context: ..
+      target: production-image
+      dockerfile: deploy/Dockerfile-backend
+    container_name: sm-api
+    env_file:
+      - ../.env
+    ports:
+      - "${SIMPLE_MONITOR_BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SIMPLE_MONITOR_DB_HOST: "sm-db"
+
+  frontend:
+    image: sm-ui
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile-frontend
+      args:
+        VITE_API_URL: "${SIMPLE_MONITOR_BACKEND_URL:-http://localhost:8000}"
+    container_name: sm-ui
+    ports:
+      - "${SIMPLE_MONITOR_FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: sm-db
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_USER: ${SIMPLE_MONITOR_DB_USER}
+      POSTGRES_PASSWORD: ${SIMPLE_MONITOR_DB_PASSWORD}
+      POSTGRES_DB: ${SIMPLE_MONITOR_DB_NAME}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SIMPLE_MONITOR_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

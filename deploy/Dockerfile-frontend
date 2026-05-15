@@ -1,0 +1,25 @@
+FROM node:20-alpine AS builder
+
+ARG VITE_API_URL
+
+ENV VITE_API_URL=${VITE_API_URL}
+
+WORKDIR /app
+
+COPY frontend/package.json frontend/yarn.lock frontend/.pnp.cjs frontend/.pnp.loader.mjs ./
+
+RUN corepack enable yarn
+
+COPY frontend/ .
+
+RUN yarn install
+
+RUN yarn build
+
+FROM nginx:alpine
+
+COPY --from=builder /app/dist/spa /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

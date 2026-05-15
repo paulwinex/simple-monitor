@@ -2,21 +2,21 @@ services:
   backend:
     image: sm-app:testing
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/Dockerfile-backend
       target: testing-image
       args:
         INSTALL_DEV: "true"
-    container_name: sm-app-testing
+    container_name: sm-api-testing
     ports:
       - "8000:8000"
     env_file:
       - ../.env
     environment:
-      SMART_MONITOR_DB_HOST: "sm-db-testing"
-      SMART_MONITOR_DB_USER: "test"
-      SMART_MONITOR_DB_PASSWORD: "test"
-      SMART_MONITOR_DB_NAME: "test"
+      SIMPLE_MONITOR_DB_HOST: "sm-db-testing"
+      SIMPLE_MONITOR_DB_USER: "test"
+      SIMPLE_MONITOR_DB_PASSWORD: "test"
+      SIMPLE_MONITOR_DB_NAME: "test"
       TESTING: "true"
     depends_on:
       postgres:

@@ -11,15 +11,20 @@ install:
 
 
 # build docker image
-[working-directory: 'backend']
-build:
-    docker compose build
+[working-directory: 'deploy']
+build args="":
+    docker compose build {{args}}
 
 # start backend locally
 [working-directory: 'backend']
 backend-local:
-    uv run --package backend uvicorn --host 0.0.0.0 --port 8000 app.main:app
+    uv run uvicorn --host 0.0.0.0 --port 8000 app.main:app
 
+
+# start backend and frontend
+[working-directory: 'deploy']
+up:
+    docker compose up
 
 # start backend in docker
 [working-directory: 'backend']
