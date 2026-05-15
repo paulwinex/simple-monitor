@@ -1,1 +1,1 @@
-"""Tests for Smart Monitor Backend API."""
+"""Tests for Simple Monitor Backend API."""

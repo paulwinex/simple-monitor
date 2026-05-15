@@ -5,7 +5,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_prefix="SMART_MONITOR_"
+        env_prefix="SIMPLE_MONITOR_"
     )
 
     HOST: str = "0.0.0.0"

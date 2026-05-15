@@ -30,13 +30,13 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     logger.info("Scheduler started")
     yield
-    logger.info("Shutting down Smart Monitor Backend...")
+    logger.info("Shutting down Simple Monitor Backend...")
     if scheduler:
         scheduler.shutdown()
     logger.info("Shutdown complete")
 
 app = FastAPI(
-    title="Smart Monitor API",
+    title="Simple Monitor API",
     description="NAS Server Monitoring API",
     version="0.0.1",
     lifespan=lifespan
@@ -63,8 +63,8 @@ async def health_check():
 @app.get("/")
 async def root(request: Request):
     return {
-        "name": "Smart Monitor API",
-        "version": "1.0.0",
+        "name": "Simple Monitor API",
+        "version": "0.0.1",
         "docs": f"{request.base_url}docs"
     }
 

@@ -1,7 +1,7 @@
 [project]
 name = "sm_server_backend"
 version = "0.0.1"
-description = "Smart Monitor Backend API"
+description = "Simple Monitor Backend API"
 requires-python = ">=3.14,<3.15"
 dependencies = [
     "fastapi>=0.109.0",

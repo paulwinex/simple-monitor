@@ -16,6 +16,6 @@ class TestHealth:
         resp = await client.get("/")
         assert resp.status_code == status.HTTP_200_OK
         data = resp.json()
-        assert "Smart Monitor API" in data["name"]
+        assert "Simple Monitor API" in data["name"]
         assert "version" in data
         assert "docs" in data
