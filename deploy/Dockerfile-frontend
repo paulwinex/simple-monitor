@@ -1,9 +1,5 @@
 FROM node:20-alpine AS builder
 
-ARG VITE_API_URL
-
-ENV VITE_API_URL=${VITE_API_URL}
-
 WORKDIR /app
 
 COPY frontend/package.json frontend/yarn.lock frontend/.pnp.cjs frontend/.pnp.loader.mjs ./
@@ -20,6 +16,10 @@ FROM nginx:alpine
 
 COPY --from=builder /app/dist/spa /usr/share/nginx/html
 
+COPY deploy/nginx.template.conf /etc/nginx/nginx.template.conf
+COPY deploy/nginx-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]

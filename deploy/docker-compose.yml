@@ -22,9 +22,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile-frontend
-      args:
-        VITE_API_URL: "${SIMPLE_MONITOR_BACKEND_URL:-http://localhost:8000}"
     container_name: sm-ui
+    environment:
+      BACKEND_URL: "${SIMPLE_MONITOR_BACKEND_URL:-http://backend:8000}/"
     ports:
       - "${SIMPLE_MONITOR_FRONTEND_PORT:-3000}:80"
     depends_on:
