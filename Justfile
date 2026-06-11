@@ -26,19 +26,13 @@ backend-local:
 up:
     docker compose up
 
-# start backend in docker
-[working-directory: 'backend']
-backend-up:
-    docker compose up
 
-
-# Stop docker backend container
-[working-directory: 'backend']
-backend-down:
+[working-directory: 'deploy']
+down:
     docker compose down
 
-
 # show backend logs
+[working-directory: 'deploy']
 backend-logs:
     docker compose logs -f --tail 100
 
@@ -49,29 +43,33 @@ front-up:
 
 # Test commands
 # Build test image
-[working-directory: 'backend']
+[working-directory: 'deploy']
 test-build:
     docker compose -f docker-compose.testing.yml build --progress=plain
 
 # Run tests in Docker
-[working-directory: 'backend']
+[working-directory: 'deploy']
 test:
     docker compose -f docker-compose.testing.yml up --abort-on-container-exit
 
 # Build and run tests
-[working-directory: 'backend']
+[working-directory: 'deploy']
 test-run:
     docker compose -f docker-compose.testing.yml build --progress=plain
     docker compose -f docker-compose.testing.yml up --abort-on-container-exit
 
 # Stop test containers
-[working-directory: 'backend']
+[working-directory: 'deploy']
 test-down:
     docker compose -f docker-compose.testing.yml down
 
 # Clean test containers
-[working-directory: 'backend']
+[working-directory: 'deploy']
 test-clean:
     docker compose -f docker-compose.testing.yml down -v --remove-orphans
 
+# Copy images to remote host (ssh keys required)
+push-to-host host:
+    docker save sm-api:latest | gzip | ssh {{host}} "gunzip | docker load"
+    docker save sm-ui:latest | gzip | ssh {{host}} "gunzip | docker load"
 
