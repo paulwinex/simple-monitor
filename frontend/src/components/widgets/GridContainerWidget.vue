@@ -95,7 +95,7 @@
 
         <div v-if="internalLayout.length === 0" class="empty-state">
           <div class="text-center text-caption">
-            Drop widgets here or click +
+            Click + to add widgets
           </div>
         </div>
     </div>
@@ -417,7 +417,7 @@ function duplicateWidget(widgetId) {
       h: itemH
     }
     const newLayout = [...(parentWidget.childLayout || []), newLayoutItem]
-    
+
     // Update in store
     dashboardStore.updateWidget(props.containerId, {
       children: newChildren,
