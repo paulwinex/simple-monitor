@@ -2,7 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.persistence import init_db
@@ -41,6 +43,23 @@ app = FastAPI(
     version="0.0.1",
     lifespan=lifespan
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logger.warning(
+        "Validation error %s %s: body=%s errors=%s",
+        request.method,
+        request.url.path,
+        body.decode(errors="replace") if body else "",
+        exc.errors(),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

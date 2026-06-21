@@ -93,7 +93,7 @@ class RawMetric(Base):
     timestamp: Mapped[int] = mapped_column(Integer, index=True)
     device_id: Mapped[int] = mapped_column(ForeignKey("devices.id"), index=True)
     name: Mapped[str] = mapped_column(String, index=True)  # Metric name
-    value: Mapped[int] = mapped_column(Integer)  # Always int for raw data
+    value: Mapped[int] = mapped_column(BigInteger)  # Always int for raw data
     
     device: Mapped[Device] = relationship("Device", back_populates="raw_metrics")
     
