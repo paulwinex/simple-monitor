@@ -7,6 +7,7 @@
         v-if="!isEditMode"
         dense
         flat
+        round
         size="sm"
         icon="edit"
         color="grey-7"
@@ -341,7 +342,7 @@ function duplicateWidget(widgetId) {
     // Create a deep copy of the widget with a new unique ID
     const newWidget = JSON.parse(JSON.stringify(widget))
     newWidget.id = `widget-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-    
+
     // Add the new widget to the store (null parentId = add to main dashboard)
     dashboardStore.addWidget(newWidget, null)
     dashboardStore.saveDashboard()
@@ -378,7 +379,7 @@ function confirmCancelEditMode() {
     uiStore.cancelEditMode()
     return
   }
-  
+
   $q.dialog({
     title: 'Discard Changes?',
     message: 'You have unsaved changes. Are you sure you want to discard them and reload the last saved dashboard?',
