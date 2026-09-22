@@ -1,73 +1,8 @@
 
 <template>
   <q-page class="q-pa-md">
-    <!-- Floating Edit Mode Toggle Button -->
-    <div class="floating-menu-container">
-      <q-btn
-        v-if="!isEditMode"
-        dense
-        flat
-        round
-        size="sm"
-        icon="edit"
-        color="grey-7"
-        @click="toggleEditMode"
-        class="floating-menu-btn"
-        title="Edit Mode"
-      />
-
-      <!-- Edit Mode Menu -->
-      <div v-else class="edit-mode-menu">
-        <q-btn
-          round
-          dense
-          flat
-          icon="add"
-          @click="handleAddWidget"
-          title="Add Widget"
-        />
-        <q-btn
-          round
-          dense
-          flat
-          icon="save"
-          @click="handleSaveDashboard"
-          title="Save Dashboard"
-        />
-        <q-btn
-          round
-          dense
-          flat
-          icon="logout"
-          @click="toggleEditMode"
-          title="Save and Exit Edit Mode"
-        />
-        <q-btn
-          round
-          dense
-          flat
-          :icon="$q.dark.mode ? 'light_mode' : 'dark_mode'"
-          @click="toggleDarkMode"
-          :title="$q.dark.mode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-        />
-        <q-btn
-          round
-          dense
-          flat
-          icon="edit"
-          @click="handleDashboardSettings"
-          title="Dashboard Settings"
-        />
-        <q-btn
-          round
-          dense
-          flat
-          icon="close"
-          @click="confirmCancelEditMode"
-          title="Discard Changes and Exit"
-        />
-      </div>
-    </div>
+    <!-- Floating Edit Mode Menu -->
+    <EditModeButton />
 
     <div v-if="dashboardStore.isLoading" class="row justify-center q-mt-xl">
       <q-spinner color="primary" size="3em" />
@@ -144,12 +79,6 @@
       :widget="editingWidget"
       @update:widget="updateWidget"
     />
-
-    <!-- Add Widget Dialog -->
-    <AddWidgetDialog
-      v-model="showAddWidget"
-      parent-type="root"
-    />
   </q-page>
 </template>
 <script setup>
@@ -166,7 +95,7 @@ import NumberChartWidget from 'components/widgets/NumberChartWidget.vue'
 import MultiChartWidget from 'components/widgets/MultiChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
-import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
+import EditModeButton from 'components/common/EditModeButton.vue'
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
@@ -226,8 +155,6 @@ const gridOptions = computed(() => dashboardStore.gridOptions)
 
 const showEditWidget = ref(false)
 const editingWidget = ref(null)
-const showAddWidget = ref(false)
-const showDashboardSettings = ref(false)
 
 onMounted(() => {
   dashboardStore.loadDashboard()
@@ -366,55 +293,6 @@ function updateContainerWidget(containerId, updates) {
   dashboardStore.updateWidget(containerId, updates)
   dashboardStore.saveDashboard()
 }
-
-function toggleEditMode() {
-  uiStore.toggleEditMode()
-}
-
-// Confirm before canceling edit mode (discard changes)
-// Only show dialog if there are actual changes
-function confirmCancelEditMode() {
-  if (!uiStore.hasDashboardChanges()) {
-    // No changes - just exit without confirmation
-    uiStore.cancelEditMode()
-    return
-  }
-
-  $q.dialog({
-    title: 'Discard Changes?',
-    message: 'You have unsaved changes. Are you sure you want to discard them and reload the last saved dashboard?',
-    cancel: {
-      label: 'Keep Editing',
-      color: 'primary',
-      flat: true
-    },
-    ok: {
-      label: 'Discard',
-      color: 'negative',
-      flat: true
-    },
-    persistent: true
-  }).onOk(async () => {
-    // User confirmed - cancel edit mode and reload from server
-    await uiStore.cancelEditMode()
-  })
-}
-
-function handleAddWidget() {
-  showAddWidget.value = true
-}
-
-function handleSaveDashboard() {
-  uiStore.saveDashboard()
-}
-
-function toggleDarkMode() {
-  $q.dark.set(!$q.dark.mode)
-}
-
-function handleDashboardSettings() {
-  showDashboardSettings.value = true
-}
 </script>
 
 <style scoped>
@@ -424,63 +302,6 @@ function handleDashboardSettings() {
   padding: 16px;
   min-height: 400px;
   position: relative;
-}
-
-/* Floating Menu Container */
-.floating-menu-container {
-  position: fixed;
-  top: 5px;
-  right: 5px;
-  z-index: 1000;
-}
-
-.floating-menu-btn {
-  background: rgba(41, 41, 41, 0.5);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  color: #434343 !important;
-}
-
-.floating-menu-btn:hover {
-  background: rgba(128, 128, 128, 0.7);
-}
-
-/* Edit Mode Menu */
-.edit-mode-menu {
-  display: flex;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 8px;
-  border-radius: 50px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.edit-mode-menu .q-btn {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.edit-mode-menu .q-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Light theme support - keep dark background */
-:deep(.vue-grid-layout-light .floating-menu-btn) {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-:deep(.vue-grid-layout-light .floating-menu-btn:hover) {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-:deep(.vue-grid-layout-light .edit-mode-menu) {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-:deep(.vue-grid-layout-light .edit-mode-menu .q-btn) {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-:deep(.vue-grid-layout-light .edit-mode-menu .q-btn:hover) {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 .vue-grid-layout {
