@@ -6,6 +6,7 @@ default:
 
 
 # Backend commands
+[working-directory: 'backend']
 install:
     uv sync --all-packages
 
