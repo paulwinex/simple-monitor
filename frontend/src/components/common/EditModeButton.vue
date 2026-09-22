@@ -48,14 +48,6 @@
         round
         dense
         flat
-        :icon="$q.dark.mode ? 'light_mode' : 'dark_mode'"
-        @click="toggleDarkMode"
-        :title="$q.dark.mode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-      />
-      <q-btn
-        round
-        dense
-        flat
         icon="edit"
         @click="handleDashboardSettings"
         title="Dashboard Settings"
@@ -75,6 +67,9 @@
       v-model="showAddWidget"
       parent-type="root"
     />
+
+    <!-- Dashboard Settings Dialog -->
+    <DashboardSettingsDialog v-model="showDashboardSettings" />
   </div>
 </template>
 
@@ -83,6 +78,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useUIStore } from 'stores/ui'
 import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
+import DashboardSettingsDialog from './DashboardSettingsDialog.vue'
 
 const FLOATING_MENU_PROXIMITY = 200
 
@@ -198,10 +194,6 @@ function handleAddWidget() {
 
 function handleSaveDashboard() {
   uiStore.saveDashboard()
-}
-
-function toggleDarkMode() {
-  $q.dark.set(!$q.dark.mode)
 }
 
 function handleDashboardSettings() {
