@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDashboardStore } from './dashboard'
+import { useWidgetWindowsStore } from './widgetWindows'
 
 export const useUIStore = defineStore('ui', () => {
   const isEditMode = ref(false)
   const dashboardStore = useDashboardStore()
+  const widgetWindows = useWidgetWindowsStore()
   
   // Snapshot of dashboard state when entering edit mode
   const dashboardSnapshot = ref(null)
@@ -46,6 +48,7 @@ export const useUIStore = defineStore('ui', () => {
    * Clear snapshot and exit edit mode
    */
   function exitEditMode() {
+    closeWidgetDialogs()
     dashboardSnapshot.value = null
     isEditMode.value = false
   }
@@ -86,10 +89,16 @@ export const useUIStore = defineStore('ui', () => {
   // Cancel edit mode without saving - reloads dashboard from server
   async function cancelEditMode() {
     if (isEditMode.value) {
+      closeWidgetDialogs()
       isEditMode.value = false
       dashboardSnapshot.value = null
       await dashboardStore.reloadDashboard()
     }
+  }
+
+  function closeWidgetDialogs() {
+    widgetWindows.closeEdit()
+    widgetWindows.closeCreate()
   }
 
   return {

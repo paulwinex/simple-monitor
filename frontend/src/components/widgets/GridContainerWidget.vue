@@ -11,7 +11,7 @@
           round
           size="sm"
           icon="add"
-          @click="showAddWidget = true"
+          @click="widgetWindows.openCreate('gridContainer', props.containerId)"
         />
         <q-btn
           flat
@@ -100,21 +100,6 @@
         </div>
     </div>
   </div>
-
-  <!-- Add Widget Dialog -->
-  <add-widget-dialog
-    v-model="showAddWidget"
-    parent-type="gridContainer"
-    :parent-id="containerId"
-    @update:model-value="onDialogUpdate"
-  />
-
-  <!-- Edit Widget Dialog -->
-  <edit-widget-dialog
-    v-model="showEditWidget"
-    :widget="editingWidget"
-    @update:widget="updateInternalWidget"
-  />
 </template>
 
 <script setup>
@@ -122,13 +107,12 @@ import { ref, h, watch, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useDashboardStore } from 'stores/dashboard'
+import { useWidgetWindowsStore } from 'stores/widgetWindows'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
 import GaugeWidget from './GaugeWidget.vue'
 import NumberChartWidget from './NumberChartWidget.vue'
 import MultiChartWidget from './MultiChartWidget.vue'
-import AddWidgetDialog from './AddWidgetDialog.vue'
-import EditWidgetDialog from './EditWidgetDialog.vue'
 
 const props = defineProps({
   title: String,
@@ -142,18 +126,15 @@ const props = defineProps({
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
+const widgetWindows = useWidgetWindowsStore()
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 const emit = defineEmits([
   'update:layout',
   'update:children',
-  'edit-container',
   'remove-container'
 ])
 
-const showAddWidget = ref(false)
-const showEditWidget = ref(false)
-const editingWidget = ref(null)
 const layoutChanged = ref(false)
 const containerRef = ref(null)
 
@@ -252,11 +233,6 @@ watch(() => props.isEditing, (newEditing, oldEditing) => {
   }
 })
 
-function onDialogUpdate(value) {
-  // No need to emit - data is already in store via dashboardStore.addWidget
-  // Just close the dialog
-}
-
 function getWidget(id) {
   const widget = dashboardStore.getWidget(props.containerId)
   if (!widget || !widget.children) return null
@@ -302,35 +278,7 @@ function renderWidget(widget) {
 }
 
 function editWidget(widgetId) {
-  const widget = getWidget(widgetId)
-  if (widget) {
-    editingWidget.value = { ...widget }
-    showEditWidget.value = true
-  }
-}
-
-function updateInternalWidget(updatedWidget) {
-  const widget = dashboardStore.getWidget(props.containerId)
-  if (!widget || !widget.children) return
-
-  const index = widget.children.findIndex(w => w.id === updatedWidget.id)
-  if (index !== -1) {
-    // Preserve position and size from current layout
-    const layoutItem = internalLayout.value.find(l => l.i === updatedWidget.id)
-    if (layoutItem) {
-      updatedWidget.x = layoutItem.x
-      updatedWidget.y = layoutItem.y
-      updatedWidget.w = layoutItem.w
-      updatedWidget.h = layoutItem.h
-    }
-
-    // Create new children array with updated widget
-    const newChildren = widget.children.map((c, i) => i === index ? updatedWidget : c)
-
-    // Update in store - this will trigger reactivity
-    dashboardStore.updateWidget(props.containerId, { children: newChildren })
-    layoutChanged.value = true
-  }
+  widgetWindows.openEdit(widgetId, props.containerId)
 }
 
 function onLayoutUpdated(newLayout) {
@@ -428,8 +376,7 @@ function duplicateWidget(widgetId) {
 }
 
 function editContainer() {
-  // Emit event to parent to open edit dialog for this container
-  emit('edit-container', props.containerId)
+  widgetWindows.openEdit(props.containerId)
 }
 
 function removeContainer() {

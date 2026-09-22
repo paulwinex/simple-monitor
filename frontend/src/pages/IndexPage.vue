@@ -72,17 +72,10 @@
         </GridItem>
       </GridLayout>
     </div>
-
-    <!-- Edit Widget Dialog -->
-    <EditWidgetDialog
-      v-model="showEditWidget"
-      :widget="editingWidget"
-      @update:widget="updateWidget"
-    />
   </q-page>
 </template>
 <script setup>
-import { onMounted, onUnmounted, computed, h, ref, watch } from 'vue'
+import { onMounted, onUnmounted, computed, h, watch } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
@@ -94,12 +87,13 @@ import GaugeWidget from 'components/widgets/GaugeWidget.vue'
 import NumberChartWidget from 'components/widgets/NumberChartWidget.vue'
 import MultiChartWidget from 'components/widgets/MultiChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
-import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
 import EditModeButton from 'components/common/EditModeButton.vue'
+import { useWidgetWindowsStore } from 'stores/widgetWindows'
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const uiStore = useUIStore()
+const widgetWindows = useWidgetWindowsStore()
 
 // Create a computed that tracks only widget structure (not data changes)
 // This prevents restart loop when slot.data is updated
@@ -152,9 +146,6 @@ onUnmounted(() => {
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
-
-const showEditWidget = ref(false)
-const editingWidget = ref(null)
 
 onMounted(() => {
   dashboardStore.loadDashboard()
@@ -247,9 +238,6 @@ function renderWidget(widget) {
         // Update widget in store with new children
         updateContainerWidget(widget.id, { children: newChildren })
       },
-      'onEdit-container': (containerId) => {
-        openEditWidget(containerId)
-      },
       'onRemove-container': (containerId) => {
         removeWidget(containerId)
       }
@@ -272,26 +260,15 @@ function duplicateWidget(widgetId) {
 
     // Add the new widget to the store (null parentId = add to main dashboard)
     dashboardStore.addWidget(newWidget, null)
-    dashboardStore.saveDashboard()
   }
 }
 
 function openEditWidget(widgetId) {
-  const widget = getWidget(widgetId)
-  if (widget) {
-    editingWidget.value = { ...widget }
-    showEditWidget.value = true
-  }
-}
-
-function updateWidget(updatedWidget) {
-  dashboardStore.updateWidget(updatedWidget.id, updatedWidget)
-  dashboardStore.saveDashboard()
+  widgetWindows.openEdit(widgetId)
 }
 
 function updateContainerWidget(containerId, updates) {
   dashboardStore.updateWidget(containerId, updates)
-  dashboardStore.saveDashboard()
 }
 </script>
 

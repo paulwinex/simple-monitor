@@ -1,60 +1,66 @@
 <template>
-  <q-dialog v-model="dialogVisible">
-    <q-card style="min-width: 700px; max-height: 90vh;">
-      <q-card-section class="row items-center q-pb-none q-mb-md">
-        <div class="text-h6">Edit Widget</div>
-        <q-space />
-        <q-btn flat round dense icon="close" @click="closeDialog" />
-      </q-card-section>
+  <DraggableDialog
+    v-model="dialogVisible"
+    state-key="edit-widget"
+    title="Edit Widget"
+    :width="640"
+    :height="560"
+  >
+    <template v-if="editingWidget">
+      <!-- Widget Title (common for all widgets) -->
+      <q-input
+        v-model="widgetTitle"
+        label="Widget Title"
+        outlined
+        dense
+        class="q-mb-md"
+        @update:model-value="applyTitle"
+      />
 
-      <q-card-section class="q-pt-none">
-        <!-- Widget Title (common for all widgets) -->
-        <q-input
-          v-model="widgetTitle"
-          label="Widget Title"
-          outlined
-          dense
-          class="q-mb-md"
+      <!-- Slots Configuration -->
+      <div v-if="widgetSlots.length > 0" class="q-mb-md">
+        <WidgetSlotsSelector
+          :key="editFormKey"
+          :slot-definitions="widgetSlotDefinitions"
+          :initial-slot-configs="slotConfigsForSelector"
+          title="Data Sources"
+          description="Click on a slot button to change Host → Device → Sensor. Slots without a sensor will be hidden in the widget."
+          @update:slot-configs="applySlotConfigs"
         />
+      </div>
 
-        <!-- Slots Configuration -->
-        <div v-if="widgetSlots.length > 0" class="q-mb-md">
-          <WidgetSlotsSelector
-            :slot-definitions="widgetSlotDefinitions"
-            :initial-slot-configs="slotConfigsForSelector"
-            title="Data Sources"
-            description="Click on a slot button to change Host → Device → Sensor. Slots without a sensor will be hidden in the widget."
-            @update:slot-configs="updateSlotConfigsFromSelector"
-          />
-        </div>
+      <!-- Widget-specific options -->
+      <div v-if="widgetEditComponent" class="widget-options-section">
+        <component
+          :is="widgetEditComponent"
+          :key="editFormKey"
+          :widget="editingWidget"
+          :widget-options="widgetOptions"
+          @update:widget-options="applyWidgetOptions"
+          @update:widget="applyWidgetFromChild"
+        />
+      </div>
+    </template>
 
-        <!-- Widget-specific options -->
-        <div v-if="widgetEditComponent" class="widget-options-section">
-          <component
-            :is="widgetEditComponent"
-            v-if="widgetEditComponent"
-            ref="widgetEditRef"
-            :widget="widget"
-            :widget-options="widgetOptions"
-            @update:widget-options="updateWidgetOptions"
-            @update:widget="updateWidgetFromChild"
-          />
-        </div>
-      </q-card-section>
-
-      <q-card-actions align="right">
-        <q-btn flat label="Cancel" color="primary" @click="cancelChanges" />
-        <q-btn flat label="Save" color="primary" @click="saveWidget" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+    <template #actions>
+      <q-btn
+        flat
+        label="Reset"
+        color="negative"
+        :disable="!canReset"
+        @click="resetWidget"
+      />
+    </template>
+  </DraggableDialog>
 </template>
 
 <script setup>
 import { ref, computed, watch, shallowRef } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
-import { getSlotDefinitions } from './widget-registry'
+import { useWidgetWindowsStore } from 'stores/widgetWindows'
+import DraggableDialog from '../common/DraggableDialog.vue'
 import WidgetSlotsSelector from '../common/WidgetSlotsSelector.vue'
+import { getSlotDefinitions } from './widget-registry'
 
 // Import all edit dialog components
 import NumberWidgetEditDialog from './NumberWidgetEditDialog.vue'
@@ -74,76 +80,73 @@ const editDialogComponents = {
   gridContainer: GridContainerWidgetEditDialog
 }
 
-const props = defineProps({
-  modelValue: Boolean,
-  widget: Object
-})
-
-const emit = defineEmits([
-  'update:modelValue',
-  'update:widget'
-])
-
 const dashboardStore = useDashboardStore()
+const widgetWindows = useWidgetWindowsStore()
 
 const dialogVisible = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  get: () => widgetWindows.editOpen,
+  set: (value) => {
+    if (!value) widgetWindows.closeEdit()
+  }
 })
 
-// Widget configuration
+const editingWidget = computed(() => widgetWindows.editingWidget)
+const canReset = computed(() => widgetWindows.canResetCurrent)
+
+// Form state (source of truth for the form itself)
 const widgetTitle = ref('')
 const widgetOptions = ref({})
 const widgetSlots = ref([])
-const widgetType = ref('')
 const widgetSlotDefinitions = ref([])
 const slotConfigsForSelector = ref({})
 const widgetEditComponent = shallowRef(null)
-const widgetEditRef = ref(null)
+const editFormKey = ref(0)
 
-// Backup for cancel functionality
-const backupSlots = ref([])
-const backupTitle = ref('')
-const backupOptions = ref({})
+// Initialize form from the widget being edited
+function loadWidget(widget) {
+  widgetTitle.value = widget.title || ''
+  widgetOptions.value = { ...widget.options }
+  widgetSlots.value = JSON.parse(JSON.stringify(widget.slots || []))
+  widgetSlotDefinitions.value = getSlotDefinitions(widget.type)
+  widgetEditComponent.value = editDialogComponents[widget.type] || null
 
-// Watch for widget changes - create backup for cancel
-watch(() => props.widget, async (newWidget) => {
-  if (newWidget) {
-    widgetTitle.value = newWidget.title || ''
-    widgetOptions.value = { ...newWidget.options }
-    widgetType.value = newWidget.type
-    widgetSlots.value = JSON.parse(JSON.stringify(newWidget.slots || []))
-    backupSlots.value = JSON.parse(JSON.stringify(newWidget.slots || []))
-    backupTitle.value = newWidget.title || ''
-    backupOptions.value = { ...newWidget.options }
-
-    // Load slot definitions for this widget type
-    const defs = getSlotDefinitions(newWidget.type)
-    widgetSlotDefinitions.value = defs
-
-    // Convert slots to format expected by WidgetSlotsSelector
-    const configs = {}
-    for (const slot of (newWidget.slots || [])) {
-      configs[slot.id] = {
-        hostId: slot.hostId || null,
-        deviceId: slot.deviceId || null,
-        sensor: slot.sensor?.name || null
-      }
-    }
-    slotConfigsForSelector.value = configs
-
-    // Load widget-specific edit dialog component directly from map
-    if (editDialogComponents[newWidget.type]) {
-      widgetEditComponent.value = editDialogComponents[newWidget.type]
-    } else {
-      widgetEditComponent.value = null
+  const configs = {}
+  for (const slot of (widget.slots || [])) {
+    configs[slot.id] = {
+      hostId: slot.hostId || null,
+      deviceId: slot.deviceId || null,
+      sensor: slot.sensor?.name || null
     }
   }
-}, { immediate: true })
+  slotConfigsForSelector.value = configs
+  editFormKey.value = editFormKey.value + 1
+}
 
-// Update slot configs from WidgetSlotsSelector
-function updateSlotConfigsFromSelector(newConfigs) {
-  // Convert configs back to slot format
+// Re-initialize the form when the dialog opens or the target widget changes.
+// Keyed on the target id (NOT the widget object ref): the periodic data
+// refresh replaces widget objects in the store to drive grid reactivity,
+// and reloading on every such replacement would remount the inputs and
+// steal focus while the user is typing.
+watch(
+  () => [widgetWindows.editOpen, widgetWindows.editWidgetId],
+  () => {
+    if (widgetWindows.editOpen && editingWidget.value) {
+      loadWidget(editingWidget.value)
+    }
+  },
+  { immediate: true }
+)
+
+// --- Live-apply: every change immediately writes to the widget (memory only) ---
+
+function applyTitle(value) {
+  widgetTitle.value = value
+  if (editingWidget.value) {
+    dashboardStore.updateWidgetLive(editingWidget.value.id, { title: value })
+  }
+}
+
+function applySlotConfigs(newConfigs) {
   const newSlots = widgetSlots.value.map(slot => {
     const config = newConfigs[slot.id]
     if (!config) return slot
@@ -158,75 +161,46 @@ function updateSlotConfigsFromSelector(newConfigs) {
     }
   })
   widgetSlots.value = newSlots
+  if (editingWidget.value) {
+    dashboardStore.updateWidgetLive(editingWidget.value.id, { slots: newSlots })
+  }
 }
 
-// Update widget options from child component
-function updateWidgetOptions(newOptions) {
+function applyWidgetOptions(newOptions) {
   widgetOptions.value = newOptions
-}
-
-// Update widget from child component (e.g., sensor change)
-function updateWidgetFromChild(updatedWidget) {
-  if (updatedWidget?.slots) {
-    widgetSlots.value = JSON.parse(JSON.stringify(updatedWidget.slots))
-    
-    // Also update slot configs for selector
-    const configs = {}
-    for (const slot of (updatedWidget.slots || [])) {
-      configs[slot.id] = {
-        hostId: slot.hostId || null,
-        deviceId: slot.deviceId || null,
-        sensor: slot.sensor?.name || null
-      }
-    }
-    slotConfigsForSelector.value = configs
+  if (editingWidget.value) {
+    dashboardStore.updateWidgetLive(editingWidget.value.id, { options: newOptions })
   }
 }
 
-// Cancel changes and restore backup
-function cancelChanges() {
-  widgetSlots.value = JSON.parse(JSON.stringify(backupSlots.value))
-  widgetTitle.value = backupTitle.value
-  widgetOptions.value = backupOptions.value
-  dialogVisible.value = false
-}
+function applyWidgetFromChild(updatedWidget) {
+  if (!updatedWidget?.slots) return
+  widgetSlots.value = JSON.parse(JSON.stringify(updatedWidget.slots))
 
-// Save widget
-function saveWidget() {
-  if (props.widget) {
-    const updatedWidget = {
-      ...props.widget,
-      title: widgetTitle.value,
-      slots: widgetSlots.value,
-      options: { ...widgetOptions.value }
+  // Also update slot configs so the selector reflects child-driven changes
+  const newConfigs = {}
+  for (const slot of (updatedWidget.slots || [])) {
+    newConfigs[slot.id] = {
+      hostId: slot.hostId || null,
+      deviceId: slot.deviceId || null,
+      sensor: slot.sensor?.name || null
     }
-    emit('update:widget', updatedWidget)
-    closeDialog()
+  }
+  slotConfigsForSelector.value = newConfigs
+
+  if (editingWidget.value) {
+    dashboardStore.updateWidgetLive(editingWidget.value.id, { slots: updatedWidget.slots })
   }
 }
 
-function closeDialog() {
-  dialogVisible.value = false
+// Reset the current widget to its last DB-saved state
+function resetWidget() {
+  widgetWindows.resetCurrentWidget()
+  loadWidget(editingWidget.value)
 }
 </script>
 
 <style scoped>
-.q-card {
-  max-height: 90vh;
-}
-
-.widget-options {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-}
-
-.widget-options-column {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-  display: flex;
-  flex-direction: column;
-}
-
 .widget-options-section {
   margin-top: 16px;
 }

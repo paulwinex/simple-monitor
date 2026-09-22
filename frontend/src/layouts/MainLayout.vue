@@ -3,12 +3,18 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!-- Shared floating dialog windows (one instance for the whole app) -->
+    <AddWidgetDialog />
+    <EditWidgetDialog />
   </q-layout>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useQuasar } from 'quasar'
+import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
+import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
 
 const $q = useQuasar()
 

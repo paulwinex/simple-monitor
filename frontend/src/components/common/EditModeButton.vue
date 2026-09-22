@@ -62,12 +62,6 @@
       />
     </div>
 
-    <!-- Add Widget Dialog -->
-    <AddWidgetDialog
-      v-model="showAddWidget"
-      parent-type="root"
-    />
-
     <!-- Dashboard Settings Dialog -->
     <DashboardSettingsDialog v-model="showDashboardSettings" />
   </div>
@@ -77,18 +71,18 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useUIStore } from 'stores/ui'
-import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
+import { useWidgetWindowsStore } from 'stores/widgetWindows'
 import DashboardSettingsDialog from './DashboardSettingsDialog.vue'
 
 const FLOATING_MENU_PROXIMITY = 200
 
 const $q = useQuasar()
 const uiStore = useUIStore()
+const widgetWindows = useWidgetWindowsStore()
 
 const containerEl = ref(null)
 const buttonRef = ref(null)
 const isFloatingMenuVisible = ref(false)
-const showAddWidget = ref(false)
 const showDashboardSettings = ref(false)
 
 let rafId = null
@@ -189,7 +183,7 @@ function confirmCancelEditMode() {
 }
 
 function handleAddWidget() {
-  showAddWidget.value = true
+  widgetWindows.openCreate('root')
 }
 
 function handleSaveDashboard() {

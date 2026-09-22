@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { Notify } from 'quasar'
 import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts, getMetricDevices } from 'src/services/api'
 
 const DEFAULT_GRID_OPTIONS = {
@@ -172,6 +173,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const loading = ref(false)
   const error = ref(null)
   const hosts = ref([])
+  // Deep snapshot of the last DB-persisted dashboard state ({ layout, widgets }).
+  // Used by "Reset widget" to restore a single widget to its last saved state.
+  const savedSnapshot = ref(null)
 
   const isLoading = computed(() => loading.value)
   const hasError = computed(() => error.value !== null)
@@ -217,6 +221,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       layout.value = data.layout
       widgets.value = data.widgets
       gridOptions.value = data.gridOptions || DEFAULT_GRID_OPTIONS
+      captureSavedSnapshot()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load dashboard'
       console.error('Failed to load dashboard:', err)
@@ -235,6 +240,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       layout.value = data.layout
       widgets.value = data.widgets
       gridOptions.value = data.gridOptions || DEFAULT_GRID_OPTIONS
+      captureSavedSnapshot()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to reload dashboard'
       console.error('Failed to reload dashboard:', err)
@@ -246,8 +252,21 @@ export const useDashboardStore = defineStore('dashboard', () => {
   async function saveDashboard() {
     try {
       await saveDashboardToApi({ layout: layout.value, widgets: widgets.value, gridOptions: gridOptions.value })
+      captureSavedSnapshot()
+      Notify.create({
+        message: 'Dashboard saved',
+        position: 'bottom',
+        type: 'positive',
+        timeout: 2000
+      })
     } catch (err) {
       console.error('Failed to save dashboard:', err)
+      Notify.create({
+        message: 'Failed to save dashboard',
+        position: 'bottom',
+        type: 'negative',
+        timeout: 3000
+      })
       throw err
     }
   }
@@ -395,13 +414,103 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   /**
+   * Find a widget by id across root widgets and nested container children.
+   * Returns the live (reactive) widget object or null.
+   */
+  function findWidgetDeep(id) {
+    function search(items) {
+      for (const w of items) {
+        if (w.id === id) return w
+        if (w.children && w.children.length) {
+          const found = search(w.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    return search(widgets.value)
+  }
+
+  /**
+   * Apply a config patch to a live widget (root or nested) in memory only.
+   * Does NOT persist to the backend - persistence happens via saveDashboard().
+   */
+  function updateWidgetLive(id, config) {
+    const widget = findWidgetDeep(id)
+    if (!widget) return
+    Object.assign(widget, config)
+  }
+
+  /**
+   * Capture a deep snapshot of the current dashboard state.
+   * Called after load and after a successful save.
+   */
+  function captureSavedSnapshot() {
+    savedSnapshot.value = JSON.parse(JSON.stringify({
+      layout: layout.value,
+      widgets: widgets.value
+    }))
+  }
+
+  /**
+   * Store a widget (plain object) back into the dashboard tree (root or nested).
+   */
+  function replaceWidgetDeep(id, replacement) {
+    function replace(items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].id === id) {
+          items[i] = replacement
+          return true
+        }
+        if (items[i].children && items[i].children.length) {
+          if (replace(items[i].children)) return true
+        }
+      }
+      return false
+    }
+    return replace(widgets.value)
+  }
+
+  /**
+   * Reset a single widget (root or nested) to its last DB-saved state.
+   * Returns true if the widget had a saved version and was reset.
+   */
+  function resetWidgetToSaved(id) {
+    if (!savedSnapshot.value || !id) return false
+    const snapshotWidgets = savedSnapshot.value.widgets
+    const snapshotWidget = findWidgetInTreeById(snapshotWidgets, id)
+    if (!snapshotWidget) return false
+
+    const clone = JSON.parse(JSON.stringify(snapshotWidget))
+    return replaceWidgetDeep(id, clone)
+  }
+
+  /**
+   * Whether a widget with this id exists in the last DB-saved snapshot.
+   */
+  function hasSavedWidget(id) {
+    if (!savedSnapshot.value || !id) return false
+    return findWidgetInTreeById(savedSnapshot.value.widgets, id) !== null
+  }
+
+  function findWidgetInTreeById(items, id) {
+    for (const w of items) {
+      if (w.id === id) return w
+      if (w.children && w.children.length) {
+        const found = findWidgetInTreeById(w.children, id)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  /**
    * Update slot data for a widget - ensures Vue reactivity
    * Handles both root widgets and nested container children
    */
   function updateSlotData(widgetId, slotId, data) {
     // First try to find in root widgets
     let widget = getWidget(widgetId)
-    let parentWidget = null
 
     // If not found, search in container children
     if (!widget) {
@@ -409,7 +518,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         if (w.type === 'gridContainer' && w.children) {
           widget = w.children.find(c => c.id === widgetId)
           if (widget) {
-            parentWidget = w
             break
           }
         }
@@ -419,34 +527,14 @@ export const useDashboardStore = defineStore('dashboard', () => {
     if (widget && widget.slots) {
       const slotIndex = widget.slots.findIndex(s => s.id === slotId)
       if (slotIndex !== -1) {
-        // Create new slots array to trigger reactivity
-        const newSlots = [...widget.slots]
-        newSlots[slotIndex] = {
-          ...newSlots[slotIndex],
+        // Update slot data in place: replacing the slot object inside the
+        // reactive array is enough to trigger reactivity, while keeping the
+        // widget object identity stable. This prevents editingWidget from
+        // getting a brand-new object on every data refresh, which caused the
+        // edit dialog to lose focus and reset to defaults.
+        widget.slots[slotIndex] = {
+          ...widget.slots[slotIndex],
           data
-        }
-
-        if (parentWidget) {
-          // Update nested widget - need to update parent's children array
-          const parentIndex = widgets.value.findIndex(w => w.id === parentWidget.id)
-          if (parentIndex !== -1) {
-            const newChildren = parentWidget.children.map(c =>
-              c.id === widgetId ? { ...c, slots: newSlots } : c
-            )
-            widgets.value[parentIndex] = {
-              ...parentWidget,
-              children: newChildren
-            }
-          }
-        } else {
-          // Update root widget
-          const rootIndex = widgets.value.findIndex(w => w.id === widgetId)
-          if (rootIndex !== -1) {
-            widgets.value[rootIndex] = {
-              ...widget,
-              slots: newSlots
-            }
-          }
         }
       }
     }
@@ -487,6 +575,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     updateWidget,
     updateGridOptions,
     getWidget,
+    findWidgetDeep,
+    updateWidgetLive,
+    resetWidgetToSaved,
+    hasSavedWidget,
     getAvailableWidgetTypes,
     updateSlotData
   }

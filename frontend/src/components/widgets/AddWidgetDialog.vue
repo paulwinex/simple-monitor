@@ -1,142 +1,140 @@
 <template>
-  <q-dialog v-model="dialogVisible">
-    <q-card style="min-width: 700px; max-height: 90vh;">
-      <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Add Widget</div>
-        <q-space />
-        <q-btn flat round dense icon="close" @click="closeDialog" />
-      </q-card-section>
-
-      <q-card-section class="q-pt-none">
-        <q-stepper
-          v-model="step"
-          color="primary"
-          flat
-          animated
-          header-nav
-          vertical
-        >
-          <!-- Step 1: Widget Type Selection -->
-          <q-step
-            :name="1"
-            title="Select Widget Type"
-            icon="widgets"
-            :done="step > 1"
+  <DraggableDialog
+    v-model="dialogVisible"
+    state-key="add-widget"
+    title="Add Widget"
+    :width="700"
+    :height="620"
+  >
+    <q-stepper
+      v-model="step"
+      color="primary"
+      flat
+      animated
+      header-nav
+      vertical
+    >
+      <!-- Step 1: Widget Type Selection -->
+      <q-step
+        :name="1"
+        title="Select Widget Type"
+        icon="widgets"
+        :done="step > 1"
+      >
+        <div class="widget-grid q-pa-md">
+          <div
+            v-for="widget in availableWidgets"
+            :key="widget.type"
+            class="widget-card"
+            @click="selectWidgetType(widget.type)"
           >
-            <div class="widget-grid q-pa-md">
-              <div
-                v-for="widget in availableWidgets"
-                :key="widget.type"
-                class="widget-card"
-                @click="selectWidgetType(widget.type)"
-              >
-                <q-card class="full-height cursor-pointer" bordered>
-                  <q-card-section class="text-center q-pa-lg">
-                    <q-icon
-                      :name="getWidgetIcon(widget.type)"
-                      size="48px"
-                      color="primary"
-                      class="q-mb-md"
-                    />
-                    <div class="text-h6 q-mb-xs">{{ widget.label }}</div>
-                    <div class="text-caption text-grey-7">
-                      {{ getSlotCount(widget) }} sensor(s)
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </div>
-            </div>
-          </q-step>
-
-          <!-- Step 2: Sensor Selection (Slots Configuration) -->
-          <q-step
-            :name="2"
-            title="Configure Sensors"
-            icon="sensors"
-            :done="step > 2"
-          >
-            <div class="q-pa-md">
-              <WidgetSlotsSelector
-                :slot-definitions="slotDefinitions"
-                :initial-slot-configs="slotConfigs"
-                @update:slot-configs="slotConfigs = $event"
-              />
-            </div>
-          </q-step>
-
-          <!-- Step 3: Widget Options (Embedded Edit Dialog) -->
-          <q-step
-            :name="3"
-            title="Widget Options"
-            icon="settings"
-          >
-            <div class="q-pa-md">
-              <!-- Widget Title (common for all widgets) -->
-              <q-input
-                v-model="widgetTitle"
-                label="Widget Title"
-                outlined
-                dense
-                class="q-mb-md"
-              />
-
-              <!-- Widget-specific options -->
-              <component
-                :is="widgetEditComponent"
-                v-if="widgetEditComponent"
-                :widget-options="widgetOptions"
-                @update:widget-options="updateWidgetOptions"
-              />
-            </div>
-          </q-step>
-
-          <template #navigation>
-            <q-stepper-navigation>
-              <div class="row full-width justify-between">
-                <q-btn
-                  v-if="step === 2"
-                  flat
-                  @click="step = 1"
-                  label="Back"
+            <q-card class="full-height cursor-pointer" bordered>
+              <q-card-section class="text-center q-pa-lg">
+                <q-icon
+                  :name="getWidgetIcon(widget.type)"
+                  size="48px"
                   color="primary"
+                  class="q-mb-md"
                 />
-                <q-btn
-                  v-if="step === 2"
-                  flat
-                  @click="step = 3"
-                  label="Next"
-                  color="primary"
-                  :disable="!canProceedToStep3"
-                />
-                <q-btn
-                  v-if="step === 3"
-                  flat
-                  @click="step = 2"
-                  label="Back"
-                  color="primary"
-                />
-                <q-btn
-                  v-if="step === 3"
-                  flat
-                  @click="createWidget"
-                  label="Create"
-                  color="primary"
-                  :disable="!canCreate"
-                />
-              </div>
-            </q-stepper-navigation>
-          </template>
-        </q-stepper>
-      </q-card-section>
-    </q-card>
-  </q-dialog>
+                <div class="text-h6 q-mb-xs">{{ widget.label }}</div>
+                <div class="text-caption text-grey-7">
+                  {{ getSlotCount(widget) }} sensor(s)
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+      </q-step>
+
+      <!-- Step 2: Sensor Selection (Slots Configuration) -->
+      <q-step
+        :name="2"
+        title="Configure Sensors"
+        icon="sensors"
+        :done="step > 2"
+      >
+        <div class="q-pa-md">
+          <WidgetSlotsSelector
+            :slot-definitions="slotDefinitions"
+            :initial-slot-configs="slotConfigs"
+            @update:slot-configs="slotConfigs = $event"
+          />
+        </div>
+      </q-step>
+
+      <!-- Step 3: Widget Options (Embedded Edit Dialog) -->
+      <q-step
+        :name="3"
+        title="Widget Options"
+        icon="settings"
+      >
+        <div class="q-pa-md">
+          <!-- Widget Title (common for all widgets) -->
+          <q-input
+            v-model="widgetTitle"
+            label="Widget Title"
+            outlined
+            dense
+            class="q-mb-md"
+          />
+
+          <!-- Widget-specific options -->
+          <component
+            :is="widgetEditComponent"
+            v-if="widgetEditComponent"
+            :widget-options="widgetOptions"
+            @update:widget-options="updateWidgetOptions"
+          />
+        </div>
+      </q-step>
+
+      <template #navigation>
+        <q-stepper-navigation>
+          <div class="row full-width justify-between">
+            <q-btn
+              v-if="step === 2"
+              flat
+              @click="step = 1"
+              label="Back"
+              color="primary"
+            />
+            <q-btn
+              v-if="step === 2"
+              flat
+              @click="step = 3"
+              label="Next"
+              color="primary"
+              :disable="!canProceedToStep3"
+            />
+            <q-btn
+              v-if="step === 3"
+              flat
+              @click="step = 2"
+              label="Back"
+              color="primary"
+            />
+            <q-btn
+              v-if="step === 3"
+              flat
+              @click="createWidget"
+              label="Create"
+              color="primary"
+              :disable="!canCreate"
+            />
+          </div>
+        </q-stepper-navigation>
+      </template>
+    </q-stepper>
+  </DraggableDialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, shallowRef } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
+import { useWidgetWindowsStore } from 'stores/widgetWindows'
 import { widgetRegistry, getSlotDefinitions } from './widget-registry'
 import WidgetSlotsSelector from '../common/WidgetSlotsSelector.vue'
+import DraggableDialog from '../common/DraggableDialog.vue'
 
 // Import all edit dialog components
 import NumberWidgetEditDialog from './NumberWidgetEditDialog.vue'
@@ -156,28 +154,24 @@ const editDialogComponents = {
   gridContainer: GridContainerWidgetEditDialog
 }
 
-const props = defineProps({
-  modelValue: Boolean,
-  parentType: String,
-  parentId: String
-})
-
-const emit = defineEmits([
-  'update:modelValue'
-])
-
 const dashboardStore = useDashboardStore()
+const widgetWindows = useWidgetWindowsStore()
 
 const dialogVisible = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  get: () => widgetWindows.createOpen,
+  set: (value) => {
+    if (!value) widgetWindows.closeCreate()
+  }
 })
+
+const parentType = computed(() => widgetWindows.createParentType)
+const parentId = computed(() => widgetWindows.createParentId)
 
 // Filter widgets based on context
 // If creating widget for main window (root), show GridContainer
 // If creating nested widget (inside container), hide GridContainer
 const availableWidgets = computed(() => {
-  if (props.parentType === 'gridContainer') {
+  if (parentType.value === 'gridContainer') {
     return widgetRegistry.filter(w => w.type !== 'gridContainer')
   }
   return widgetRegistry
@@ -193,7 +187,7 @@ const selectedWidgetDef = computed(() =>
 const widgetTitle = ref('')
 const widgetOptions = ref({})
 const slotConfigs = ref({})
-const widgetEditComponent = shallowRef(null)
+const widgetEditComponent = ref(null)
 
 const slotDefinitions = computed(() => {
   if (!selectedType.value) return []
@@ -387,16 +381,12 @@ function selectWidgetType(type) {
   }
 
   // Load widget-specific edit dialog component directly from map
-  if (editDialogComponents[type]) {
-    widgetEditComponent.value = editDialogComponents[type]
-  } else {
-    widgetEditComponent.value = null
-  }
+  widgetEditComponent.value = editDialogComponents[type] || null
 
   step.value = 2
 }
 
-// Create widget
+// Create widget (in-memory only; persisted via Save Dashboard)
 function createWidget() {
   const slots = slotDefinitions.value.map(def => {
     const config = slotConfigs.value[def.id]
@@ -443,19 +433,10 @@ function createWidget() {
     newWidget.data = { value: 0 }
   }
 
-  dashboardStore.addWidget(newWidget, props.parentId)
-
-  // Save to backend if added to container
-  if (props.parentId) {
-    dashboardStore.saveDashboard()
-  }
+  dashboardStore.addWidget(newWidget, parentId.value)
 
   resetForm()
-  dialogVisible.value = false
-}
-
-function closeDialog() {
-  dialogVisible.value = false
+  widgetWindows.closeCreate()
 }
 
 function resetForm() {
@@ -467,13 +448,14 @@ function resetForm() {
   widgetEditComponent.value = null
 }
 
-// Reset form when dialog opens
-watch(dialogVisible, (newVal) => {
-  if (newVal) {
+// Reset form when the (shared) dialog opens or its target changes
+watch(() => [widgetWindows.createOpen, widgetWindows.createParentType, widgetWindows.createParentId], (newVal) => {
+  const [open, , ] = newVal
+  if (open) {
     resetForm()
     dashboardStore.loadHosts()
   }
-})
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -507,17 +489,5 @@ watch(dialogVisible, (newVal) => {
   padding: 8px 12px;
   background: #f5f5f5;
   border-bottom: 1px solid #e0e0e0;
-}
-
-.widget-options {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-}
-
-.widget-options-column {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-  display: flex;
-  flex-direction: column;
 }
 </style>
