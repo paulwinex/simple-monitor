@@ -258,6 +258,9 @@ function onResizePan({ isFirst, isFinal, delta }) {
   user-select: none;
   -webkit-user-select: none;
   min-height: 48px;
+  padding-bottom: 10px !important;
+  background: rgba(128, 128, 128, 0.14);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.22);
 }
 
 .draggable-dialog-card--active .draggable-dialog-header {
@@ -268,6 +271,7 @@ function onResizePan({ isFirst, isFinal, delta }) {
   flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
+  padding-top: 12px !important;
 }
 
 .draggable-dialog-resize-handle {

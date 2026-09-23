@@ -15,13 +15,17 @@ import { computed } from 'vue'
 import { useQuasar } from 'quasar'
 import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
+import { getThemes, applyTheme } from 'src/utils/themes'
 
 const $q = useQuasar()
 
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 function toggleTheme() {
-  $q.dark.set(!isDark.value)
+  const themes = getThemes()
+  const currentDark = isDark.value
+  const next = themes.find((t) => t.dark !== currentDark) || themes[0]
+  applyTheme(next, $q)
 }
 </script>
 

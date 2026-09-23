@@ -2,11 +2,14 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { Notify } from 'quasar'
 import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts, getMetricDevices } from 'src/services/api'
+import { compact } from 'src/utils/layout'
 
 const DEFAULT_GRID_OPTIONS = {
   colNum: 12,
   rowHeight: 30,
-  verticalCompact: true
+  verticalCompact: true,
+  margin: { x: 10, y: 10 },
+  padding: { top: 16, right: 16, bottom: 16, left: 16 }
 }
 
 async function fetchDashboardFromApi() {
@@ -106,7 +109,7 @@ async function fetchDashboardFromApi() {
     return {
       layout: layoutArray,
       widgets: transformedWidgets,
-      gridOptions: DEFAULT_GRID_OPTIONS
+      gridOptions: { ...DEFAULT_GRID_OPTIONS, ...(dashboard.grid_options || {}) }
     }
   } catch (error) {
     console.error('Failed to load dashboard from API, using empty layout:', error)
@@ -157,6 +160,7 @@ async function saveDashboardToApi(state) {
     version: 1,
     layout: layoutDict,
     widgets: widgetsDict,
+    grid_options: state.gridOptions,
     updated_at: Math.floor(Date.now() / 1000)
   }
 
@@ -220,7 +224,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       const data = await fetchDashboardFromApi()
       layout.value = data.layout
       widgets.value = data.widgets
-      gridOptions.value = data.gridOptions || DEFAULT_GRID_OPTIONS
+      gridOptions.value = { ...DEFAULT_GRID_OPTIONS, ...(data.gridOptions || {}) }
       captureSavedSnapshot()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load dashboard'
@@ -239,7 +243,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       const data = await fetchDashboardFromApi()
       layout.value = data.layout
       widgets.value = data.widgets
-      gridOptions.value = data.gridOptions || DEFAULT_GRID_OPTIONS
+      gridOptions.value = { ...DEFAULT_GRID_OPTIONS, ...(data.gridOptions || {}) }
       captureSavedSnapshot()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to reload dashboard'
@@ -273,6 +277,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   function updateGridOptions(options) {
     gridOptions.value = { ...gridOptions.value, ...options }
+  }
+
+  function recompactGrid() {
+    layout.value = compact(layout.value, gridOptions.value.verticalCompact)
   }
 
   function addWidget(widget, parentId) {
@@ -574,6 +582,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     updateLayout,
     updateWidget,
     updateGridOptions,
+    recompactGrid,
     getWidget,
     findWidgetDeep,
     updateWidgetLive,

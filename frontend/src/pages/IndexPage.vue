@@ -1,6 +1,6 @@
 
 <template>
-  <q-page class="q-pa-md">
+  <q-page>
     <!-- Floating Edit Mode Menu -->
     <EditModeButton />
 
@@ -14,7 +14,7 @@
       </q-banner>
     </div>
 
-    <div v-else :class="['dashboard-grid', { 'vue-grid-layout-light': !isDark }]">
+    <div v-else :class="['dashboard-grid', { 'vue-grid-layout-light': !isDark }]" :style="gridStyle">
       <GridLayout
         v-model:layout="dashboardStore.layout"
         :col-num="gridOptions.colNum"
@@ -22,6 +22,7 @@
         :is-draggable="isEditMode"
         :is-resizable="isEditMode"
         :vertical-compact="gridOptions.verticalCompact"
+        :margin="gridMargin"
         :use-css-transforms="true"
         @layout-updated="layoutUpdatedEvent"
       >
@@ -146,6 +147,16 @@ onUnmounted(() => {
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
+const gridMargin = computed(() => {
+  const m = gridOptions.value.margin || { x: 10, y: 10 }
+  return [m.x, m.y]
+})
+const gridStyle = computed(() => {
+  const p = gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }
+  return {
+    padding: `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`
+  }
+})
 
 onMounted(() => {
   dashboardStore.loadDashboard()
@@ -276,7 +287,6 @@ function updateContainerWidget(containerId, updates) {
 .dashboard-grid {
   background: var(--q-card-background);
   border-radius: 8px;
-  padding: 16px;
   min-height: 400px;
   position: relative;
 }
