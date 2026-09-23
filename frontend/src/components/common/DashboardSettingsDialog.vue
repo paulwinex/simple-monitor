@@ -39,30 +39,53 @@
         />
       </SettingsRow>
 
+      <SettingsRow label="Columns" hint="Number of columns in the grid. Higher values give finer control over widget width and snapping.">
+        <q-input
+          :model-value="colNumText"
+          type="number"
+          dense
+          outlined
+          :min="2"
+          :max="48"
+          class="settings-input settings-select"
+          @focus="onColNumFocus"
+          @update:model-value="onColNumTextChange"
+          @keyup.enter="commitColNum"
+          @blur="commitColNum"
+        >
+          <template #append>
+            <q-btn
+              flat
+              round
+              dense
+              icon="arrow_drop_down"
+              aria-label="Presets"
+              @click.stop="colNumMenu = !colNumMenu"
+            />
+          </template>
+          <q-menu v-model="colNumMenu" auto-close :offset="[0, 4]">
+            <div class="col-presets column" style="min-width: 140px">
+              <div class="text-caption text-grey-7 q-px-sm q-py-xs">Presets</div>
+              <div
+                v-for="p in COL_NUM_PRESETS"
+                :key="p"
+                class="col-preset row items-center no-wrap q-px-sm q-py-xs cursor-pointer"
+                :class="{ 'text-primary': p === gridOptions.colNum }"
+                @click="applyColNumPreset(p)"
+              >
+                <span>{{ p }}</span>
+                <q-icon v-if="p === gridOptions.colNum" name="check" size="16px" class="q-ml-auto" />
+              </div>
+            </div>
+          </q-menu>
+        </q-input>
+      </SettingsRow>
+
       <SettingsRow label="Auto-layout" hint="Widgets shift up to fill vertical gaps while editing">
         <div class="row items-center no-wrap q-gap-sm">
           <span class="text-caption">{{ gridOptions.verticalCompact ? 'On' : 'Off' }}</span>
           <q-toggle v-model="verticalCompact" @update:model-value="onAutoLayoutToggle" />
         </div>
-      </SettingsRow>
-
-      <SettingsRow label="Columns" hint="Number of columns in the grid. Higher values give finer control over widget width and snapping.">
-        <q-select
-          :model-value="gridOptions.colNum"
-          :options="colNumOptions"
-          :display-value="String(gridOptions.colNum)"
-          map-options
-          emit-value
-          use-input
-          new-value-mode="add-unique"
-          dense
-          outlined
-          behavior="menu"
-          input-debounce="0"
-          class="settings-select"
-          @filter="filterColNum"
-          @update:model-value="setColNum"
-        />
       </SettingsRow>
 
       <SectionSeparator label="Widget spacing" />
@@ -71,8 +94,8 @@
         <ValueSlider
           :model-value="gridOptions.rowHeight ?? 30"
           :min="10"
-          :max="300"
-          :step="10"
+          :max="100"
+          :step="5"
           suffix="px"
           @update:model-value="setRowHeight"
         />
@@ -191,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useThemeStore } from 'stores/theme'
@@ -224,20 +247,34 @@ const gridOptions = computed(() => dashboardStore.gridOptions)
 const gap = computed(() => gridOptions.value.margin?.x ?? 10)
 
 const COL_NUM_PRESETS = [2, 4, 8, 12, 16, 20, 32]
-const colNumOptions = ref(COL_NUM_PRESETS.map((v) => ({ label: String(v), value: v })))
+const colNumText = ref(String(gridOptions.value.colNum ?? 12))
+const colNumMenu = ref(false)
 
-function filterColNum(val, update) {
-  update(() => {
-    if (val === '') {
-      colNumOptions.value = COL_NUM_PRESETS.map((v) => ({ label: String(v), value: v }))
-    } else {
-      const needle = val.toLowerCase()
-      colNumOptions.value = COL_NUM_PRESETS
-        .filter((v) => String(v).toLowerCase().includes(needle))
-        .map((v) => ({ label: String(v), value: v }))
-    }
-  })
+function onColNumFocus(event) {
+  event.target.select()
 }
+
+function onColNumTextChange(value) {
+  colNumText.value = value
+}
+
+function commitColNum() {
+  const parsed = Math.max(2, Math.min(48, parseInt(colNumText.value, 10) || 12))
+  colNumText.value = String(parsed)
+  dashboardStore.updateGridOptions({ colNum: parsed })
+}
+
+function applyColNumPreset(value) {
+  colNumText.value = String(value)
+  dashboardStore.updateGridOptions({ colNum: value })
+}
+
+watch(
+  () => gridOptions.value.colNum,
+  (value) => {
+    colNumText.value = String(value ?? 12)
+  }
+)
 
 const themeOptions = computed(() => getThemes().map((t) => ({ label: t.label, value: t.id })))
 const themeId = ref(getSavedTheme().id)
@@ -275,11 +312,6 @@ function setGap(value) {
   dashboardStore.updateGridOptions({ margin: { x: parsed, y: parsed } })
 }
 
-function setColNum(value) {
-  const parsed = Math.max(2, Math.min(48, parseInt(value, 10) || 12))
-  dashboardStore.updateGridOptions({ colNum: parsed })
-}
-
 function setRowHeight(value) {
   const parsed = Math.max(10, Math.min(300, Math.round(value) || 30))
   dashboardStore.updateGridOptions({ rowHeight: parsed })
@@ -306,10 +338,10 @@ function setWidgetOpacity(key, value) {
 
 <style scoped>
 .settings-select {
-  width: 160px;
+  min-width: 160px;
 }
 
 .settings-input {
-  width: 110px;
+  width: 150px;
 }
 </style>
