@@ -1,6 +1,6 @@
 <template>
-  <div ref="containerRef" class="grid-container-outer" :class="{ 'dark-theme': isDark }">
-    <div v-if="showHeader && title" class="grid-container-header" :class="{ 'dark-theme': isDark }">
+  <div ref="containerRef" class="grid-container-outer">
+    <div v-if="showHeader && title" class="grid-container-header">
       <span class="widget-title">{{ title }}</span>
     </div>
     <div class="grid-container-widget">
@@ -104,7 +104,6 @@
 
 <script setup>
 import { ref, h, watch, computed } from 'vue'
-import { useQuasar } from 'quasar'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useDashboardStore } from 'stores/dashboard'
 import { useWidgetWindowsStore } from 'stores/widgetWindows'
@@ -124,10 +123,8 @@ const props = defineProps({
   isEditing: Boolean
 })
 
-const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const widgetWindows = useWidgetWindowsStore()
-const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 const emit = defineEmits([
   'update:layout',
@@ -398,36 +395,8 @@ defineExpose({
   flex-direction: column;
   border-radius: 4px;
   overflow: hidden;
-}
-
-/* Dark theme */
-.grid-container-outer.dark-theme {
-  background: #424242;
-  border: 1px solid #616161;
-}
-
-.grid-container-outer.dark-theme .grid-container-header {
-  background: #545454;
-  border-bottom: 1px solid #616161;
-}
-
-.grid-container-outer.dark-theme .widget-title {
-  color: #e0e0e0;
-}
-
-/* Light theme */
-.grid-container-outer:not(.dark-theme) {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-}
-
-.grid-container-outer:not(.dark-theme) .grid-container-header {
-  background: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.grid-container-outer:not(.dark-theme) .widget-title {
-  color: #424242;
+  background: var(--widget-bg, #424242);
+  border: 1px solid var(--widget-border, #616161);
 }
 
 .grid-container-header {
@@ -436,11 +405,14 @@ defineExpose({
   align-items: center;
   padding: 8px 12px;
   flex-shrink: 0;
+  background: var(--widget-header-bg, #545454);
+  border-bottom: 1px solid var(--widget-header-border, #616161);
 }
 
 .widget-title {
   font-weight: 600;
   font-size: 14px;
+  color: var(--widget-title-color, #e0e0e0);
 }
 
 .grid-container-widget {
@@ -520,28 +492,6 @@ defineExpose({
 
 .widget-actions .q-btn:hover {
   background: rgba(255, 255, 255, 0.3);
-}
-
-/* Dark theme for internal grid items */
-.vue-grid-item:not(.vue-grid-placeholder) {
-  background: #424242;
-  border: 1px solid #616161;
-  border-radius: 4px;
-}
-
-.vue-grid-item.static {
-  background: #545454;
-}
-
-/* Light theme */
-.vue-grid-layout-light .vue-grid-item:not(.vue-grid-placeholder) {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-}
-
-.vue-grid-layout-light .vue-grid-item.static {
-  background: #f5f5f5;
 }
 
 :deep(.vue-grid-item .vue-resizable-handle) {

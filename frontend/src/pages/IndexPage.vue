@@ -14,7 +14,7 @@
       </q-banner>
     </div>
 
-    <div v-else :class="['dashboard-grid', { 'vue-grid-layout-light': !isDark }]" :style="gridStyle">
+    <div v-else :class="'dashboard-grid'" :style="gridStyle">
       <GridLayout
         v-model:layout="dashboardStore.layout"
         :col-num="gridOptions.colNum"
@@ -82,6 +82,8 @@ import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useUIStore } from 'stores/ui'
 import { dataRefreshService } from 'src/services/dataRefreshService'
+import { useThemeStore } from 'stores/theme'
+import { hexToRgba } from 'src/utils/themes'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GaugeWidget from 'components/widgets/GaugeWidget.vue'
@@ -95,6 +97,7 @@ const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const uiStore = useUIStore()
 const widgetWindows = useWidgetWindowsStore()
+const themeStore = useThemeStore()
 
 // Create a computed that tracks only widget structure (not data changes)
 // This prevents restart loop when slot.data is updated
@@ -144,7 +147,6 @@ onUnmounted(() => {
   dataRefreshService.stopAll()
 })
 
-const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
 const gridMargin = computed(() => {
@@ -153,8 +155,18 @@ const gridMargin = computed(() => {
 })
 const gridStyle = computed(() => {
   const p = gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }
+  const widget = themeStore.currentTheme.widget
+  const bgAlpha = (gridOptions.value.widgetBackgroundOpacity ?? 100) / 100
+  const headerAlpha = (gridOptions.value.widgetHeaderOpacity ?? 100) / 100
+  const borderAlpha = (gridOptions.value.widgetBorderOpacity ?? 100) / 100
   return {
-    padding: `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`
+    padding: `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`,
+    '--widget-bg': hexToRgba(widget.background, bgAlpha),
+    '--widget-header-bg': hexToRgba(widget.headerBackground, headerAlpha),
+    '--widget-border': hexToRgba(widget.border, borderAlpha),
+    '--widget-header-border': hexToRgba(widget.headerBorder, borderAlpha),
+    '--widget-title-color': widget.titleColor,
+    '--widget-content-color': widget.contentColor
   }
 })
 
@@ -293,28 +305,6 @@ function updateContainerWidget(containerId, updates) {
 
 .vue-grid-layout {
   background: transparent;
-}
-
-/* Dark theme */
-.vue-grid-item:not(.vue-grid-placeholder) {
-  background: #424242;
-  border: 1px solid #616161;
-  border-radius: 4px;
-}
-
-.vue-grid-item.static {
-  background: #545454;
-}
-
-/* Light theme */
-.vue-grid-layout-light .vue-grid-item:not(.vue-grid-placeholder) {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-}
-
-.vue-grid-layout-light .vue-grid-item.static {
-  background: #f5f5f5;
 }
 
 .vue-grid-item .vue-resizable-handle {

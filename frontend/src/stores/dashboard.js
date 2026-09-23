@@ -9,7 +9,10 @@ const DEFAULT_GRID_OPTIONS = {
   rowHeight: 30,
   verticalCompact: true,
   margin: { x: 10, y: 10 },
-  padding: { top: 16, right: 16, bottom: 16, left: 16 }
+  padding: { top: 16, right: 16, bottom: 16, left: 16 },
+  widgetBackgroundOpacity: 100,
+  widgetHeaderOpacity: 100,
+  widgetBorderOpacity: 100
 }
 
 async function fetchDashboardFromApi() {

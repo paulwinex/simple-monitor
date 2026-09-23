@@ -154,8 +154,50 @@
       </q-tab-panel>
 
       <q-tab-panel name="widgets">
-        <div class="column q-gap-md text-caption text-grey-5">
-          Widget settings will appear here.
+        <div class="column q-gap-md">
+          <div class="text-subtitle2">Widget surface</div>
+
+          <SettingsRow label="Background opacity" hint="Opacity of the widget background. 0 makes it fully transparent">
+            <q-slider
+              :model-value="gridOptions.widgetBackgroundOpacity ?? 100"
+              :min="0"
+              :max="100"
+              :step="1"
+              label
+              label-always
+              :label-value="(gridOptions.widgetBackgroundOpacity ?? 100) + ' %'"
+              class="settings-slider"
+              @update:model-value="setWidgetOpacity('widgetBackgroundOpacity', $event)"
+            />
+          </SettingsRow>
+
+          <SettingsRow label="Header opacity" hint="Opacity of the widget header. 0 makes it fully transparent">
+            <q-slider
+              :model-value="gridOptions.widgetHeaderOpacity ?? 100"
+              :min="0"
+              :max="100"
+              :step="1"
+              label
+              label-always
+              :label-value="(gridOptions.widgetHeaderOpacity ?? 100) + ' %'"
+              class="settings-slider"
+              @update:model-value="setWidgetOpacity('widgetHeaderOpacity', $event)"
+            />
+          </SettingsRow>
+
+          <SettingsRow label="Border opacity" hint="Opacity of the widget border. 0 makes it fully transparent without changing geometry">
+            <q-slider
+              :model-value="gridOptions.widgetBorderOpacity ?? 100"
+              :min="0"
+              :max="100"
+              :step="1"
+              label
+              label-always
+              :label-value="(gridOptions.widgetBorderOpacity ?? 100) + ' %'"
+              class="settings-slider"
+              @update:model-value="setWidgetOpacity('widgetBorderOpacity', $event)"
+            />
+          </SettingsRow>
         </div>
       </q-tab-panel>
     </q-tab-panels>
@@ -166,6 +208,7 @@
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
+import { useThemeStore } from 'stores/theme'
 import DraggableDialog from './DraggableDialog.vue'
 import SettingsRow from './SettingsRow.vue'
 import { getThemes, getSavedTheme, applyTheme } from 'src/utils/themes'
@@ -178,6 +221,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
+const themeStore = useThemeStore()
 
 const PADDING_LOCK_STORAGE_KEY = 'sm-dashboard-padding-lock'
 
@@ -197,7 +241,10 @@ const themeId = ref(getSavedTheme().id)
 function onThemeChange(value) {
   themeId.value = value
   const theme = getThemes().find((t) => t.id === value)
-  if (theme) applyTheme(theme, $q)
+  if (theme) {
+    themeStore.setThemeId(value)
+    applyTheme(theme, $q)
+  }
 }
 
 const verticalCompact = computed({
@@ -240,6 +287,11 @@ function setPadding(side, value) {
     padding.left = parsed
   }
   dashboardStore.updateGridOptions({ padding })
+}
+
+function setWidgetOpacity(key, value) {
+  const parsed = Math.max(0, Math.min(100, Math.round(value) || 0))
+  dashboardStore.updateGridOptions({ [key]: parsed })
 }
 </script>
 

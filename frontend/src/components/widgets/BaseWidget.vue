@@ -1,5 +1,5 @@
 <template>
-  <div class="widget-container" :class="{ 'dark-theme': isDark }">
+  <div class="widget-container">
     <div v-if="showHeader" class="widget-header">
       <slot name="title">
         <span class="widget-title">{{ title }}</span>
@@ -22,7 +22,6 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useQuasar } from 'quasar'
 
 const props = defineProps({
   title: {
@@ -63,9 +62,6 @@ const props = defineProps({
 
 const showHeader = computed(() => !!props.title)
 const contentRef = ref(null)
-
-const $q = useQuasar()
-const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
 // Compute label position and style
 const labelStyle = computed(() => {
@@ -111,44 +107,8 @@ const labelStyle = computed(() => {
   flex-direction: column;
   border-radius: 4px;
   overflow: hidden;
-}
-
-/* Dark theme (default) */
-.widget-container.dark-theme {
-  background: #424242;
-  border: 1px solid #616161;
-}
-
-.widget-container.dark-theme .widget-header {
-  background: #545454;
-  border-bottom: 1px solid #616161;
-}
-
-.widget-container.dark-theme .widget-title {
-  color: #e0e0e0;
-}
-
-.widget-container.dark-theme .widget-content {
-  color: #bdbdbd;
-}
-
-/* Light theme */
-.widget-container:not(.dark-theme) {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-}
-
-.widget-container:not(.dark-theme) .widget-header {
-  background: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.widget-container:not(.dark-theme) .widget-title {
-  color: #424242;
-}
-
-.widget-container:not(.dark-theme) .widget-content {
-  color: #616161;
+  background: var(--widget-bg, #424242);
+  border: 1px solid var(--widget-border, #616161);
 }
 
 .widget-header {
@@ -156,11 +116,14 @@ const labelStyle = computed(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
+  background: var(--widget-header-bg, #545454);
+  border-bottom: 1px solid var(--widget-header-border, #616161);
 }
 
 .widget-title {
   font-weight: 600;
   font-size: 14px;
+  color: var(--widget-title-color, #e0e0e0);
 }
 
 .widget-content {
@@ -168,6 +131,7 @@ const labelStyle = computed(() => {
   padding: 4px;
   overflow: hidden;
   position: relative;
+  color: var(--widget-content-color, #bdbdbd);
 }
 
 .widget-label {
