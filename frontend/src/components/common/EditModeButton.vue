@@ -54,6 +54,17 @@
           round
           dense
           flat
+          icon="folder_open"
+          @click="handleOpenManager"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Open Dashboard
+          </q-tooltip>
+        </q-btn>
+        <q-btn
+          round
+          dense
+          flat
           icon="dashboard"
           @click="handleDashboardSettings"
         >
@@ -78,20 +89,29 @@
     <!-- Dashboard Settings Dialog -->
     <DashboardSettingsDialog v-model="showDashboardSettings" />
 
+    <!-- Dashboard Manager Dialog -->
+    <DashboardManagerDialog
+      ref="dashboardManagerRef"
+      v-model="showOpenManager"
+      @select="handleManagerSwitch"
+      @create="handleManagerCreate"
+      @delete="handleManagerDelete"
+    />
+
     <!-- Discard / Save & Exit Confirmation -->
     <q-dialog v-model="showExitConfirm" persistent>
       <q-card
         class="q-dialog-plugin"
         :class="{ 'q-dialog-plugin--dark q-dark': isDark }"
       >
-        <q-card-section class="q-dialog__title">Discard Changes?</q-card-section>
+        <q-card-section class="q-dialog__title">{{ exitTitle }}</q-card-section>
         <q-card-section class="q-dialog__message">
-          You have unsaved changes. How do you want to proceed?
+          {{ exitMessage }}
         </q-card-section>
         <q-card-actions align="right" class="q-px-md q-pb-md">
           <q-btn flat label="Keep Editing" color="primary" @click="showExitConfirm = false" />
-          <q-btn flat label="Save and Exit" color="positive" @click="saveAndExitEditMode" />
-          <q-btn flat label="Discard" color="negative" @click="discardAndExit" />
+          <q-btn flat :label="saveActionLabel" color="positive" @click="handleSaveAction" />
+          <q-btn flat :label="discardActionLabel" color="negative" @click="handleDiscardAction" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -100,16 +120,26 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useQuasar, Notify } from 'quasar'
 import { useUIStore } from 'stores/ui'
+import { useDashboardStore } from 'stores/dashboard'
+import { useThemeStore } from 'stores/theme'
 import { useWidgetWindowsStore } from 'stores/widgetWindows'
+import {
+  createDashboard as createDashboardApi,
+  deleteDashboard as deleteDashboardApi,
+  getDashboardMeta as getDashboardMetaApi
+} from 'src/services/api'
 import DashboardSettingsDialog from './DashboardSettingsDialog.vue'
+import DashboardManagerDialog from './DashboardManagerDialog.vue'
 import DraggableToolbar from './DraggableToolbar.vue'
 
 const FLOATING_MENU_PROXIMITY = 200
 
 const $q = useQuasar()
 const uiStore = useUIStore()
+const dashboardStore = useDashboardStore()
+const themeStore = useThemeStore()
 const widgetWindows = useWidgetWindowsStore()
 
 const containerEl = ref(null)
@@ -117,7 +147,13 @@ const buttonRef = ref(null)
 const isFloatingMenuVisible = ref(false)
 const showPanel = ref(false)
 const showDashboardSettings = ref(false)
+const showOpenManager = ref(false)
+const dashboardManagerRef = ref(null)
 const showExitConfirm = ref(false)
+// Which action the exit-confirm dialog drives: 'exit' | 'switch' | 'delete-current'
+const exitConfirmMode = ref('exit')
+const pendingSwitch = ref(null)
+const pendingDelete = ref(null)
 
 // Tooltips open to the side opposite the screen edge the panel sits at:
 // panel on the right half -> tooltips open to the left, and vice versa.
@@ -131,6 +167,26 @@ let lastCursorY = 0
 
 const isEditMode = computed(() => uiStore.isEditMode)
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
+
+const exitTitle = computed(() =>
+  exitConfirmMode.value === 'delete-current' ? 'Delete Dashboard?' : 'Discard Changes?'
+)
+const exitMessage = computed(() => {
+  if (exitConfirmMode.value === 'delete-current') {
+    return 'You have unsaved changes on this dashboard. How do you want to proceed?'
+  }
+  return 'You have unsaved changes. How do you want to proceed?'
+})
+const saveActionLabel = computed(() => {
+  if (exitConfirmMode.value === 'switch') return 'Save and Switch'
+  if (exitConfirmMode.value === 'delete-current') return 'Save and Delete'
+  return 'Save and Exit'
+})
+const discardActionLabel = computed(() => {
+  if (exitConfirmMode.value === 'switch') return 'Discard and Switch'
+  if (exitConfirmMode.value === 'delete-current') return 'Discard and Delete'
+  return 'Discard'
+})
 
 function distanceFromPointToRect(px, py, rect) {
   const dx = Math.max(rect.left - px, 0, px - rect.right)
@@ -226,6 +282,154 @@ async function discardAndExit() {
   showExitConfirm.value = false
   // Cancel edit mode and reload the dashboard from the DB
   await uiStore.cancelEditMode()
+}
+
+function handleSaveAction() {
+  if (exitConfirmMode.value === 'switch') return saveAndSwitch()
+  if (exitConfirmMode.value === 'delete-current') return saveAndDeleteCurrent()
+  return saveAndExitEditMode()
+}
+
+function handleDiscardAction() {
+  if (exitConfirmMode.value === 'switch') return discardAndSwitch()
+  if (exitConfirmMode.value === 'delete-current') return discardAndDeleteCurrent()
+  return discardAndExit()
+}
+
+function handleOpenManager() {
+  showOpenManager.value = true
+}
+
+async function handleManagerSwitch(dashboard) {
+  showOpenManager.value = false
+  if (!dashboard || dashboard.id === dashboardStore.currentDashboardId) return
+
+  if (!uiStore.hasDashboardChanges()) {
+    await dashboardStore.loadDashboard(dashboard.id)
+    uiStore.exitEditMode()
+    return
+  }
+
+  pendingSwitch.value = dashboard
+  exitConfirmMode.value = 'switch'
+  showExitConfirm.value = true
+}
+
+async function saveAndSwitch() {
+  showExitConfirm.value = false
+  const target = pendingSwitch.value
+  pendingSwitch.value = null
+  try {
+    await uiStore.saveDashboard()
+    await switchToDashboard(target)
+  } catch (err) {
+    // Save failed (Notify already shown by the store) - stay on current dashboard
+  }
+}
+
+async function discardAndSwitch() {
+  showExitConfirm.value = false
+  const target = pendingSwitch.value
+  pendingSwitch.value = null
+  await uiStore.cancelEditMode()
+  await switchToDashboard(target)
+}
+
+async function switchToDashboard(target) {
+  if (target) {
+    await dashboardStore.loadDashboard(target.id)
+  }
+  uiStore.exitEditMode()
+}
+
+async function handleManagerCreate(name) {
+  showOpenManager.value = false
+  try {
+    const response = await createDashboardApi(name, { theme: themeStore.currentThemeId })
+    const created = response.dashboard
+    const target = { id: created.id, name: created.name }
+
+    if (!uiStore.hasDashboardChanges()) {
+      await dashboardStore.loadDashboard(target.id)
+      uiStore.exitEditMode()
+      return
+    }
+
+    pendingSwitch.value = target
+    exitConfirmMode.value = 'switch'
+    showExitConfirm.value = true
+  } catch (err) {
+    console.error('Failed to create dashboard:', err)
+    Notify.create({
+      message: 'Failed to create dashboard',
+      position: 'bottom',
+      type: 'negative',
+      timeout: 3000
+    })
+  }
+}
+
+async function handleManagerDelete(dashboard) {
+  const isCurrent = dashboard.id === dashboardStore.currentDashboardId
+
+  if (isCurrent && uiStore.hasDashboardChanges()) {
+    pendingDelete.value = dashboard
+    exitConfirmMode.value = 'delete-current'
+    showExitConfirm.value = true
+    return
+  }
+
+  await performDelete({ id: dashboard.id, isCurrent })
+}
+
+async function saveAndDeleteCurrent() {
+  showExitConfirm.value = false
+  const target = pendingDelete.value
+  pendingDelete.value = null
+  try {
+    await uiStore.saveDashboard()
+    await performDelete({ id: target.id, isCurrent: true })
+  } catch (err) {
+    // Save failed - stay on current dashboard
+  }
+}
+
+async function discardAndDeleteCurrent() {
+  showExitConfirm.value = false
+  const target = pendingDelete.value
+  pendingDelete.value = null
+  await uiStore.cancelEditMode()
+  await performDelete({ id: target.id, isCurrent: true })
+}
+
+async function performDelete({ id, isCurrent }) {
+  try {
+    await deleteDashboardApi(id)
+
+    if (isCurrent) {
+      showOpenManager.value = false
+      const meta = await getDashboardMetaApi()
+      const remaining = meta.filter((d) => d.id !== id)
+      if (remaining.length > 0) {
+        await dashboardStore.loadDashboard(remaining[0].id)
+        uiStore.exitEditMode()
+      } else {
+        const response = await createDashboardApi('My Dashboard', { theme: themeStore.currentThemeId })
+        await dashboardStore.loadDashboard(response.dashboard.id)
+        uiStore.exitEditMode()
+      }
+    }
+
+    dashboardManagerRef.value?.refresh()
+  } catch (err) {
+    console.error('Failed to delete dashboard:', err)
+    Notify.create({
+      message: 'Failed to delete dashboard',
+      position: 'bottom',
+      type: 'negative',
+      timeout: 3000
+    })
+  }
 }
 
 function handleAddWidget() {

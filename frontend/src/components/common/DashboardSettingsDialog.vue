@@ -279,6 +279,14 @@ watch(
 const themeOptions = computed(() => getThemes().map((t) => ({ label: t.label, value: t.id })))
 const themeId = ref(getSavedTheme().id)
 
+// Keep the selector in sync when the theme changes elsewhere (e.g. dashboard switch)
+watch(
+  () => themeStore.currentThemeId,
+  (value) => {
+    themeId.value = value
+  }
+)
+
 function onThemeChange(value) {
   themeId.value = value
   const theme = getThemes().find((t) => t.id === value)

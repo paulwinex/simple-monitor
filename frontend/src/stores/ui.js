@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDashboardStore } from './dashboard'
+import { useThemeStore } from './theme'
 import { useWidgetWindowsStore } from './widgetWindows'
 
 export const useUIStore = defineStore('ui', () => {
   const isEditMode = ref(false)
   const dashboardStore = useDashboardStore()
+  const themeStore = useThemeStore()
   const widgetWindows = useWidgetWindowsStore()
   
   // Snapshot of dashboard state when entering edit mode
@@ -38,7 +40,9 @@ export const useUIStore = defineStore('ui', () => {
 
     return JSON.stringify({
       layout: dashboardStore.layout,
-      widgets: dashboardStore.widgets.map(projectWidget)
+      widgets: dashboardStore.widgets.map(projectWidget),
+      options: dashboardStore.currentOptions,
+      themeId: themeStore.currentThemeId
     })
   }
 

@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { Notify } from 'quasar'
-import { getDefaultDashboard, saveDashboard as saveDashboardApi, getHosts, getMetricDevices } from 'src/services/api'
+import { getDefaultDashboard, getDashboard, saveDashboard as saveDashboardApi, getHosts, getMetricDevices } from 'src/services/api'
+import { useThemeStore } from 'stores/theme'
+import { getSavedTheme } from 'src/utils/themes'
 import { compact } from 'src/utils/layout'
 
 const DEFAULT_GRID_OPTIONS = {
@@ -15,163 +17,7 @@ const DEFAULT_GRID_OPTIONS = {
   widgetBorderOpacity: 100
 }
 
-async function fetchDashboardFromApi() {
-  try {
-    const response = await getDefaultDashboard()
-    const dashboard = response.dashboard
-
-    // Transform widgets from snake_case to camelCase
-    const widgetsArray = Array.isArray(dashboard.widgets) ? dashboard.widgets : (dashboard.widgets ? Object.values(dashboard.widgets) : [])
-    let transformedWidgets = widgetsArray.map((w) => ({
-      id: w.id,
-      type: w.type,
-      title: w.title,
-      // Support both old (hostId/deviceId/sensors) and new (slots) format
-      slots: w.slots || (w.hostId && w.deviceId && w.sensors ? [{
-        id: 'default',
-        label: 'Default',
-        hostId: w.hostId,
-        deviceId: w.deviceId,
-        sensor: w.sensors[0],
-        options: {}
-      }] : undefined),
-      hostId: w.host_id,  // Keep for backward compatibility
-      deviceId: w.deviceId,  // Keep for backward compatibility
-      sensors: w.sensors,  // Keep for backward compatibility
-      options: w.options,
-      refreshInterval: w.refresh_interval,
-      children: w.children ? w.children.map((c) => ({
-        id: c.id,
-        type: c.type,
-        title: c.title,
-        slots: c.slots || (c.hostId && c.deviceId && c.sensors ? [{
-          id: 'default',
-          label: 'Default',
-          hostId: c.hostId,
-          deviceId: c.deviceId,
-          sensor: c.sensors[0],
-          options: {}
-        }] : undefined),
-        hostId: c.host_id,
-        deviceId: c.deviceId,
-        sensors: c.sensors,
-        options: c.options,
-        refreshInterval: c.refresh_interval
-      })) : undefined,
-      childLayout: w.child_layout
-    }))
-
-    // Transform layout from object/array to array
-    let layoutArray = Array.isArray(dashboard.layout) ? dashboard.layout : (dashboard.layout ? Object.values(dashboard.layout) : [])
-
-    // Check for duplicate IDs in layout and fix them
-    const seenIds = new Set()
-    const uniqueLayout = []
-    for (const item of layoutArray) {
-      if (seenIds.has(item.i)) {
-        console.warn(`[DashboardStore] Duplicate layout item ID found: ${item.i}. Generating new ID.`)
-        // Find the widget with this ID and get its real ID
-        const widget = transformedWidgets.find(w => w.id === item.i)
-        if (widget) {
-          item.i = `${widget.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-        } else {
-          item.i = `widget-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-        }
-      }
-      seenIds.add(item.i)
-      uniqueLayout.push(item)
-    }
-    layoutArray = uniqueLayout
-
-    // Also check for duplicate widget IDs
-    const seenWidgetIds = new Set()
-    const uniqueWidgets = []
-    for (const widget of transformedWidgets) {
-      if (seenWidgetIds.has(widget.id)) {
-        console.warn(`[DashboardStore] Duplicate widget ID found: ${widget.id}. Generating new ID.`)
-        widget.id = `${widget.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-      }
-      seenWidgetIds.add(widget.id)
-
-      // Also check for duplicate IDs in childLayout (for GridContainer widgets)
-      if (widget.childLayout && widget.childLayout.length > 0) {
-        const seenChildIds = new Set()
-        for (const childItem of widget.childLayout) {
-          if (seenChildIds.has(childItem.i)) {
-            console.warn(`[DashboardStore] Duplicate childLayout ID found in widget ${widget.id}: ${childItem.i}. Generating new ID.`)
-            childItem.i = `${widget.id}-${childItem.i}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-          }
-          seenChildIds.add(childItem.i)
-        }
-      }
-
-      uniqueWidgets.push(widget)
-    }
-    transformedWidgets = uniqueWidgets
-
-    return {
-      layout: layoutArray,
-      widgets: transformedWidgets,
-      gridOptions: { ...DEFAULT_GRID_OPTIONS, ...(dashboard.grid_options || {}) }
-    }
-  } catch (error) {
-    console.error('Failed to load dashboard from API, using empty layout:', error)
-    // Return empty dashboard if API fails
-    return {
-      layout: [],
-      widgets: [],
-      gridOptions: DEFAULT_GRID_OPTIONS
-    }
-  }
-}
-
-async function saveDashboardToApi(state) {
-  // Transform widgets to snake_case for backend and convert to dict
-  const transformedWidgets = state.widgets.map(w => ({
-    id: w.id,
-    type: w.type,
-    title: w.title,
-    slots: w.slots,
-    options: w.options,
-    refresh_interval: w.refreshInterval,
-    children: w.children ? w.children.map(c => ({
-      id: c.id,
-      type: c.type,
-      title: c.title,
-      slots: c.slots,
-      options: c.options,
-      refresh_interval: c.refreshInterval
-    })) : undefined,
-    child_layout: w.childLayout
-  }))
-
-  // Convert layout array to dict keyed by widget id
-  const layoutDict = {}
-  for (const item of state.layout) {
-    layoutDict[item.i] = item
-  }
-
-  // Convert widgets array to dict keyed by widget id
-  const widgetsDict = {}
-  for (const widget of transformedWidgets) {
-    widgetsDict[widget.id] = widget
-  }
-
-  const payload = {
-    id: null,
-    name: 'default',
-    version: 1,
-    layout: layoutDict,
-    widgets: widgetsDict,
-    grid_options: state.gridOptions,
-    updated_at: Math.floor(Date.now() / 1000)
-  }
-
-  // console.log('[DashboardStore] Saving payload:')
-  // console.log(JSON.stringify(payload, null, 2))
-
-  await saveDashboardApi('default', payload)
-}
+const CURRENT_DASHBOARD_ID_KEY = 'sm-current-dashboard-id'
 
 export const useDashboardStore = defineStore('dashboard', () => {
   const layout = ref([])
@@ -180,12 +26,193 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const loading = ref(false)
   const error = ref(null)
   const hosts = ref([])
+  // Currently open dashboard (persisted across reloads in localStorage).
+  const currentDashboardId = ref(
+    localStorage.getItem(CURRENT_DASHBOARD_ID_KEY) ? Number(localStorage.getItem(CURRENT_DASHBOARD_ID_KEY)) : null
+  )
+  const currentDashboardName = ref('')
+  const currentOptions = ref({})
   // Deep snapshot of the last DB-persisted dashboard state ({ layout, widgets }).
   // Used by "Reset widget" to restore a single widget to its last saved state.
   const savedSnapshot = ref(null)
 
   const isLoading = computed(() => loading.value)
   const hasError = computed(() => error.value !== null)
+
+  function setCurrentDashboard(id, name, options) {
+    currentDashboardId.value = Number(id) || 1
+    currentDashboardName.value = name || `Dashboard ${currentDashboardId.value}`
+    currentOptions.value = options || {}
+    localStorage.setItem(CURRENT_DASHBOARD_ID_KEY, String(currentDashboardId.value))
+  }
+
+  const themeStore = useThemeStore()
+
+  async function fetchDashboardFromApi(dashboardId = null) {
+    const targetId = dashboardId ?? currentDashboardId.value ?? 1
+    try {
+      let response
+      try {
+        response = await getDashboard(targetId)
+      } catch (err) {
+        // Fall back to the default dashboard if the requested id no longer exists
+        response = await getDefaultDashboard()
+      }
+      const dashboard = response.dashboard
+
+      setCurrentDashboard(response.id, dashboard.name, dashboard.options || {})
+      themeStore.setThemeId(currentOptions.value.theme || getSavedTheme().id)
+
+      // Transform widgets from snake_case to camelCase
+      const widgetsArray = Array.isArray(dashboard.widgets) ? dashboard.widgets : (dashboard.widgets ? Object.values(dashboard.widgets) : [])
+      let transformedWidgets = widgetsArray.map((w) => ({
+        id: w.id,
+        type: w.type,
+        title: w.title,
+        // Support both old (hostId/deviceId/sensors) and new (slots) format
+        slots: w.slots || (w.hostId && w.deviceId && w.sensors ? [{
+          id: 'default',
+          label: 'Default',
+          hostId: w.hostId,
+          deviceId: w.deviceId,
+          sensor: w.sensors[0],
+          options: {}
+        }] : undefined),
+        hostId: w.host_id,  // Keep for backward compatibility
+        deviceId: w.deviceId,  // Keep for backward compatibility
+        sensors: w.sensors,  // Keep for backward compatibility
+        options: w.options,
+        refreshInterval: w.refresh_interval,
+        children: w.children ? w.children.map((c) => ({
+          id: c.id,
+          type: c.type,
+          title: c.title,
+          slots: c.slots || (c.hostId && c.deviceId && c.sensors ? [{
+            id: 'default',
+            label: 'Default',
+            hostId: c.hostId,
+            deviceId: c.deviceId,
+            sensor: c.sensors[0],
+            options: {}
+          }] : undefined),
+          hostId: c.host_id,
+          deviceId: c.deviceId,
+          sensors: c.sensors,
+          options: c.options,
+          refreshInterval: c.refresh_interval
+        })) : undefined,
+        childLayout: w.child_layout
+      }))
+
+      // Transform layout from object/array to array
+      let layoutArray = Array.isArray(dashboard.layout) ? dashboard.layout : (dashboard.layout ? Object.values(dashboard.layout) : [])
+
+      // Check for duplicate IDs in layout and fix them
+      const seenIds = new Set()
+      const uniqueLayout = []
+      for (const item of layoutArray) {
+        if (seenIds.has(item.i)) {
+          console.warn(`[DashboardStore] Duplicate layout item ID found: ${item.i}. Generating new ID.`)
+          // Find the widget with this ID and get its real ID
+          const widget = transformedWidgets.find(w => w.id === item.i)
+          if (widget) {
+            item.i = `${widget.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+          } else {
+            item.i = `widget-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+          }
+        }
+        seenIds.add(item.i)
+        uniqueLayout.push(item)
+      }
+      layoutArray = uniqueLayout
+
+      // Also check for duplicate widget IDs
+      const seenWidgetIds = new Set()
+      const uniqueWidgets = []
+      for (const widget of transformedWidgets) {
+        if (seenWidgetIds.has(widget.id)) {
+          console.warn(`[DashboardStore] Duplicate widget ID found: ${widget.id}. Generating new ID.`)
+          widget.id = `${widget.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+        }
+        seenWidgetIds.add(widget.id)
+
+        // Also check for duplicate IDs in childLayout (for GridContainer widgets)
+        if (widget.childLayout && widget.childLayout.length > 0) {
+          const seenChildIds = new Set()
+          for (const childItem of widget.childLayout) {
+            if (seenChildIds.has(childItem.i)) {
+              console.warn(`[DashboardStore] Duplicate childLayout ID found in widget ${widget.id}: ${childItem.i}. Generating new ID.`)
+              childItem.i = `${widget.id}-${childItem.i}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+            }
+            seenChildIds.add(childItem.i)
+          }
+        }
+
+        uniqueWidgets.push(widget)
+      }
+      transformedWidgets = uniqueWidgets
+
+      return {
+        layout: layoutArray,
+        widgets: transformedWidgets,
+        gridOptions: { ...DEFAULT_GRID_OPTIONS, ...(dashboard.grid_options || {}) }
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard from API, using empty layout:', error)
+      // Return empty dashboard if API fails
+      return {
+        layout: [],
+        widgets: [],
+        gridOptions: DEFAULT_GRID_OPTIONS
+      }
+    }
+  }
+
+  async function saveDashboardToApi(state) {
+    // Transform widgets to snake_case for backend and convert to dict
+    const transformedWidgets = state.widgets.map(w => ({
+      id: w.id,
+      type: w.type,
+      title: w.title,
+      slots: w.slots,
+      options: w.options,
+      refresh_interval: w.refreshInterval,
+      children: w.children ? w.children.map(c => ({
+        id: c.id,
+        type: c.type,
+        title: c.title,
+        slots: c.slots,
+        options: c.options,
+        refresh_interval: c.refreshInterval
+      })) : undefined,
+      child_layout: w.childLayout
+    }))
+
+    // Convert layout array to dict keyed by widget id
+    const layoutDict = {}
+    for (const item of state.layout) {
+      layoutDict[item.i] = item
+    }
+
+    // Convert widgets array to dict keyed by widget id
+    const widgetsDict = {}
+    for (const widget of transformedWidgets) {
+      widgetsDict[widget.id] = widget
+    }
+
+    const payload = {
+      id: currentDashboardId.value ?? null,
+      name: currentDashboardName.value || 'default',
+      version: 1,
+      layout: layoutDict,
+      widgets: widgetsDict,
+      grid_options: state.gridOptions,
+      options: { ...(currentOptions.value || {}), theme: themeStore.currentThemeId },
+      updated_at: Math.floor(Date.now() / 1000)
+    }
+
+    await saveDashboardApi(currentDashboardId.value ?? 'default', payload)
+  }
 
   async function loadHosts() {
     try {
@@ -219,12 +246,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  async function loadDashboard() {
+  async function loadDashboard(id = null) {
     loading.value = true
     error.value = null
 
     try {
-      const data = await fetchDashboardFromApi()
+      const data = await fetchDashboardFromApi(id)
       layout.value = data.layout
       widgets.value = data.widgets
       gridOptions.value = { ...DEFAULT_GRID_OPTIONS, ...(data.gridOptions || {}) }
@@ -237,23 +264,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  // Reload dashboard from server (used when canceling edit mode)
+  // Reload the currently open dashboard (used when canceling edit mode)
   async function reloadDashboard() {
-    loading.value = true
-    error.value = null
-
-    try {
-      const data = await fetchDashboardFromApi()
-      layout.value = data.layout
-      widgets.value = data.widgets
-      gridOptions.value = { ...DEFAULT_GRID_OPTIONS, ...(data.gridOptions || {}) }
-      captureSavedSnapshot()
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to reload dashboard'
-      console.error('Failed to reload dashboard:', err)
-    } finally {
-      loading.value = false
-    }
+    await loadDashboard(currentDashboardId.value)
   }
 
   async function saveDashboard() {
@@ -576,6 +589,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     hosts,
     isLoading,
     hasError,
+    currentDashboardId,
+    currentDashboardName,
+    currentOptions,
+    setCurrentDashboard,
     loadDashboard,
     reloadDashboard,
     saveDashboard,

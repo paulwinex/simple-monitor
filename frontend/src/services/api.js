@@ -24,6 +24,11 @@ export async function getDashboards() {
   return response.data
 }
 
+export async function getDashboardMeta() {
+  const response = await api.get('/api/v1/dashboards/meta')
+  return response.data
+}
+
 export async function getDashboard(dashboardId) {
   const response = await api.get(`/api/v1/dashboards/${dashboardId}`)
   return response.data
@@ -31,6 +36,11 @@ export async function getDashboard(dashboardId) {
 
 export async function getDefaultDashboard() {
   const response = await api.get('/api/v1/dashboards/default')
+  return response.data
+}
+
+export async function createDashboard(name, options = {}) {
+  const response = await api.post('/api/v1/dashboards', { name, options })
   return response.data
 }
 

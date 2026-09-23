@@ -11,15 +11,27 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
-import { getThemes, applyTheme } from 'src/utils/themes'
+import { useThemeStore } from 'stores/theme'
+import { getThemes, getSavedTheme, applyTheme } from 'src/utils/themes'
 
 const $q = useQuasar()
+const themeStore = useThemeStore()
 
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
+
+// Apply the theme globally whenever the current theme id changes
+// (e.g. when switching dashboards that store their own theme).
+watch(
+  () => themeStore.currentThemeId,
+  (id) => {
+    const theme = getThemes().find((t) => t.id === id) || getSavedTheme()
+    applyTheme(theme, $q)
+  }
+)
 
 function toggleTheme() {
   const themes = getThemes()

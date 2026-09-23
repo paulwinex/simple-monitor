@@ -77,6 +77,7 @@
 </template>
 <script setup>
 import { onMounted, onUnmounted, computed, h, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
@@ -94,6 +95,8 @@ import EditModeButton from 'components/common/EditModeButton.vue'
 import { useWidgetWindowsStore } from 'stores/widgetWindows'
 
 const $q = useQuasar()
+const route = useRoute()
+const router = useRouter()
 const dashboardStore = useDashboardStore()
 const uiStore = useUIStore()
 const widgetWindows = useWidgetWindowsStore()
@@ -170,8 +173,39 @@ const gridStyle = computed(() => {
   }
 })
 
+function getDashboardIdFromQuery() {
+  const value = route.query.dashboard
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return Number(value)
+  }
+  return null
+}
+
+// Keep the URL in sync with the currently open dashboard: edit the address
+// in place (no navigation, no history entry) so F5 and shared links reopen
+// the same dashboard.
+watch(
+  () => dashboardStore.currentDashboardId,
+  (id) => {
+    if (id == null) return
+    router.replace({ query: { ...route.query, dashboard: String(id) } })
+  }
+)
+
+// Load a dashboard when the URL id changes externally (direct link, F5
+// reload, manual edit of the address bar). Skip when it already matches the
+// open dashboard to avoid reload loops.
+watch(
+  () => route.query.dashboard,
+  (value) => {
+    const id = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : null
+    if (id == null || id === dashboardStore.currentDashboardId) return
+    dashboardStore.loadDashboard(id)
+  }
+)
+
 onMounted(() => {
-  dashboardStore.loadDashboard()
+  dashboardStore.loadDashboard(getDashboardIdFromQuery())
   dataRefreshService.init(dashboardStore)
 })
 
