@@ -98,6 +98,7 @@ class DashboardConfig(BaseModel):
     version: int = 1
     layout: dict = {}
     widgets: dict = {}
+    grid_options: dict = {}
     updated_at: int = 0
 
 

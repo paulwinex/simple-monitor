@@ -26,6 +26,7 @@ class DashboardService(BaseService):
         # Convert JSON strings back to dicts if needed
         layout = dashboard.layout or {}
         widgets = dashboard.widgets or {}
+        grid_options = dashboard.grid_options or {}
         
         # Handle case when stored as list - convert to dict
         if isinstance(layout, list):
@@ -39,6 +40,7 @@ class DashboardService(BaseService):
             version=dashboard.version,
             layout=layout,
             widgets=widgets,
+            grid_options=grid_options,
             updated_at=dashboard.updated_at
         )
 
@@ -60,12 +62,14 @@ class DashboardService(BaseService):
         # Prepare dashboard data - layout and widgets are already dicts
         layout_data = dashboard.layout or {}
         widgets_data = dashboard.widgets or {}
+        grid_options_data = dashboard.grid_options or {}
 
         if db_dashboard:
             # Update existing dashboard
             db_dashboard.name = dashboard.name
             db_dashboard.layout = layout_data
             db_dashboard.widgets = widgets_data
+            db_dashboard.grid_options = grid_options_data
             db_dashboard.version += 1
             db_dashboard.updated_at = now
         else:
@@ -76,6 +80,7 @@ class DashboardService(BaseService):
                 version=1,
                 layout=layout_data,
                 widgets=widgets_data,
+                grid_options=grid_options_data,
                 created_at=now,
                 updated_at=now
             )
@@ -90,6 +95,7 @@ class DashboardService(BaseService):
             version=db_dashboard.version,
             layout=db_dashboard.layout,
             widgets=db_dashboard.widgets,
+            grid_options=db_dashboard.grid_options,
             updated_at=db_dashboard.updated_at
         ), db_dashboard.version
 
@@ -126,6 +132,7 @@ class DashboardService(BaseService):
                 version=d.version,
                 layout=d.layout or {},
                 widgets=d.widgets or {},
+                grid_options=d.grid_options or {},
                 updated_at=d.updated_at
             )
             for d in dashboards

@@ -1,6 +1,7 @@
 from typing import AsyncGenerator, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import text
 from contextlib import asynccontextmanager
 
 from app.persistence.models import Base
@@ -27,6 +28,10 @@ async def init_db():
     async with engine.begin() as conn:
         print('Init database...', flush=True)
         await conn.run_sync(Base.metadata.create_all)
+        # Lightweight migrations for existing tables (create_all won't alter them)
+        await conn.execute(
+            text("ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS grid_options JSON DEFAULT '{}'::json")
+        )
     return engine
 
 
