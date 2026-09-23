@@ -23,16 +23,12 @@
 
     <!-- Font Size (only visible when enabled) -->
     <div v-if="localOptions.labelEnabled" class="q-mb-sm">
-      <div class="text-caption text-grey-7 q-mb-xs">Font Size: {{ localOptions.labelFontSize }}px</div>
-      <q-slider
+      <ValueSlider
         v-model="localOptions.labelFontSize"
         :min="10"
         :max="48"
         :step="1"
-        label
-        label-always
-        color="primary"
-        markers
+        suffix="px"
         @update:model-value="emitUpdate"
       />
     </div>
@@ -105,6 +101,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import ValueSlider from '../../common/ValueSlider.vue'
 
 const props = defineProps({
   widget: Object,

@@ -47,41 +47,49 @@
       </SettingsRow>
 
       <SettingsRow label="Columns" hint="Number of columns in the grid. Higher values give finer control over widget width and snapping.">
-        <q-input
+        <q-select
           :model-value="gridOptions.colNum"
-          type="number"
+          :options="colNumOptions"
+          :display-value="String(gridOptions.colNum)"
+          map-options
+          emit-value
+          use-input
+          new-value-mode="add-unique"
           dense
           outlined
-          suffix="cols"
-          :min="6"
-          :max="48"
-          class="settings-input"
+          behavior="menu"
+          input-debounce="0"
+          class="settings-select"
+          @filter="filterColNum"
           @update:model-value="setColNum"
         />
       </SettingsRow>
 
-      <q-separator />
+      <SectionSeparator label="Widget spacing" />
 
-      <div class="text-subtitle2">Widget spacing</div>
+      <SettingsRow label="Row height" hint="Height of one grid row in pixels. Controls how tall widgets get">
+        <ValueSlider
+          :model-value="gridOptions.rowHeight ?? 30"
+          :min="10"
+          :max="300"
+          :step="10"
+          suffix="px"
+          @update:model-value="setRowHeight"
+        />
+      </SettingsRow>
 
       <SettingsRow label="Widget gap" hint="Space between widgets side by side and stacked vertically">
-        <q-slider
+        <ValueSlider
           :model-value="gap"
           :min="0"
           :max="50"
           :step="1"
-          label
-          label-always
-          :label-value="gap + ' px'"
-          class="settings-slider"
+          suffix="px"
           @update:model-value="setGap"
         />
       </SettingsRow>
 
-      <q-separator />
-
-      <div class="row items-center justify-between">
-        <div class="text-subtitle2">Edge padding</div>
+      <SectionSeparator label="Edge padding">
         <q-btn
           round
           flat
@@ -90,63 +98,50 @@
           :title="paddingLocked ? 'Unlock sides (edit separately)' : 'Lock sides to the same value'"
           @click="togglePaddingLock"
         />
-      </div>
-
+      </SectionSeparator>
       <SettingsRow
         label="Top"
         :hint="paddingLocked ? 'Locked to the same value on all sides' : ''"
       >
-        <q-slider
+        <ValueSlider
           :model-value="gridOptions.padding?.top"
           :min="0"
           :max="200"
           :step="1"
-          label
-          label-always
-          :label-value="gridOptions.padding?.top + ' px'"
-          class="settings-slider"
+          suffix="px"
           @update:model-value="setPadding('top', $event)"
         />
       </SettingsRow>
 
       <SettingsRow label="Right">
-        <q-slider
+        <ValueSlider
           :model-value="gridOptions.padding?.right"
           :min="0"
           :max="200"
           :step="1"
-          label
-          label-always
-          :label-value="gridOptions.padding?.right + ' px'"
-          class="settings-slider"
+          suffix="px"
           @update:model-value="setPadding('right', $event)"
         />
       </SettingsRow>
 
       <SettingsRow label="Bottom">
-        <q-slider
+        <ValueSlider
           :model-value="gridOptions.padding?.bottom"
           :min="0"
           :max="200"
           :step="1"
-          label
-          label-always
-          :label-value="gridOptions.padding?.bottom + ' px'"
-          class="settings-slider"
+          suffix="px"
           @update:model-value="setPadding('bottom', $event)"
         />
       </SettingsRow>
 
       <SettingsRow label="Left">
-        <q-slider
+        <ValueSlider
           :model-value="gridOptions.padding?.left"
           :min="0"
           :max="200"
           :step="1"
-          label
-          label-always
-          :label-value="gridOptions.padding?.left + ' px'"
-          class="settings-slider"
+          suffix="px"
           @update:model-value="setPadding('left', $event)"
         />
       </SettingsRow>
@@ -155,46 +150,37 @@
 
       <q-tab-panel name="widgets">
         <div class="column q-gap-md">
-          <div class="text-subtitle2">Widget surface</div>
+          <SectionSeparator label="Widget surface" />
 
           <SettingsRow label="Background opacity" hint="Opacity of the widget background. 0 makes it fully transparent">
-            <q-slider
+            <ValueSlider
               :model-value="gridOptions.widgetBackgroundOpacity ?? 100"
               :min="0"
               :max="100"
               :step="1"
-              label
-              label-always
-              :label-value="(gridOptions.widgetBackgroundOpacity ?? 100) + ' %'"
-              class="settings-slider"
+              suffix="%"
               @update:model-value="setWidgetOpacity('widgetBackgroundOpacity', $event)"
             />
           </SettingsRow>
 
           <SettingsRow label="Header opacity" hint="Opacity of the widget header. 0 makes it fully transparent">
-            <q-slider
+            <ValueSlider
               :model-value="gridOptions.widgetHeaderOpacity ?? 100"
               :min="0"
               :max="100"
               :step="1"
-              label
-              label-always
-              :label-value="(gridOptions.widgetHeaderOpacity ?? 100) + ' %'"
-              class="settings-slider"
+              suffix="%"
               @update:model-value="setWidgetOpacity('widgetHeaderOpacity', $event)"
             />
           </SettingsRow>
 
           <SettingsRow label="Border opacity" hint="Opacity of the widget border. 0 makes it fully transparent without changing geometry">
-            <q-slider
+            <ValueSlider
               :model-value="gridOptions.widgetBorderOpacity ?? 100"
               :min="0"
               :max="100"
               :step="1"
-              label
-              label-always
-              :label-value="(gridOptions.widgetBorderOpacity ?? 100) + ' %'"
-              class="settings-slider"
+              suffix="%"
               @update:model-value="setWidgetOpacity('widgetBorderOpacity', $event)"
             />
           </SettingsRow>
@@ -209,9 +195,11 @@ import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useThemeStore } from 'stores/theme'
-import DraggableDialog from './DraggableDialog.vue'
-import SettingsRow from './SettingsRow.vue'
 import { getThemes, getSavedTheme, applyTheme } from 'src/utils/themes'
+import DraggableDialog from './DraggableDialog.vue'
+import SectionSeparator from './SectionSeparator.vue'
+import SettingsRow from './SettingsRow.vue'
+import ValueSlider from "components/common/ValueSlider.vue";
 
 const props = defineProps({
   modelValue: Boolean
@@ -234,6 +222,22 @@ const activeTab = ref('dashboard')
 
 const gridOptions = computed(() => dashboardStore.gridOptions)
 const gap = computed(() => gridOptions.value.margin?.x ?? 10)
+
+const COL_NUM_PRESETS = [2, 4, 8, 12, 16, 20, 32]
+const colNumOptions = ref(COL_NUM_PRESETS.map((v) => ({ label: String(v), value: v })))
+
+function filterColNum(val, update) {
+  update(() => {
+    if (val === '') {
+      colNumOptions.value = COL_NUM_PRESETS.map((v) => ({ label: String(v), value: v }))
+    } else {
+      const needle = val.toLowerCase()
+      colNumOptions.value = COL_NUM_PRESETS
+        .filter((v) => String(v).toLowerCase().includes(needle))
+        .map((v) => ({ label: String(v), value: v }))
+    }
+  })
+}
 
 const themeOptions = computed(() => getThemes().map((t) => ({ label: t.label, value: t.id })))
 const themeId = ref(getSavedTheme().id)
@@ -272,8 +276,13 @@ function setGap(value) {
 }
 
 function setColNum(value) {
-  const parsed = Math.max(6, Math.min(48, parseInt(value, 10) || 12))
+  const parsed = Math.max(2, Math.min(48, parseInt(value, 10) || 12))
   dashboardStore.updateGridOptions({ colNum: parsed })
+}
+
+function setRowHeight(value) {
+  const parsed = Math.max(10, Math.min(300, Math.round(value) || 30))
+  dashboardStore.updateGridOptions({ rowHeight: parsed })
 }
 
 function setPadding(side, value) {
@@ -302,9 +311,5 @@ function setWidgetOpacity(key, value) {
 
 .settings-input {
   width: 110px;
-}
-
-.settings-slider {
-  width: 240px;
 }
 </style>

@@ -27,16 +27,12 @@
 
     <!-- Font Size Slider -->
     <div class="q-mb-sm">
-      <div class="text-caption text-grey-7 q-mb-xs">Font Size: {{ localOptions.fontSize }}%</div>
-      <q-slider
+      <ValueSlider
         v-model="localOptions.fontSize"
         :min="20"
         :max="100"
         :step="5"
-        label
-        label-always
-        color="primary"
-        markers
+        suffix="%"
         @update:model-value="emitUpdate"
       />
     </div>
@@ -69,6 +65,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import ValueSlider from '../common/ValueSlider.vue'
 import LabelOptionsEditor from './common/LabelOptionsEditor.vue'
 
 const props = defineProps({

@@ -4,16 +4,12 @@
 
     <!-- Scale -->
     <div class="q-mb-sm">
-      <div class="text-caption text-grey-7 q-mb-xs">Scale: {{ localOptions.scale }}%</div>
-      <q-slider
+      <ValueSlider
         v-model="localOptions.scale"
         :min="10"
         :max="150"
         :step="5"
-        label
-        label-always
-        color="primary"
-        markers
+        suffix="%"
         @update:model-value="emitUpdate"
       />
     </div>
@@ -34,16 +30,12 @@
 
     <!-- Arc Angle -->
     <div class="q-mb-sm">
-      <div class="text-caption text-grey-7 q-mb-xs">Arc Angle: {{ localOptions.arcAngle }}°</div>
-      <q-slider
+      <ValueSlider
         v-model="localOptions.arcAngle"
         :min="30"
         :max="360"
         :step="10"
-        label
-        label-always
-        color="primary"
-        markers
+        suffix="°"
         @update:model-value="emitUpdate"
       />
     </div>
@@ -228,6 +220,7 @@
 import { ref, watch } from 'vue'
 import GradientEditor from '../common/GradientEditor.vue'
 import LabelOptionsEditor from './common/LabelOptionsEditor.vue'
+import ValueSlider from '../common/ValueSlider.vue'
 
 const props = defineProps({
   widget: Object,
