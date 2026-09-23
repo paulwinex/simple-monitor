@@ -77,6 +77,24 @@
 
     <!-- Dashboard Settings Dialog -->
     <DashboardSettingsDialog v-model="showDashboardSettings" />
+
+    <!-- Discard / Save & Exit Confirmation -->
+    <q-dialog v-model="showExitConfirm" persistent>
+      <q-card
+        class="q-dialog-plugin"
+        :class="{ 'q-dialog-plugin--dark q-dark': isDark }"
+      >
+        <q-card-section class="q-dialog__title">Discard Changes?</q-card-section>
+        <q-card-section class="q-dialog__message">
+          You have unsaved changes. How do you want to proceed?
+        </q-card-section>
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat label="Keep Editing" color="primary" @click="showExitConfirm = false" />
+          <q-btn flat label="Save and Exit" color="positive" @click="saveAndExitEditMode" />
+          <q-btn flat label="Discard" color="negative" @click="discardAndExit" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -99,6 +117,7 @@ const buttonRef = ref(null)
 const isFloatingMenuVisible = ref(false)
 const showPanel = ref(false)
 const showDashboardSettings = ref(false)
+const showExitConfirm = ref(false)
 
 // Tooltips open to the side opposite the screen edge the panel sits at:
 // panel on the right half -> tooltips open to the left, and vice versa.
@@ -185,29 +204,28 @@ function handlePencilClick() {
 // Only show dialog if there are actual changes
 function confirmCancelEditMode() {
   if (!uiStore.hasDashboardChanges()) {
-    // No changes - just exit without confirmation
-    uiStore.cancelEditMode()
+    // No changes - just exit edit mode without reloading from the DB
+    uiStore.exitEditMode()
     return
   }
 
-  $q.dialog({
-    title: 'Discard Changes?',
-    message: 'You have unsaved changes. Are you sure you want to discard them and reload the last saved dashboard?',
-    cancel: {
-      label: 'Keep Editing',
-      color: 'primary',
-      flat: true
-    },
-    ok: {
-      label: 'Discard',
-      color: 'negative',
-      flat: true
-    },
-    persistent: true
-  }).onOk(async () => {
-    // User confirmed - cancel edit mode and reload from server
-    await uiStore.cancelEditMode()
-  })
+  showExitConfirm.value = true
+}
+
+async function saveAndExitEditMode() {
+  showExitConfirm.value = false
+  try {
+    await uiStore.saveDashboard()
+    uiStore.exitEditMode()
+  } catch (err) {
+    // Save failed (Notify already shown by the store) - stay in edit mode
+  }
+}
+
+async function discardAndExit() {
+  showExitConfirm.value = false
+  // Cancel edit mode and reload the dashboard from the DB
+  await uiStore.cancelEditMode()
 }
 
 function handleAddWidget() {
