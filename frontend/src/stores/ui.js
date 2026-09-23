@@ -12,13 +12,41 @@ export const useUIStore = defineStore('ui', () => {
   const dashboardSnapshot = ref(null)
 
   /**
-   * Create a snapshot of current dashboard state for comparison
+   * Serialize only the persistent dashboard structure.
+   *
+   * Live slot data (slots[].data) is refreshed continuously by the data
+   * refresh service and must NOT participate in change detection - otherwise
+   * "has changes" would always be true even when the user changed nothing.
+   */
+  function serializePersistentState() {
+    function projectWidget(w) {
+      return {
+        id: w.id,
+        type: w.type,
+        title: w.title,
+        slots: (w.slots || []).map(({ data, ...persistentSlot }) => persistentSlot),
+        options: w.options,
+        refreshInterval: w.refreshInterval,
+        children: (w.children || []).map(projectWidget),
+        childLayout: w.childLayout,
+        x: w.x,
+        y: w.y,
+        w: w.w,
+        h: w.h
+      }
+    }
+
+    return JSON.stringify({
+      layout: dashboardStore.layout,
+      widgets: dashboardStore.widgets.map(projectWidget)
+    })
+  }
+
+  /**
+   * Create a snapshot of dashboard state when entering edit mode
    */
   function createDashboardSnapshot() {
-    return {
-      layout: JSON.parse(JSON.stringify(dashboardStore.layout)),
-      widgets: JSON.parse(JSON.stringify(dashboardStore.widgets))
-    }
+    return serializePersistentState()
   }
 
   /**
@@ -27,13 +55,8 @@ export const useUIStore = defineStore('ui', () => {
    */
   function hasDashboardChanges() {
     if (!dashboardSnapshot.value) return false
-    
-    const currentLayout = JSON.stringify(dashboardStore.layout)
-    const currentWidgets = JSON.stringify(dashboardStore.widgets)
-    const snapshotLayout = JSON.stringify(dashboardSnapshot.value.layout)
-    const snapshotWidgets = JSON.stringify(dashboardSnapshot.value.widgets)
-    
-    return currentLayout !== snapshotLayout || currentWidgets !== snapshotWidgets
+
+    return serializePersistentState() !== dashboardSnapshot.value
   }
 
   /**

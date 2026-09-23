@@ -4,7 +4,6 @@
     :class="['floating-menu-container', { 'floating-menu-container--light': !isDark }]"
   >
     <q-btn
-      v-if="!isEditMode"
       ref="buttonRef"
       dense
       flat
@@ -12,55 +11,69 @@
       size="sm"
       icon="edit"
       color="grey-7"
-      @click="toggleEditMode"
+      @click="handlePencilClick"
       class="floating-menu-btn"
       :class="{ 'floating-menu-btn--hidden': !isFloatingMenuVisible }"
       title="Edit Mode"
     />
 
-    <!-- Edit Mode Menu -->
-    <div v-else class="edit-mode-menu">
-      <q-btn
-        round
-        dense
-        flat
-        icon="add"
-        @click="handleAddWidget"
-        title="Add Widget"
-      />
-      <q-btn
-        round
-        dense
-        flat
-        icon="save"
-        @click="handleSaveDashboard"
-        title="Save Dashboard"
-      />
-      <q-btn
-        round
-        dense
-        flat
-        icon="logout"
-        @click="toggleEditMode"
-        title="Save and Exit Edit Mode"
-      />
-      <q-btn
-        round
-        dense
-        flat
-        icon="edit"
-        @click="handleDashboardSettings"
-        title="Dashboard Settings"
-      />
-      <q-btn
-        round
-        dense
-        flat
-        icon="close"
-        @click="confirmCancelEditMode"
-        title="Discard Changes and Exit"
-      />
-    </div>
+    <!-- Draggable Edit Mode Toolbar -->
+    <DraggableToolbar
+      v-model="showPanel"
+      state-key="edit-mode-panel"
+      position="top-right"
+      spawn="right"
+      :width="56"
+      @move="onPanelMove"
+    >
+      <div class="column items-center q-gutter-y-xs q-my-xs">
+        <q-btn
+          round
+          dense
+          flat
+          color="negative"
+          icon="close"
+          @click="confirmCancelEditMode"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Discard and Exit
+          </q-tooltip>
+        </q-btn>
+        <q-btn
+          round
+          dense
+          flat
+          icon="save"
+          @click="handleSaveDashboard"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Quick Save
+          </q-tooltip>
+        </q-btn>
+        <q-btn
+          round
+          dense
+          flat
+          icon="dashboard"
+          @click="handleDashboardSettings"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Dashboard Settings
+          </q-tooltip>
+        </q-btn>
+        <q-btn
+          round
+          dense
+          flat
+          icon="add"
+          @click="handleAddWidget"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Add Widget
+          </q-tooltip>
+        </q-btn>
+      </div>
+    </DraggableToolbar>
 
     <!-- Dashboard Settings Dialog -->
     <DashboardSettingsDialog v-model="showDashboardSettings" />
@@ -73,6 +86,7 @@ import { useQuasar } from 'quasar'
 import { useUIStore } from 'stores/ui'
 import { useWidgetWindowsStore } from 'stores/widgetWindows'
 import DashboardSettingsDialog from './DashboardSettingsDialog.vue'
+import DraggableToolbar from './DraggableToolbar.vue'
 
 const FLOATING_MENU_PROXIMITY = 200
 
@@ -83,7 +97,14 @@ const widgetWindows = useWidgetWindowsStore()
 const containerEl = ref(null)
 const buttonRef = ref(null)
 const isFloatingMenuVisible = ref(false)
+const showPanel = ref(false)
 const showDashboardSettings = ref(false)
+
+// Tooltips open to the side opposite the screen edge the panel sits at:
+// panel on the right half -> tooltips open to the left, and vice versa.
+const tooltipSide = ref('left')
+const tooltipAnchor = computed(() => `center ${tooltipSide.value}`)
+const tooltipSelf = computed(() => `center ${tooltipSide.value === 'left' ? 'right' : 'left'}`)
 
 let rafId = null
 let lastCursorX = 0
@@ -100,7 +121,6 @@ function distanceFromPointToRect(px, py, rect) {
 
 function evaluateVisibility() {
   rafId = null
-  if (isEditMode.value) return
 
   const el = buttonRef.value?.$el || buttonRef.value
   if (!el) return
@@ -118,12 +138,10 @@ function scheduleEvaluation() {
 function handleMouseMove(event) {
   lastCursorX = event.clientX
   lastCursorY = event.clientY
-  if (isEditMode.value) return
   scheduleEvaluation()
 }
 
 function handleResize() {
-  if (isEditMode.value) return
   scheduleEvaluation()
 }
 
@@ -142,15 +160,25 @@ onUnmounted(() => {
   }
 })
 
-// When exiting edit mode the button reappears - re-evaluate proximity
+// Keep the panel in sync with edit mode regardless of how it was entered/exited.
 watch(isEditMode, (editing) => {
+  showPanel.value = editing
   if (!editing) {
     evaluateVisibility()
   }
 }, { flush: 'post' })
 
-function toggleEditMode() {
-  uiStore.toggleEditMode()
+function onPanelMove({ x, width }) {
+  const half = window.innerWidth / 2
+  tooltipSide.value = (x + width / 2) < half ? 'right' : 'left'
+}
+
+function handlePencilClick() {
+  if (isEditMode.value) {
+    confirmCancelEditMode()
+  } else {
+    uiStore.enterEditMode()
+  }
 }
 
 // Confirm before canceling edit mode (discard changes)
@@ -221,24 +249,6 @@ function handleDashboardSettings() {
   background: rgba(128, 128, 128, 0.7);
 }
 
-/* Edit Mode Menu */
-.edit-mode-menu {
-  display: flex;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 8px;
-  border-radius: 50px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.edit-mode-menu .q-btn {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.edit-mode-menu .q-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
 /* Light theme support - keep dark background */
 .floating-menu-container--light .floating-menu-btn {
   background: rgba(0, 0, 0, 0.3);
@@ -246,17 +256,5 @@ function handleDashboardSettings() {
 
 .floating-menu-container--light .floating-menu-btn:hover {
   background: rgba(0, 0, 0, 0.4);
-}
-
-.floating-menu-container--light .edit-mode-menu {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.floating-menu-container--light .edit-mode-menu .q-btn {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.floating-menu-container--light .edit-mode-menu .q-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 </style>
