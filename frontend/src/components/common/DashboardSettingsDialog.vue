@@ -6,7 +6,25 @@
     :width="560"
     :height="600"
   >
-    <div class="column q-gap-md">
+    <q-tabs
+      v-model="activeTab"
+      class="text-grey"
+      active-color="primary"
+      indicator-color="primary"
+      align="left"
+      narrow-indicator
+      dense
+      no-caps
+      inline-label
+    >
+      <q-tab name="dashboard" label="Dashboard" icon="dashboard" />
+      <q-tab name="widgets" label="Widgets" icon="widgets" />
+    </q-tabs>
+    <q-separator/>
+
+    <q-tab-panels v-model="activeTab" animated class="q-pt-md">
+      <q-tab-panel name="dashboard">
+        <div class="column q-gap-md">
       <SettingsRow label="Interface theme">
         <q-select
           :model-value="themeId"
@@ -70,7 +88,7 @@
           dense
           :icon="paddingLocked ? 'lock' : 'lock_open'"
           :title="paddingLocked ? 'Unlock sides (edit separately)' : 'Lock sides to the same value'"
-          @click="paddingLocked = !paddingLocked"
+          @click="togglePaddingLock"
         />
       </div>
 
@@ -132,7 +150,15 @@
           @update:model-value="setPadding('left', $event)"
         />
       </SettingsRow>
-    </div>
+        </div>
+      </q-tab-panel>
+
+      <q-tab-panel name="widgets">
+        <div class="column q-gap-md text-caption text-grey-5">
+          Widget settings will appear here.
+        </div>
+      </q-tab-panel>
+    </q-tab-panels>
   </DraggableDialog>
 </template>
 
@@ -153,10 +179,14 @@ const emit = defineEmits(['update:modelValue'])
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 
+const PADDING_LOCK_STORAGE_KEY = 'sm-dashboard-padding-lock'
+
 const dialogVisible = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
+
+const activeTab = ref('dashboard')
 
 const gridOptions = computed(() => dashboardStore.gridOptions)
 const gap = computed(() => gridOptions.value.margin?.x ?? 10)
@@ -175,7 +205,12 @@ const verticalCompact = computed({
   set: (value) => dashboardStore.updateGridOptions({ verticalCompact: value })
 })
 
-const paddingLocked = ref(false)
+const paddingLocked = ref(localStorage.getItem(PADDING_LOCK_STORAGE_KEY) === '1')
+
+function togglePaddingLock() {
+  paddingLocked.value = !paddingLocked.value
+  localStorage.setItem(PADDING_LOCK_STORAGE_KEY, paddingLocked.value ? '1' : '0')
+}
 
 function onAutoLayoutToggle(value) {
   dashboardStore.updateGridOptions({ verticalCompact: value })
