@@ -1,10 +1,8 @@
 from typing import AsyncGenerator, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy import text
 from contextlib import asynccontextmanager
 
-from app.persistence.models import Base
 from app.config import settings
 
 engine = create_async_engine(
@@ -21,18 +19,6 @@ session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False
 )
-
-
-async def init_db():
-    # temporary func
-    async with engine.begin() as conn:
-        print('Init database...', flush=True)
-        await conn.run_sync(Base.metadata.create_all)
-        # Lightweight migrations for existing tables (create_all won't alter them)
-        await conn.execute(
-            text("ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS grid_options JSON DEFAULT '{}'::json")
-        )
-    return engine
 
 
 async def get_session() -> AsyncGenerator[Any, Any]:

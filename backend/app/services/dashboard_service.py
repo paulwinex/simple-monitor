@@ -1,11 +1,11 @@
 import time
 import json
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.services.base import BaseService
 from app.persistence.models import Dashboard
-from app.shemas import DashboardConfig, DashboardSaveRequest
+from app.shemas import DashboardConfig, DashboardMeta
 
 
 class DashboardService(BaseService):
@@ -41,6 +41,7 @@ class DashboardService(BaseService):
             layout=layout,
             widgets=widgets,
             grid_options=grid_options,
+            options=dashboard.options or {},
             updated_at=dashboard.updated_at
         )
 
@@ -70,6 +71,7 @@ class DashboardService(BaseService):
             db_dashboard.layout = layout_data
             db_dashboard.widgets = widgets_data
             db_dashboard.grid_options = grid_options_data
+            db_dashboard.options = dashboard.options or {}
             db_dashboard.version += 1
             db_dashboard.updated_at = now
         else:
@@ -81,6 +83,7 @@ class DashboardService(BaseService):
                 layout=layout_data,
                 widgets=widgets_data,
                 grid_options=grid_options_data,
+                options=dashboard.options or {},
                 created_at=now,
                 updated_at=now
             )
@@ -96,6 +99,7 @@ class DashboardService(BaseService):
             layout=db_dashboard.layout,
             widgets=db_dashboard.widgets,
             grid_options=db_dashboard.grid_options,
+            options=db_dashboard.options or {},
             updated_at=db_dashboard.updated_at
         ), db_dashboard.version
 
@@ -105,6 +109,66 @@ class DashboardService(BaseService):
         result = await self.session.execute(stmt)
         version = result.scalar_one_or_none()
         return version or 0
+
+    async def create_dashboard(
+        self,
+        name: str = "My Dashboard",
+        options: dict | None = None,
+    ) -> DashboardConfig:
+        """
+        Create a new dashboard with a fresh id.
+        """
+        now = int(time.time())
+
+        # Dashboards are created with an explicit id (max+1): the default
+        # dashboard is always saved with explicit id=1, and a plain SERIAL/
+        # IDENTITY sequence is not advanced by explicit id inserts, so relying
+        # on autoincrement would collide with existing rows.
+        max_stmt = select(func.max(Dashboard.id))
+        max_id = (await self.session.execute(max_stmt)).scalar_one_or_none() or 0
+
+        db_dashboard = Dashboard(
+            id=max_id + 1,
+            name=name,
+            version=1,
+            layout={},
+            widgets={},
+            grid_options={},
+            options=options or {},
+            created_at=now,
+            updated_at=now
+        )
+        self.session.add(db_dashboard)
+        await self.session.commit()
+        await self.session.refresh(db_dashboard)
+
+        return DashboardConfig(
+            id=db_dashboard.id,
+            name=db_dashboard.name,
+            version=db_dashboard.version,
+            layout=db_dashboard.layout,
+            widgets=db_dashboard.widgets,
+            grid_options=db_dashboard.grid_options,
+            options=db_dashboard.options or {},
+            updated_at=db_dashboard.updated_at
+        )
+
+    async def list_dashboard_meta(self) -> list[DashboardMeta]:
+        """List lightweight dashboard metadata (id/name/version/options)."""
+        stmt = select(Dashboard).order_by(Dashboard.id)
+        result = await self.session.execute(stmt)
+        dashboards = result.scalars().all()
+
+        return [
+            DashboardMeta(
+                id=d.id,
+                name=d.name,
+                version=d.version,
+                options=d.options or {},
+                updated_at=d.updated_at
+            )
+            for d in dashboards
+        ]
 
     async def delete_dashboard(self, dashboard_id: int) -> bool:
         """Delete a dashboard."""
@@ -133,6 +197,7 @@ class DashboardService(BaseService):
                 layout=d.layout or {},
                 widgets=d.widgets or {},
                 grid_options=d.grid_options or {},
+                options=d.options or {},
                 updated_at=d.updated_at
             )
             for d in dashboards

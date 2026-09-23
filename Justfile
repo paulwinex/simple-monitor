@@ -42,6 +42,22 @@ backend-logs:
 front-up:
     yarn dev
 
+
+# Create migrations
+[working-directory: 'backend']
+[script]
+makemigrations MESSAGE="no message":
+    uv run alembic revision --autogenerate -m "{{MESSAGE}}"
+
+
+# Apply migrations
+[group('db')]
+[working-directory: 'backend']
+[script]
+applymigrations:
+    uv run alembic upgrade head
+
+
 # Test commands
 # Build test image
 [working-directory: 'deploy']

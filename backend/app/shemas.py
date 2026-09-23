@@ -99,7 +99,23 @@ class DashboardConfig(BaseModel):
     layout: dict = {}
     widgets: dict = {}
     grid_options: dict = {}
+    options: dict = {}
     updated_at: int = 0
+
+
+class DashboardMeta(BaseModel):
+    """Lightweight dashboard metadata (no layout/widgets)."""
+    id: int
+    name: str = "My Dashboard"
+    version: int = 1
+    options: dict = {}
+    updated_at: int = 0
+
+
+class DashboardCreateRequest(BaseModel):
+    """Dashboard creation request."""
+    name: str = "My Dashboard"
+    options: dict = {}
 
 
 class DashboardGetResponse(BaseModel):

@@ -49,6 +49,8 @@ ENV PATH="/venv/bin:$PATH" \
 WORKDIR /backend
 COPY --link --from=builder /venv /venv
 COPY backend/app /backend/app
+COPY backend/alembic.ini /backend/alembic.ini
+COPY backend/alembic /backend/alembic
 EXPOSE 8000
 RUN chmod +x /backend/app/start.sh
 ENTRYPOINT ["/backend/app/start.sh"]

@@ -341,6 +341,7 @@ class Dashboard(Base):
     layout: Mapped[dict] = mapped_column(JSON, default=dict)  # vue-grid-layout state (dict keyed by widget id)
     widgets: Mapped[dict] = mapped_column(JSON, default=dict)  # widget configurations (dict keyed by widget id)
     grid_options: Mapped[dict] = mapped_column(JSON, default=dict)  # grid settings (colNum, rowHeight, margin, padding, verticalCompact)
+    options: Mapped[dict] = mapped_column(JSON, default=dict)  # other options
     created_at: Mapped[int] = mapped_column(Integer)
     updated_at: Mapped[int] = mapped_column(Integer)
 

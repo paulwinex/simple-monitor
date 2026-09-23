@@ -193,3 +193,56 @@ class TestDashboardsAPI:
         data = resp.json()
         assert isinstance(data, list)
         assert len(data) >= 2
+
+    @pytest.mark.asyncio
+    async def test_create_dashboard(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/v1/dashboards",
+            json={"name": "New Dashboard", "options": {"theme": "light"}}
+        )
+        assert resp.status_code == status.HTTP_201_CREATED
+        data = resp.json()
+        dashboard = data["dashboard"]
+        assert data["id"] is not None
+        assert data["version"] == 1
+        assert dashboard["name"] == "New Dashboard"
+        assert dashboard["options"] == {"theme": "light"}
+
+        get_resp = await client.get(f"/api/v1/dashboards/{data['id']}")
+        assert get_resp.status_code == status.HTTP_200_OK
+        assert get_resp.json()["dashboard"]["name"] == "New Dashboard"
+
+    @pytest.mark.asyncio
+    async def test_create_dashboard_defaults(self, client: AsyncClient):
+        resp = await client.post("/api/v1/dashboards", json={})
+        assert resp.status_code == status.HTTP_201_CREATED
+        data = resp.json()
+        assert data["dashboard"]["name"] == "My Dashboard"
+        assert data["dashboard"]["options"] == {}
+
+    @pytest.mark.asyncio
+    async def test_list_dashboard_meta(self, client: AsyncClient, sample_dashboard_payload):
+        await client.put("/api/v1/dashboards/1", json=sample_dashboard_payload)
+        await client.post("/api/v1/dashboards", json={"name": "Second"})
+
+        resp = await client.get("/api/v1/dashboards/meta")
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) >= 2
+        for item in data:
+            assert "layout" not in item
+            assert "widgets" not in item
+            assert "id" in item
+            assert "name" in item
+            assert "version" in item
+            assert "options" in item
+
+    @pytest.mark.asyncio
+    async def test_dashboard_options_roundtrip(self, client: AsyncClient, sample_dashboard_payload):
+        sample_dashboard_payload["dashboard"]["options"] = {"theme": "dark", "custom": "value"}
+        await client.put("/api/v1/dashboards/1", json=sample_dashboard_payload)
+
+        resp = await client.get("/api/v1/dashboards/1")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json()["dashboard"]["options"] == {"theme": "dark", "custom": "value"}

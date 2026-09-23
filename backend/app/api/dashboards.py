@@ -6,6 +6,8 @@ from app.shemas import (
     DashboardSaveRequest,
     DashboardSaveResponse,
     DashboardConfig,
+    DashboardMeta,
+    DashboardCreateRequest,
 )
 
 router = APIRouter(prefix="/dashboards", tags=["dashboards"])
@@ -31,6 +33,30 @@ async def get_default_dashboard(service: DashboardServiceDep):
     return DashboardGetResponse(
         id=1,
         version=version,
+        dashboard=dashboard
+    )
+
+
+@router.get("/meta", response_model=list[DashboardMeta])
+async def list_dashboard_meta(service: DashboardServiceDep):
+    """List lightweight dashboard metadata (no layout/widgets)."""
+    return await service.list_dashboard_meta()
+
+
+@router.post("", response_model=DashboardGetResponse, status_code=201)
+async def create_dashboard(
+    payload: DashboardCreateRequest,
+    service: DashboardServiceDep = None
+):
+    """Create a new dashboard."""
+    dashboard = await service.create_dashboard(
+        name=payload.name,
+        options=payload.options
+    )
+
+    return DashboardGetResponse(
+        id=dashboard.id,
+        version=dashboard.version,
         dashboard=dashboard
     )
 

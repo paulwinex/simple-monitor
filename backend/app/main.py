@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.persistence import init_db
 from app.api import metrics_router, hosts_router, devices_router, dashboards_router
 from app.scheduler import SchedulerManager
 
@@ -23,8 +22,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Smart Monitor Backend...")
-    await init_db()
-    logger.info("Database initialized")
     scheduler = SchedulerManager(
         resample_minute_interval=settings.RESAMPLE_MINUTE_INTERVAL,
         resample_hourly_interval=settings.RESAMPLE_HOURLY_INTERVAL
