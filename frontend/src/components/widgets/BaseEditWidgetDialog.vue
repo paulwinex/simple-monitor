@@ -1,13 +1,13 @@
 <template>
   <q-dialog v-model="dialogVisible">
-    <q-card style="min-width: 700px; max-height: 90vh;">
+    <q-card style="min-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
       <q-card-section class="row items-center q-pb-none q-mb-md">
         <div class="text-h6">{{ dialogTitle }}</div>
         <q-space />
         <q-btn flat round dense icon="close" @click="closeDialog" />
       </q-card-section>
 
-      <q-card-section class="q-pt-none">
+      <q-card-section class="scroll col q-pt-none" style="min-height: 0">
         <!-- Widget Title (common for all widgets) -->
         <q-input
           v-model="widgetTitle"

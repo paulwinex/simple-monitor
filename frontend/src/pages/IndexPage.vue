@@ -18,7 +18,7 @@
       <GridLayout
         v-model:layout="dashboardStore.layout"
         :col-num="gridOptions.colNum"
-        :row-height="effectiveRowHeight"
+        :row-height="gridOptions.rowHeight"
         :is-draggable="isEditMode"
         :is-resizable="isEditMode"
         :vertical-compact="gridOptions.verticalCompact"
@@ -85,7 +85,7 @@ import { useUIStore } from 'stores/ui'
 import { dataRefreshService } from 'src/services/dataRefreshService'
 import { useThemeStore } from 'stores/theme'
 import { hexToRgba } from 'src/utils/themes'
-import { gridRowHeight } from 'src/utils/grid'
+import { gridWidgetGap } from 'src/utils/grid'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GaugeWidget from 'components/widgets/GaugeWidget.vue'
@@ -155,13 +155,11 @@ const isEditMode = computed(() => uiStore.isEditMode)
 const gridOptions = computed(() => dashboardStore.gridOptions)
 const gridMargin = computed(() => {
   const m = gridOptions.value.margin || { x: 10, y: 10 }
-  return [m.x, m.y]
+  return [m.x, 0]
 })
-// The grid adds the vertical margin to every row on top of the row height, so the
-// gap is subtracted here to keep the configured row height as the row pitch.
-const effectiveRowHeight = computed(() =>
-  gridRowHeight(gridOptions.value.rowHeight, gridMargin.value[1])
-)
+// Vertical gap is painted inside the grid item (see .widget-wrapper) instead of being
+// handed to the grid, which would otherwise add it to every row of every widget.
+const widgetGap = computed(() => gridWidgetGap(gridMargin.value[0], gridOptions.value.rowHeight))
 const gridStyle = computed(() => {
   const p = gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }
   const widget = themeStore.currentTheme.widget
@@ -169,7 +167,10 @@ const gridStyle = computed(() => {
   const headerAlpha = (gridOptions.value.widgetHeaderOpacity ?? 100) / 100
   const borderAlpha = (gridOptions.value.widgetBorderOpacity ?? 100) / 100
   return {
-    padding: `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`,
+    // The top gap of the root layout is always applied, so it is not part of the
+    // edge padding settings below.
+    padding: `${p.top + widgetGap.value}px ${p.right}px ${p.bottom}px ${p.left}px`,
+    '--widget-gap': `${widgetGap.value}px`,
     '--widget-bg': hexToRgba(widget.background, bgAlpha),
     '--widget-header-bg': hexToRgba(widget.headerBackground, headerAlpha),
     '--widget-border': hexToRgba(widget.border, borderAlpha),
@@ -361,6 +362,9 @@ function updateContainerWidget(containerId, updates) {
 
 .widget-wrapper {
   height: 100%;
+  box-sizing: border-box;
+  /* Widget gap lives here, not in the grid margin, so it cannot inflate row height. */
+  padding-bottom: var(--widget-gap, 0px);
   position: relative;
 }
 

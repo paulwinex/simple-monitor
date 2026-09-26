@@ -3,7 +3,10 @@
     <div v-if="showHeader && title" class="grid-container-header">
       <span class="widget-title">{{ title }}</span>
     </div>
-    <div class="grid-container-widget">
+    <div
+      class="grid-container-widget"
+      :style="{ '--widget-gap': `${internalGap}px`, '--widget-edge-inset': `${edgeInset}px` }"
+    >
       <div v-if="isEditing" class="container-actions">
         <q-btn
           flat
@@ -41,7 +44,9 @@
           :vertical-compact="true"
           :use-css-transforms="true"
           :prevent-collision="true"
+          :auto-size="false"
           class="internal-grid"
+          :style="internalGridStyle"
           @layout-updated="onLayoutUpdated"
         >
           <GridItem
@@ -53,7 +58,7 @@
             :h="item.h"
             :i="item.i"
           >
-            <div class="widget-content-wrapper">
+            <div class="widget-content-wrapper" :style="contentWrapperStyle(item)">
               <div class="widget-inner-content">
                 <component :is="renderWidget(getWidget(item.i))" />
               </div>
@@ -113,7 +118,7 @@ import ChartWidget from './ChartWidget.vue'
 import GaugeWidget from './GaugeWidget.vue'
 import NumberChartWidget from './NumberChartWidget.vue'
 import MultiChartWidget from './MultiChartWidget.vue'
-import { gridRowHeight } from 'src/utils/grid'
+import { gridWidgetGap } from 'src/utils/grid'
 
 // Fallback when neither the container nor the dashboard has a row height set.
 const DEFAULT_INTERNAL_ROW_HEIGHT = 25
@@ -169,19 +174,52 @@ const internalGridColNum = computed(() => {
 })
 
 // Internal widgets follow the dashboard widget gap and the container row height,
-// which is either the container's own override or the dashboard-wide value. The
-// grid adds the margin to every row, so the gap is subtracted from the row height
-// to keep the row pitch intact and the gap as pure spacing.
-const internalRowPitch = computed(() => {
+// which is either the container's own override or the dashboard-wide value. The grid
+// gets a zero vertical margin and the plain row height, so an item box stays exactly
+// `h * rowHeight` tall; the gap is painted inside the item (see
+// .widget-content-wrapper) instead of being added to every row.
+const internalRowHeight = computed(() => {
   const options = parentWidget.value?.options
   if (options?.rowHeightEnabled && Number.isFinite(options.rowHeight)) {
     return options.rowHeight
   }
   return dashboardStore.gridOptions?.containerRowHeight ?? DEFAULT_INTERNAL_ROW_HEIGHT
 })
-const internalGap = computed(() => dashboardStore.gridOptions?.margin?.x ?? 10)
-const internalMargin = computed(() => [internalGap.value, internalGap.value])
-const internalRowHeight = computed(() => gridRowHeight(internalRowPitch.value, internalGap.value))
+const dashboardGap = computed(() => dashboardStore.gridOptions?.margin?.x ?? 10)
+const internalGap = computed(() => gridWidgetGap(dashboardGap.value, internalRowHeight.value))
+const internalMargin = computed(() => [dashboardGap.value, 0])
+
+// Edge inset keeps the nested widgets `gap` away from the container borders. It is on
+// dashboard-wide and can be overridden per container; when it is off, the gap only
+// appears between widgets and they sit flush with the borders.
+const gapOnBorders = computed(() => {
+  const options = parentWidget.value?.options
+  const dashboardValue = dashboardStore.gridOptions?.containerGapOnBorders !== false
+  if (options?.gapOnBordersEnabled && typeof options.gapOnBorders === 'boolean') {
+    return options.gapOnBorders
+  }
+  return dashboardValue
+})
+const edgeInset = computed(() => (gapOnBorders.value ? internalGap.value : 0))
+
+// The grid also applies the horizontal margin at the outer edges, so with the inset
+// off the grid is pulled out by that margin to keep the widgets flush with the borders.
+const internalGridStyle = computed(() => {
+  const correction = dashboardGap.value - edgeInset.value
+  return { marginLeft: `${-correction}px`, marginRight: `${-correction}px` }
+})
+
+const lastRowBottom = computed(() =>
+  internalLayout.value.reduce((max, item) => Math.max(max, item.y + item.h), 0)
+)
+
+function contentWrapperStyle(item) {
+  // Without the edge inset there is no gap below the last row of widgets either.
+  if (!gapOnBorders.value && item.y + item.h >= lastRowBottom.value) {
+    return { paddingBottom: '0px' }
+  }
+  return null
+}
 
 // Check if widget overlaps with parent container's action buttons
 // Parent buttons are in top-right corner, so check if widget is near that area
@@ -440,6 +478,8 @@ defineExpose({
   position: relative;
   min-height: 0;
   overflow: hidden;
+  /* Pushes the whole internal grid down so widgets keep the gap from the top border. */
+  padding-top: var(--widget-edge-inset, 0px);
 }
 
 .container-actions {
@@ -477,6 +517,9 @@ defineExpose({
 
 .widget-content-wrapper {
   height: 100%;
+  box-sizing: border-box;
+  /* Widget gap lives here, not in the grid margin, so it cannot inflate row height. */
+  padding-bottom: var(--widget-gap, 0px);
   position: relative;
   display: flex;
   flex-direction: column;
