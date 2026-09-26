@@ -239,6 +239,8 @@ onUnmounted(() => {
 watch(isEditMode, (editing) => {
   showPanel.value = editing
   if (!editing) {
+    // Same as the widget dialogs: they must not stay open in view mode
+    showDashboardSettings.value = false
     evaluateVisibility()
   }
 }, { flush: 'post' })
