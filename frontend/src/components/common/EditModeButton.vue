@@ -31,7 +31,6 @@
           round
           dense
           flat
-          color="negative"
           icon="close"
           @click="confirmCancelEditMode"
         >
@@ -76,17 +75,6 @@
           round
           dense
           flat
-          icon="add"
-          @click="handleAddWidget"
-        >
-          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
-            Add Widget
-          </q-tooltip>
-        </q-btn>
-        <q-btn
-          round
-          dense
-          flat
           icon="palette"
           @click="openThemeEditor"
         >
@@ -94,6 +82,18 @@
             Theme Editor
           </q-tooltip>
         </q-btn>
+        <q-btn
+          round
+          dense
+          flat
+          icon="add"
+          @click="handleAddWidget"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Add Widget
+          </q-tooltip>
+        </q-btn>
+
       </div>
     </DraggableToolbar>
 
