@@ -7,7 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.api import metrics_router, hosts_router, devices_router, dashboards_router
+from app.api import (
+    metrics_router,
+    hosts_router,
+    devices_router,
+    dashboards_router,
+    themes_router,
+)
 from app.scheduler import SchedulerManager
 
 
@@ -19,9 +25,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def _seed_theme_presets() -> None:
+    """Insert the built-in themes, but only into an empty table.
+
+    A failed seed must not stop the API from serving, so this logs and moves
+    on: the frontend has its own static fallback theme for that case.
+    """
+    from app.persistence import get_session_context
+    from app.services.theme_service import ThemeService
+
+    try:
+        async with get_session_context() as session:
+            added = await ThemeService(session).ensure_presets()
+        if added:
+            logger.info("Seeded %d built-in themes", added)
+    except Exception:
+        logger.exception("Could not seed built-in themes")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Smart Monitor Backend...")
+    await _seed_theme_presets()
     scheduler = SchedulerManager(
         resample_minute_interval=settings.RESAMPLE_MINUTE_INTERVAL,
         resample_hourly_interval=settings.RESAMPLE_HOURLY_INTERVAL
@@ -70,6 +95,7 @@ app.include_router(metrics_router, prefix="/api/v1")
 app.include_router(hosts_router, prefix="/api/v1")
 app.include_router(devices_router, prefix="/api/v1")
 app.include_router(dashboards_router, prefix="/api/v1")
+app.include_router(themes_router, prefix="/api/v1")
 
 
 @app.get("/health")

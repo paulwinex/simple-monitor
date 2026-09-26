@@ -328,6 +328,39 @@ class ResampleState(Base):
             session.add(cls(level=level, last_ts=ts))
 
 
+class Theme(Base):
+    """
+    A named theme document. The id is a slug the frontend references from
+    Dashboard.options.theme, so it must stay stable across renames.
+    """
+    __tablename__ = "themes"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)  # ThemePayload, version 1
+    is_builtin: Mapped[bool] = mapped_column(Integer, default=0)  # seeded presets, undeletable
+    created_at: Mapped[int] = mapped_column(Integer)
+    updated_at: Mapped[int] = mapped_column(Integer)
+
+    __table_args__ = (
+        Index("idx_theme_is_builtin", "is_builtin"),
+    )
+
+    @classmethod
+    async def get_by_id(cls, session, theme_id: str) -> "Theme | None":
+        """Fetch one theme by slug."""
+        stmt = select(cls).where(cls.id == theme_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    @classmethod
+    async def list_all(cls, session) -> list["Theme"]:
+        """All themes, built-ins first then alphabetically."""
+        stmt = select(cls).order_by(cls.is_builtin.desc(), cls.name)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+
 class Dashboard(Base):
     """
     Dashboard configuration - independent from hosts.

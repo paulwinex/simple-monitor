@@ -8,6 +8,7 @@ from app.services import (
     HostService,
     DeviceService,
     DashboardService,
+    ThemeService,
 )
 
 
@@ -34,3 +35,10 @@ MetricsServiceDep = Annotated[MetricsService, Depends(get_metrics_service)]
 HostServiceDep = Annotated[HostService, Depends(get_host_service)]
 DeviceServiceDep = Annotated[DeviceService, Depends(get_device_service)]
 DashboardServiceDep = Annotated[DashboardService, Depends(get_dashboard_service)]
+
+
+async def get_theme_service(session: SessionDep) -> ThemeService:
+    return ThemeService(session)
+
+
+ThemeServiceDep = Annotated[ThemeService, Depends(get_theme_service)]
