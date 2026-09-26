@@ -112,6 +112,20 @@
         />
       </SettingsRow>
 
+      <SettingsRow
+        label="Container row height"
+        hint="Row height of the grid inside grid container widgets. Containers can override it individually"
+      >
+        <ValueSlider
+          :model-value="gridOptions.containerRowHeight ?? 25"
+          :min="10"
+          :max="100"
+          :step="5"
+          suffix="px"
+          @update:model-value="setContainerRowHeight"
+        />
+      </SettingsRow>
+
       <SectionSeparator label="Edge padding">
         <q-btn
           round
@@ -333,6 +347,11 @@ function setRowHeight(value) {
     options.margin = { x: allowedGap, y: allowedGap }
   }
   dashboardStore.updateGridOptions(options)
+}
+
+function setContainerRowHeight(value) {
+  const parsed = Math.max(10, Math.min(300, Math.round(value) || 25))
+  dashboardStore.updateGridOptions({ containerRowHeight: parsed })
 }
 
 function setPadding(side, value) {

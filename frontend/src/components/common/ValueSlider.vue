@@ -4,6 +4,7 @@
       :model-value="inputText"
       type="text"
       :suffix="suffix || null"
+      :disable="disable"
       dense
 
       class="value-slider__input q-mr-sm"
@@ -16,6 +17,7 @@
       :min="min"
       :max="max"
       :step="step"
+      :disable="disable"
       snap
       class="value-slider__track"
       @update:model-value="onSlider"
@@ -31,7 +33,8 @@ const props = defineProps({
   min: { type: Number, default: 0 },
   max: { type: Number, default: 100 },
   step: { type: Number, default: 1 },
-  suffix: { type: String, default: '' }
+  suffix: { type: String, default: '' },
+  disable: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue'])

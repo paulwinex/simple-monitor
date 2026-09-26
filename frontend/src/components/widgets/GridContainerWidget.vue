@@ -113,12 +113,10 @@ import ChartWidget from './ChartWidget.vue'
 import GaugeWidget from './GaugeWidget.vue'
 import NumberChartWidget from './NumberChartWidget.vue'
 import MultiChartWidget from './MultiChartWidget.vue'
-import { gridRowHeight, maxWidgetGap } from 'src/utils/grid'
+import { gridRowHeight } from 'src/utils/grid'
 
-// Row pitch of the internal grid. Kept independent from the dashboard row height so
-// container widgets keep their own scale.
-const INTERNAL_ROW_HEIGHT = 25
-const INTERNAL_GAP_MAX = maxWidgetGap(INTERNAL_ROW_HEIGHT)
+// Fallback when neither the container nor the dashboard has a row height set.
+const DEFAULT_INTERNAL_ROW_HEIGHT = 25
 
 const props = defineProps({
   title: String,
@@ -170,15 +168,20 @@ const internalGridColNum = computed(() => {
   return widget?.options?.colNum || 12
 })
 
-// Internal widgets follow the dashboard widget gap, capped so a row always keeps
-// usable content. The grid adds the margin to every row, so the gap is subtracted
-// here to keep the row pitch at INTERNAL_ROW_HEIGHT and the gap as pure spacing.
-const internalGap = computed(() => {
-  const gap = dashboardStore.gridOptions?.margin?.x ?? 10
-  return Math.max(0, Math.min(gap, INTERNAL_GAP_MAX))
+// Internal widgets follow the dashboard widget gap and the container row height,
+// which is either the container's own override or the dashboard-wide value. The
+// grid adds the margin to every row, so the gap is subtracted from the row height
+// to keep the row pitch intact and the gap as pure spacing.
+const internalRowPitch = computed(() => {
+  const options = parentWidget.value?.options
+  if (options?.rowHeightEnabled && Number.isFinite(options.rowHeight)) {
+    return options.rowHeight
+  }
+  return dashboardStore.gridOptions?.containerRowHeight ?? DEFAULT_INTERNAL_ROW_HEIGHT
 })
+const internalGap = computed(() => dashboardStore.gridOptions?.margin?.x ?? 10)
 const internalMargin = computed(() => [internalGap.value, internalGap.value])
-const internalRowHeight = computed(() => gridRowHeight(INTERNAL_ROW_HEIGHT, internalGap.value))
+const internalRowHeight = computed(() => gridRowHeight(internalRowPitch.value, internalGap.value))
 
 // Check if widget overlaps with parent container's action buttons
 // Parent buttons are in top-right corner, so check if widget is near that area

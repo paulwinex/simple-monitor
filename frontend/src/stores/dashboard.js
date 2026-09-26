@@ -9,6 +9,7 @@ import { compact } from 'src/utils/layout'
 const DEFAULT_GRID_OPTIONS = {
   colNum: 12,
   rowHeight: 30,
+  containerRowHeight: 25,
   verticalCompact: true,
   margin: { x: 10, y: 10 },
   padding: { top: 16, right: 16, bottom: 16, left: 16 },
