@@ -34,7 +34,8 @@
       <GridLayout
           v-model:layout="internalLayout"
           :col-num="internalGridColNum"
-          :row-height="25"
+          :row-height="internalRowHeight"
+          :margin="internalMargin"
           :is-draggable="isEditing"
           :is-resizable="isEditing"
           :vertical-compact="true"
@@ -112,6 +113,12 @@ import ChartWidget from './ChartWidget.vue'
 import GaugeWidget from './GaugeWidget.vue'
 import NumberChartWidget from './NumberChartWidget.vue'
 import MultiChartWidget from './MultiChartWidget.vue'
+import { gridRowHeight, maxWidgetGap } from 'src/utils/grid'
+
+// Row pitch of the internal grid. Kept independent from the dashboard row height so
+// container widgets keep their own scale.
+const INTERNAL_ROW_HEIGHT = 25
+const INTERNAL_GAP_MAX = maxWidgetGap(INTERNAL_ROW_HEIGHT)
 
 const props = defineProps({
   title: String,
@@ -162,6 +169,16 @@ const internalGridColNum = computed(() => {
   const widget = parentWidget.value
   return widget?.options?.colNum || 12
 })
+
+// Internal widgets follow the dashboard widget gap, capped so a row always keeps
+// usable content. The grid adds the margin to every row, so the gap is subtracted
+// here to keep the row pitch at INTERNAL_ROW_HEIGHT and the gap as pure spacing.
+const internalGap = computed(() => {
+  const gap = dashboardStore.gridOptions?.margin?.x ?? 10
+  return Math.max(0, Math.min(gap, INTERNAL_GAP_MAX))
+})
+const internalMargin = computed(() => [internalGap.value, internalGap.value])
+const internalRowHeight = computed(() => gridRowHeight(INTERNAL_ROW_HEIGHT, internalGap.value))
 
 // Check if widget overlaps with parent container's action buttons
 // Parent buttons are in top-right corner, so check if widget is near that area

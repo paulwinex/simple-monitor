@@ -90,7 +90,7 @@
 
       <SectionSeparator label="Widget spacing" />
 
-      <SettingsRow label="Row height" hint="Height of one grid row in pixels. Controls how tall widgets get">
+      <SettingsRow label="Row height" hint="Height of one grid row in pixels, widget gap included. Controls how tall widgets get">
         <ValueSlider
           :model-value="gridOptions.rowHeight ?? 30"
           :min="10"
@@ -101,11 +101,11 @@
         />
       </SettingsRow>
 
-      <SettingsRow label="Widget gap" hint="Space between widgets side by side and stacked vertically">
+      <SettingsRow label="Widget gap" hint="Free space between widgets. Does not change row height or widget height">
         <ValueSlider
           :model-value="gap"
           :min="0"
-          :max="50"
+          :max="gapMax"
           :step="1"
           suffix="px"
           @update:model-value="setGap"
@@ -219,6 +219,7 @@ import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useThemeStore } from 'stores/theme'
 import { getThemes, getSavedTheme, applyTheme } from 'src/utils/themes'
+import { maxWidgetGap } from 'src/utils/grid'
 import DraggableDialog from './DraggableDialog.vue'
 import SectionSeparator from './SectionSeparator.vue'
 import SettingsRow from './SettingsRow.vue'
@@ -245,6 +246,9 @@ const activeTab = ref('dashboard')
 
 const gridOptions = computed(() => dashboardStore.gridOptions)
 const gap = computed(() => gridOptions.value.margin?.x ?? 10)
+// The gap is carved out of the row, so it can never exceed the row height. The
+// extra 1px keeps the slider usable (q-slider needs max > min) at the low end.
+const gapMax = computed(() => Math.max(1, maxWidgetGap(gridOptions.value.rowHeight ?? 30)))
 
 const COL_NUM_PRESETS = [2, 4, 8, 12, 16, 20, 32]
 const colNumText = ref(String(gridOptions.value.colNum ?? 12))
@@ -316,13 +320,19 @@ function onAutoLayoutToggle(value) {
 }
 
 function setGap(value) {
-  const parsed = Math.max(0, Math.round(value) || 0)
+  const parsed = Math.max(0, Math.min(gapMax.value, Math.round(value) || 0))
   dashboardStore.updateGridOptions({ margin: { x: parsed, y: parsed } })
 }
 
 function setRowHeight(value) {
   const parsed = Math.max(10, Math.min(300, Math.round(value) || 30))
-  dashboardStore.updateGridOptions({ rowHeight: parsed })
+  const options = { rowHeight: parsed }
+  const currentGap = gridOptions.value.margin?.y ?? 0
+  const allowedGap = Math.max(1, maxWidgetGap(parsed))
+  if (currentGap > allowedGap) {
+    options.margin = { x: allowedGap, y: allowedGap }
+  }
+  dashboardStore.updateGridOptions(options)
 }
 
 function setPadding(side, value) {

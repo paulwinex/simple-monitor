@@ -18,7 +18,7 @@
       <GridLayout
         v-model:layout="dashboardStore.layout"
         :col-num="gridOptions.colNum"
-        :row-height="gridOptions.rowHeight"
+        :row-height="effectiveRowHeight"
         :is-draggable="isEditMode"
         :is-resizable="isEditMode"
         :vertical-compact="gridOptions.verticalCompact"
@@ -85,6 +85,7 @@ import { useUIStore } from 'stores/ui'
 import { dataRefreshService } from 'src/services/dataRefreshService'
 import { useThemeStore } from 'stores/theme'
 import { hexToRgba } from 'src/utils/themes'
+import { gridRowHeight } from 'src/utils/grid'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
 import GaugeWidget from 'components/widgets/GaugeWidget.vue'
@@ -156,6 +157,11 @@ const gridMargin = computed(() => {
   const m = gridOptions.value.margin || { x: 10, y: 10 }
   return [m.x, m.y]
 })
+// The grid adds the vertical margin to every row on top of the row height, so the
+// gap is subtracted here to keep the configured row height as the row pitch.
+const effectiveRowHeight = computed(() =>
+  gridRowHeight(gridOptions.value.rowHeight, gridMargin.value[1])
+)
 const gridStyle = computed(() => {
   const p = gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }
   const widget = themeStore.currentTheme.widget
