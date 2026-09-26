@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { Notify } from 'quasar'
 import { getDefaultDashboard, getDashboard, saveDashboard as saveDashboardApi, getHosts, getMetricDevices } from 'src/services/api'
 import { useThemeStore } from 'stores/theme'
-import { getSavedTheme } from 'src/utils/themes'
+import { FALLBACK_THEME } from 'src/utils/themes'
 import { compact } from 'src/utils/layout'
 
 const DEFAULT_GRID_OPTIONS = {
@@ -13,10 +13,7 @@ const DEFAULT_GRID_OPTIONS = {
   containerGapOnBorders: true,
   verticalCompact: true,
   margin: { x: 10, y: 10 },
-  padding: { top: 16, right: 16, bottom: 16, left: 16 },
-  widgetBackgroundOpacity: 100,
-  widgetHeaderOpacity: 100,
-  widgetBorderOpacity: 100
+  padding: { top: 16, right: 16, bottom: 16, left: 16 }
 }
 
 const CURRENT_DASHBOARD_ID_KEY = 'sm-current-dashboard-id'
@@ -63,7 +60,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
       const dashboard = response.dashboard
 
       setCurrentDashboard(response.id, dashboard.name, dashboard.options || {})
-      themeStore.setThemeId(currentOptions.value.theme || getSavedTheme().id)
+      // The catalog has to be in memory before a dashboard theme can be
+      // resolved, so it is loaded once and only re-fetched if it is empty.
+      if (!themeStore.hasThemes) await themeStore.loadThemes()
+      themeStore.setThemeId(currentOptions.value.theme || FALLBACK_THEME.id)
 
       // Transform widgets from snake_case to camelCase
       const widgetsArray = Array.isArray(dashboard.widgets) ? dashboard.widgets : (dashboard.widgets ? Object.values(dashboard.widgets) : [])
@@ -295,6 +295,18 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   function updateGridOptions(options) {
     gridOptions.value = { ...gridOptions.value, ...options }
+  }
+
+  /**
+   * Assign a theme to the open dashboard and persist it.
+   *
+   * The theme id lives in Dashboard.options.theme, so it travels with the
+   * dashboard: switching dashboards switches themes with no extra bookkeeping.
+   */
+  async function setDashboardTheme(themeId, { save = true } = {}) {
+    currentOptions.value = { ...(currentOptions.value || {}), theme: themeId }
+    themeStore.setThemeId(themeId)
+    if (save) await saveDashboard()
   }
 
   function recompactGrid() {
@@ -604,6 +616,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     updateLayout,
     updateWidget,
     updateGridOptions,
+    setDashboardTheme,
     recompactGrid,
     getWidget,
     findWidgetDeep,

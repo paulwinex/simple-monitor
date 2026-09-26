@@ -33,6 +33,8 @@
 import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
+import { readCanvasTheme } from 'src/utils/themes'
+import { useThemeStore } from 'stores/theme'
 
 const props = defineProps({
   title: String,
@@ -186,6 +188,9 @@ const drawGauge = () => {
 
   const ctx = canvasRef.value.getContext('2d')
   const size = canvasRef.value.width
+
+  // Canvas cannot resolve var(--sm-*), so the palette is sampled at draw time.
+  const canvas = readCanvasTheme(canvasRef.value)
   
   if (size <= 0) return
 
@@ -431,6 +436,18 @@ const setupResizeObserver = () => {
     resizeObserver.observe(containerRef.value)
   }
 }
+
+
+// Перерисовка при смене темы: цвета запекаются в chart-конфиг, поэтому
+// пересоздаём график, а не меняем CSS-переменные на лету.
+const themeStore = useThemeStore()
+watch(
+  () => themeStore.appliedRevision,
+  () => {
+    if (!canvasRef.value && !chartRef.value) return
+    nextTick(() => drawGauge())
+  }
+)
 
 onMounted(() => {
   nextTick(() => {

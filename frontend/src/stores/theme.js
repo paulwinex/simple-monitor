@@ -1,21 +1,192 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { getThemes, getSavedTheme } from 'src/utils/themes'
+import { computed, ref } from 'vue'
+import { Notify } from 'quasar'
+import {
+  FALLBACK_THEME,
+  applyThemeTokens,
+  cloneTheme,
+  getAppliedRevision,
+  normalizeTheme
+} from 'src/utils/themes'
+import {
+  createTheme as createThemeApi,
+  deleteTheme as deleteThemeApi,
+  exportTheme as exportThemeApi,
+  getTheme as getThemeApi,
+  getThemes as getThemesApi,
+  updateTheme as updateThemeApi
+} from 'src/services/api'
 
+/**
+ * The theme catalog, backed by the API.
+ *
+ * The applied theme is kept separate from the catalog on purpose: the editor
+ * previews uncommitted changes through `preview()`, and Save is what makes them
+ * real. Nothing here writes to localStorage - the dashboard remembers its theme
+ * in Dashboard.options.theme, and the UI chrome has its own store.
+ */
 export const useThemeStore = defineStore('theme', () => {
-  const currentThemeId = ref(getSavedTheme().id)
+  /** [{ id, name, is_builtin }] */
+  const themes = ref([])
+  /** id -> full normalized document */
+  const documents = ref({})
+  const currentThemeId = ref(FALLBACK_THEME.id)
+  const appliedRevision = ref(getAppliedRevision())
+  const isLoading = ref(false)
+  const loadError = ref(null)
 
+  /** The document currently on screen. Always a complete, valid theme. */
   const currentTheme = computed(
-    () => getThemes().find((t) => t.id === currentThemeId.value) || getSavedTheme()
+    () => documents.value[currentThemeId.value] || normalizeTheme(FALLBACK_THEME)
   )
 
-  function setThemeId(id) {
+  const themeOptions = computed(() =>
+    themes.value.map((theme) => ({ label: theme.name, value: theme.id }))
+  )
+
+  /** Whether the catalog has been fetched at least once. */
+  const hasThemes = computed(() => themes.value.length > 0)
+
+  function documentFor(themeId) {
+    return documents.value[themeId] || null
+  }
+
+  function has(themeId) {
+    return Object.prototype.hasOwnProperty.call(documents.value, themeId)
+  }
+
+  /**
+   * Load the catalog. A failure is not fatal: the fallback theme keeps the
+   * dashboard styled, and the user can still edit and export.
+   */
+  async function loadThemes() {
+    isLoading.value = true
+    loadError.value = null
+    try {
+      const summaries = await getThemesApi()
+      themes.value = summaries
+
+      const loaded = await Promise.all(
+        summaries.map(async (summary) => {
+          try {
+            const document = await getThemeApi(summary.id)
+            return [summary.id, normalizeTheme(document.payload)]
+          } catch {
+            // One unreachable theme must not blank the whole catalog.
+            return [summary.id, normalizeTheme(FALLBACK_THEME)]
+          }
+        })
+      )
+      documents.value = Object.fromEntries(loaded)
+    } catch (error) {
+      loadError.value = error?.message || 'Не удалось загрузить темы'
+      Notify.create({
+        type: 'warning',
+        message: 'Темы не загружены, используется тема по умолчанию',
+        timeout: 4000
+      })
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Apply a theme to the document. `document` may be partial: it is normalized
+   * first, so a half-built editor draft still renders.
+   */
+  function apply(themeOrDocument, themeId) {
+    const id = themeId || themeOrDocument?.id
+    const document = normalizeTheme(themeOrDocument)
+    if (id) {
+      documents.value = { ...documents.value, [id]: document }
+      themes.value = themes.value.some((theme) => theme.id === id)
+        ? themes.value
+        : [...themes.value, { id, name: document.name, is_builtin: false }]
+    }
+    if (id) currentThemeId.value = id
+    appliedRevision.value = applyThemeTokens(document)
+    return document
+  }
+
+  /**
+   * Live preview: apply a draft without touching the catalog. Used by the
+   * editor on every change; Cancel re-applies the saved document.
+   */
+  function preview(themeOrDocument) {
+    appliedRevision.value = applyThemeTokens(themeOrDocument)
+  }
+
+  /** Re-apply the committed document for the given (or current) theme. */
+  function revert(themeId) {
+    const id = themeId || currentThemeId.value
+    return apply(documents.value[id] || FALLBACK_THEME, id)
+  }
+
+  /** Switch dashboards: apply the theme the dashboard asked for. */
+  function setThemeId(themeId) {
+    const id = has(themeId) ? themeId : FALLBACK_THEME.id
     currentThemeId.value = id
+    appliedRevision.value = applyThemeTokens(documents.value[id] || FALLBACK_THEME)
+  }
+
+  async function create(name, payload) {
+    const created = await createThemeApi(name, payload)
+    const document = normalizeTheme(created.payload)
+    documents.value = { ...documents.value, [created.id]: document }
+    themes.value = [...themes.value, { id: created.id, name: created.name, is_builtin: created.is_builtin }]
+    currentThemeId.value = created.id
+    appliedRevision.value = applyThemeTokens(document)
+    return created
+  }
+
+  async function update(themeId, name, payload) {
+    const saved = await updateThemeApi(themeId, name, payload)
+    const document = normalizeTheme(saved.payload)
+    documents.value = { ...documents.value, [themeId]: document }
+    themes.value = themes.value.map((theme) =>
+      theme.id === themeId ? { ...theme, name: saved.name } : theme
+    )
+    appliedRevision.value = applyThemeTokens(document)
+    return saved
+  }
+
+  async function remove(themeId) {
+    await deleteThemeApi(themeId)
+    delete documents.value[themeId]
+    themes.value = themes.value.filter((theme) => theme.id !== themeId)
+    if (currentThemeId.value === themeId) setThemeId(FALLBACK_THEME.id)
+  }
+
+  async function exportOne(themeId) {
+    return exportThemeApi(themeId || currentThemeId.value)
+  }
+
+  function duplicateOf(themeId) {
+    const source = documents.value[themeId]
+    return source ? cloneTheme(source) : cloneTheme(FALLBACK_THEME)
   }
 
   return {
+    themes,
+    documents,
     currentThemeId,
     currentTheme,
-    setThemeId
+    themeOptions,
+    hasThemes,
+    appliedRevision,
+    isLoading,
+    loadError,
+    has,
+    documentFor,
+    loadThemes,
+    apply,
+    preview,
+    revert,
+    setThemeId,
+    create,
+    update,
+    remove,
+    exportOne,
+    duplicateOf
   }
 })

@@ -1,6 +1,6 @@
 
 <template>
-  <q-page>
+  <q-page class="dashboard-page">
     <!-- Floating Edit Mode Menu -->
     <EditModeButton />
 
@@ -83,8 +83,6 @@ import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useUIStore } from 'stores/ui'
 import { dataRefreshService } from 'src/services/dataRefreshService'
-import { useThemeStore } from 'stores/theme'
-import { hexToRgba } from 'src/utils/themes'
 import { gridWidgetGap } from 'src/utils/grid'
 import NumberWidget from 'components/widgets/NumberWidget.vue'
 import ChartWidget from 'components/widgets/ChartWidget.vue'
@@ -101,7 +99,6 @@ const router = useRouter()
 const dashboardStore = useDashboardStore()
 const uiStore = useUIStore()
 const widgetWindows = useWidgetWindowsStore()
-const themeStore = useThemeStore()
 
 // Create a computed that tracks only widget structure (not data changes)
 // This prevents restart loop when slot.data is updated
@@ -160,23 +157,15 @@ const gridMargin = computed(() => {
 // Vertical gap is painted inside the grid item (see .widget-wrapper) instead of being
 // handed to the grid, which would otherwise add it to every row of every widget.
 const widgetGap = computed(() => gridWidgetGap(gridMargin.value[0], gridOptions.value.rowHeight))
+// Layout only: every colour comes from the --sm-* tokens the theme store writes
+// to :root, so switching themes never has to re-render the grid.
 const gridStyle = computed(() => {
   const p = gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }
-  const widget = themeStore.currentTheme.widget
-  const bgAlpha = (gridOptions.value.widgetBackgroundOpacity ?? 100) / 100
-  const headerAlpha = (gridOptions.value.widgetHeaderOpacity ?? 100) / 100
-  const borderAlpha = (gridOptions.value.widgetBorderOpacity ?? 100) / 100
   return {
     // The top gap of the root layout is always applied, so it is not part of the
     // edge padding settings below.
     padding: `${p.top + widgetGap.value}px ${p.right}px ${p.bottom}px ${p.left}px`,
-    '--widget-gap': `${widgetGap.value}px`,
-    '--widget-bg': hexToRgba(widget.background, bgAlpha),
-    '--widget-header-bg': hexToRgba(widget.headerBackground, headerAlpha),
-    '--widget-border': hexToRgba(widget.border, borderAlpha),
-    '--widget-header-border': hexToRgba(widget.headerBorder, borderAlpha),
-    '--widget-title-color': widget.titleColor,
-    '--widget-content-color': widget.contentColor
+    '--widget-gap': `${widgetGap.value}px`
   }
 })
 
@@ -337,8 +326,17 @@ function updateContainerWidget(containerId, updates) {
 </script>
 
 <style scoped>
+/* The dashboard page follows the dashboard theme; every other page keeps the
+   chrome theme. That separation is the whole point of uiTheme. */
+.dashboard-page {
+  background: var(--sm-app-bg, #f5f5f5);
+  color: var(--sm-app-text, #333333);
+  font-family: var(--sm-font-family, Roboto, 'Segoe UI', sans-serif);
+  font-size: var(--sm-font-size, 13px);
+}
+
 .dashboard-grid {
-  background: var(--q-card-background);
+  background: transparent;
   border-radius: 8px;
   min-height: 400px;
   position: relative;

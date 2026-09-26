@@ -43,6 +43,8 @@ import { ref, watch, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
+import { readCanvasTheme } from 'src/utils/themes'
+import { useThemeStore } from 'stores/theme'
 
 Chart.register(...registerables)
 
@@ -72,6 +74,24 @@ const widgetDimensions = ref({ width: 0, height: 0 })
 
 // Resize observer to track widget size changes
 let resizeObserver = null
+
+// Перерисовка при смене темы: цвета запекаются в chart-конфиг, поэтому
+// пересоздаём график, а не меняем CSS-переменные на лету.
+const themeStore = useThemeStore()
+watch(
+  () => themeStore.appliedRevision,
+  () => {
+    if (!chartRef.value) return
+    // Chart.js привязывается к canvas намертво: без destroy следующий
+    // new Chart() на том же элементе бросает "Canvas is already in use".
+    if (chart) {
+      chart.destroy()
+      chart = null
+    }
+    createChart()
+  }
+)
+
 onMounted(() => {
   if (widgetRef.value) {
     resizeObserver = new ResizeObserver((entries) => {
@@ -244,6 +264,9 @@ function createChart() {
   const ctx = chartRef.value.getContext('2d')
   if (!ctx) return
 
+  // Canvas cannot resolve var(--sm-*), so the palette is sampled at draw time.
+  const canvas = readCanvasTheme(chartRef.value)
+
   const color = props.options?.chartColor || '#2196F3'
   const data = chartData.value
   
@@ -274,7 +297,7 @@ function createChart() {
         pointRadius: showPoints ? 3 : 0,
         pointHoverRadius: showPoints ? 5 : 0,
         pointBackgroundColor: color,
-        pointBorderColor: '#fff',
+        pointBorderColor: canvas.surface,
         pointBorderWidth: 1
       }]
     },
@@ -304,7 +327,7 @@ function createChart() {
           display: showYAxis,
           grid: {
             display: showGrid,
-            color: 'rgba(0, 0, 0, 0.1)'
+            color: canvas.grid
           },
           ticks: {
             display: showAxisValues

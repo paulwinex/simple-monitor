@@ -11,46 +11,23 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { onMounted } from 'vue'
 import AddWidgetDialog from 'components/widgets/AddWidgetDialog.vue'
 import EditWidgetDialog from 'components/widgets/EditWidgetDialog.vue'
 import { useThemeStore } from 'stores/theme'
-import { getThemes, getSavedTheme, applyTheme } from 'src/utils/themes'
 
-const $q = useQuasar()
+/**
+ * The single place dashboard theme tokens reach the DOM.
+ *
+ * Every other component reads CSS variables and never writes them, so there is
+ * exactly one writer and no ordering question between widgets. The store also
+ * applies on theme change (switching dashboards, editor preview), so this
+ * component only has to cover the first load.
+ */
 const themeStore = useThemeStore()
 
-const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
-
-// Apply the theme globally whenever the current theme id changes
-// (e.g. when switching dashboards that store their own theme).
-watch(
-  () => themeStore.currentThemeId,
-  (id) => {
-    const theme = getThemes().find((t) => t.id === id) || getSavedTheme()
-    applyTheme(theme, $q)
-  }
-)
-
-function toggleTheme() {
-  const themes = getThemes()
-  const currentDark = isDark.value
-  const next = themes.find((t) => t.dark !== currentDark) || themes[0]
-  applyTheme(next, $q)
-}
+onMounted(async () => {
+  if (!themeStore.hasThemes) await themeStore.loadThemes()
+  themeStore.setThemeId(themeStore.currentThemeId)
+})
 </script>
-
-<style scoped>
-.container-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.header-actions {
-  display: flex;
-  gap: 4px;
-}
-</style>

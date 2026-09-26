@@ -133,3 +133,49 @@ export async function getMetricDevices(hostId) {
   })
   return response.data
 }
+
+// Themes API
+
+/** Summaries for the picker: [{ id, name, is_builtin }]. */
+export async function getThemes() {
+  const response = await api.get('/api/v1/themes')
+  return response.data
+}
+
+/** One full theme document. */
+export async function getTheme(themeId) {
+  const response = await api.get(`/api/v1/themes/${themeId}`)
+  return response.data
+}
+
+/** JSON Schema of a theme document, for editor field discovery. */
+export async function getThemeSchema() {
+  const response = await api.get('/api/v1/themes/schema')
+  return response.data
+}
+
+/**
+ * Create a theme. The server derives the id from the name, so pass any name
+ * (including Cyrillic) and read the assigned id off the response.
+ */
+export async function createTheme(name, payload) {
+  const response = await api.post('/api/v1/themes', { name, payload })
+  return response.data
+}
+
+/** Replace a theme in full. The id in the path stays authoritative. */
+export async function updateTheme(themeId, name, payload) {
+  const response = await api.put(`/api/v1/themes/${themeId}`, { name, payload })
+  return response.data
+}
+
+export async function deleteTheme(themeId) {
+  const response = await api.delete(`/api/v1/themes/${themeId}`)
+  return response.data
+}
+
+/** Portable copy: { id, name, payload }. */
+export async function exportTheme(themeId) {
+  const response = await api.get(`/api/v1/themes/${themeId}/export`)
+  return response.data
+}

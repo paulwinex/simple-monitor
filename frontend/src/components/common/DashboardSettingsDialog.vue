@@ -25,17 +25,31 @@
     <q-tab-panels v-model="activeTab" animated class="q-pt-md">
       <q-tab-panel name="dashboard">
         <div class="column q-gap-md">
-      <SettingsRow label="Interface theme">
-        <q-select
-          :model-value="themeId"
-          :options="themeOptions"
-          map-options
-          emit-value
+      <SettingsRow
+        label="Dashboard theme"
+        hint="Colours of the dashboard itself. Saved with this dashboard."
+      >
+        <ThemeSelect
+          :model-value="dashboardStore.currentOptions.theme || FALLBACK_THEME.id"
+          @edit="onEditTheme"
+        />
+      </SettingsRow>
+
+      <SettingsRow
+        label="Interface theme"
+        hint="Chrome only: dialogs, menus and panels. The dashboard content follows the dashboard theme."
+      >
+        <q-btn-toggle
+          :model-value="uiThemeStore.preference"
+          :options="uiThemeToggleOptions"
+          unelevated
+          toggle-color="primary"
+          color="grey-3"
+          text-color="grey-8"
+          no-caps
           dense
-          outlined
-          behavior="menu"
           class="settings-select"
-          @update:model-value="onThemeChange"
+          @update:model-value="onUiThemeChange"
         />
       </SettingsRow>
 
@@ -244,11 +258,12 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
-import { useThemeStore } from 'stores/theme'
-import { getThemes, getSavedTheme, applyTheme } from 'src/utils/themes'
+import { useUiThemeStore } from 'stores/uiTheme'
+import { FALLBACK_THEME } from 'src/utils/themes'
 import DraggableDialog from './DraggableDialog.vue'
 import SectionSeparator from './SectionSeparator.vue'
 import SettingsRow from './SettingsRow.vue'
+import ThemeSelect from './ThemeSelect.vue'
 import ValueSlider from "components/common/ValueSlider.vue";
 
 const props = defineProps({
@@ -259,7 +274,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
 const dashboardStore = useDashboardStore()
-const themeStore = useThemeStore()
+const uiThemeStore = useUiThemeStore()
 
 const PADDING_LOCK_STORAGE_KEY = 'sm-dashboard-padding-lock'
 
@@ -304,24 +319,25 @@ watch(
   }
 )
 
-const themeOptions = computed(() => getThemes().map((t) => ({ label: t.label, value: t.id })))
-const themeId = ref(getSavedTheme().id)
+const UI_THEME_LABELS = { light: 'Light', dark: 'Dark', system: 'Auto' }
+const UI_THEME_ICONS = { light: 'light_mode', dark: 'dark_mode', system: 'brightness_auto' }
 
-// Keep the selector in sync when the theme changes elsewhere (e.g. dashboard switch)
-watch(
-  () => themeStore.currentThemeId,
-  (value) => {
-    themeId.value = value
-  }
+const uiThemeToggleOptions = computed(() =>
+  uiThemeStore.options.map(({ value }) => ({
+    label: UI_THEME_LABELS[value] || value,
+    icon: UI_THEME_ICONS[value],
+    value
+  }))
 )
 
-function onThemeChange(value) {
-  themeId.value = value
-  const theme = getThemes().find((t) => t.id === value)
-  if (theme) {
-    themeStore.setThemeId(value)
-    applyTheme(theme, $q)
-  }
+function onUiThemeChange(value) {
+  uiThemeStore.setPreference(value)
+}
+
+// ThemeSelect persists the choice itself through dashboardStore, and the
+// dashboard store is the single source of truth for :model-value.
+function onEditTheme(themeId) {
+  emit('edit-theme', themeId)
 }
 
 const verticalCompact = computed({

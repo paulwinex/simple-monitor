@@ -31,6 +31,8 @@ import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { useDashboardStore } from 'stores/dashboard'
 import BaseWidget from './BaseWidget.vue'
+import { readCanvasTheme } from 'src/utils/themes'
+import { useThemeStore } from 'stores/theme'
 
 Chart.register(...registerables)
 
@@ -140,6 +142,9 @@ function createChart() {
   const ctx = chartRef.value.getContext('2d')
   if (!ctx) return
 
+  // Canvas cannot resolve var(--sm-*), so the palette is sampled at draw time.
+  const canvas = readCanvasTheme(chartRef.value)
+
   const colors = props.options?.colors || defaultColors
 
   const datasets = validSlots.value.map((slot, index) => {
@@ -158,7 +163,7 @@ function createChart() {
       pointRadius: showPoints ? 3 : 0,
       pointHoverRadius: showPoints ? 5 : 0,
       pointBackgroundColor: color,
-      pointBorderColor: '#fff',
+      pointBorderColor: canvas.surface,
       pointBorderWidth: 1
     }
   })
@@ -197,7 +202,7 @@ function createChart() {
           display: props.options?.showYAxis ?? false,
           grid: {
             display: props.options?.showGrid ?? false,
-            color: 'rgba(0, 0, 0, 0.1)'
+            color: canvas.grid
           },
           ticks: {
             display: props.options?.showAxisValues ?? false
@@ -218,6 +223,8 @@ function createChart() {
 function updateChart(animate = true) {
   if (!chart || !chartRef.value) return
 
+  const canvas = readCanvasTheme(chartRef.value)
+
   const colors = props.options?.colors || defaultColors
 
   const newDatasets = validSlots.value.map((slot, index) => {
@@ -236,7 +243,7 @@ function updateChart(animate = true) {
       pointRadius: showPoints ? 3 : 0,
       pointHoverRadius: showPoints ? 5 : 0,
       pointBackgroundColor: color,
-      pointBorderColor: '#fff',
+      pointBorderColor: canvas.surface,
       pointBorderWidth: 1
     }
   })
@@ -258,7 +265,7 @@ function updateChart(animate = true) {
   
   chart.options.scales.y.display = props.options?.showYAxis ?? false
   chart.options.scales.y.grid.display = props.options?.showGrid ?? false
-  chart.options.scales.y.grid.color = 'rgba(0, 0, 0, 0.1)'
+  chart.options.scales.y.grid.color = readCanvasTheme().grid
   chart.options.scales.y.ticks.display = props.options?.showAxisValues ?? false
   
   chart.options.interaction.mode = 'nearest'
@@ -316,6 +323,24 @@ watch(() => props.options, () => {
     updateChart(false)
   }
 }, { deep: true })
+
+
+// Перерисовка при смене темы: цвета запекаются в chart-конфиг, поэтому
+// пересоздаём график, а не меняем CSS-переменные на лету.
+const themeStore = useThemeStore()
+watch(
+  () => themeStore.appliedRevision,
+  () => {
+    if (!chartRef.value) return
+    // Chart.js привязывается к canvas намертво: без destroy следующий
+    // new Chart() на том же элементе бросает "Canvas is already in use".
+    if (chart) {
+      chart.destroy()
+      chart = null
+    }
+    createChart()
+  }
+)
 
 onMounted(() => {
   // Chart will be created by the watcher when data arrives

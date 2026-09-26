@@ -83,11 +83,25 @@
             Add Widget
           </q-tooltip>
         </q-btn>
+        <q-btn
+          round
+          dense
+          flat
+          icon="palette"
+          @click="openThemeEditor"
+        >
+          <q-tooltip :anchor="tooltipAnchor" :self="tooltipSelf">
+            Theme Editor
+          </q-tooltip>
+        </q-btn>
       </div>
     </DraggableToolbar>
 
     <!-- Dashboard Settings Dialog -->
-    <DashboardSettingsDialog v-model="showDashboardSettings" />
+    <DashboardSettingsDialog v-model="showDashboardSettings" @edit-theme="openThemeEditor" />
+
+    <!-- Theme Editor -->
+    <ThemeEditorDialog v-model="showThemeEditor" :theme-id="themeEditorId" />
 
     <!-- Dashboard Manager Dialog -->
     <DashboardManagerDialog
@@ -131,6 +145,7 @@ import {
   getDashboardMeta as getDashboardMetaApi
 } from 'src/services/api'
 import DashboardSettingsDialog from './DashboardSettingsDialog.vue'
+import ThemeEditorDialog from 'components/theme-editor/ThemeEditorDialog.vue'
 import DashboardManagerDialog from './DashboardManagerDialog.vue'
 import DraggableToolbar from './DraggableToolbar.vue'
 
@@ -147,6 +162,17 @@ const buttonRef = ref(null)
 const isFloatingMenuVisible = ref(false)
 const showPanel = ref(false)
 const showDashboardSettings = ref(false)
+const showThemeEditor = ref(false)
+// Empty id means "whatever the dashboard is using right now".
+const themeEditorId = ref('')
+
+function openThemeEditor(themeId) {
+  // Вызывается и из @click (там приходит PointerEvent), и из @edit-theme
+  // ThemeSelect (там строка id), поэтому тип проверяется явно.
+  const requestedId = typeof themeId === 'string' ? themeId : ''
+  themeEditorId.value = requestedId || dashboardStore.currentOptions?.theme || themeStore.currentThemeId
+  showThemeEditor.value = true
+}
 const showOpenManager = ref(false)
 const dashboardManagerRef = ref(null)
 const showExitConfirm = ref(false)
@@ -456,10 +482,12 @@ function handleDashboardSettings() {
   z-index: 1000;
 }
 
+/* Chrome-owned, not dashboard-owned: the panel follows light/dark chrome so it
+   stays legible whichever theme the dashboard itself uses. */
 .floating-menu-btn {
-  background: rgba(41, 41, 41, 0.5);
+  background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  color: #434343 !important;
+  color: #212121 !important;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -470,15 +498,26 @@ function handleDashboardSettings() {
 }
 
 .floating-menu-btn:hover {
-  background: rgba(128, 128, 128, 0.7);
+  background: #ffffff;
 }
 
-/* Light theme support - keep dark background */
 .floating-menu-container--light .floating-menu-btn {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(33, 33, 33, 0.75);
+  color: #ffffff !important;
 }
 
 .floating-menu-container--light .floating-menu-btn:hover {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(33, 33, 33, 0.9);
+}
+
+/* Dark chrome: a light panel reads better than a dark one over dark widgets. */
+:global(body.q-dark) .floating-menu-btn {
+  background: rgba(255, 255, 255, 0.92);
+  color: #212121 !important;
+}
+
+:global(body.q-dark) .floating-menu-container--light .floating-menu-btn {
+  background: rgba(33, 33, 33, 0.8);
+  color: #ffffff !important;
 }
 </style>
