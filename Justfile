@@ -24,8 +24,8 @@ backend-local:
 
 # start backend and frontend
 [working-directory: 'deploy']
-up:
-    docker compose up
+up *ARGS:
+    docker compose up {{ ARGS }}
 
 
 [working-directory: 'deploy']
