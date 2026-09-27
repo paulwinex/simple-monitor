@@ -1,8 +1,8 @@
-"""initial
+"""init
 
-Revision ID: f2c0b0a15354
+Revision ID: 75c98d7242de
 Revises: 
-Create Date: 2026-09-24 00:26:09.608840
+Create Date: 2026-09-27 08:16:07.149449
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f2c0b0a15354'
+revision: str = '75c98d7242de'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -46,6 +46,16 @@ def upgrade() -> None:
     sa.Column('last_ts', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('level')
     )
+    op.create_table('themes',
+    sa.Column('id', sa.String(length=64), nullable=False),
+    sa.Column('name', sa.String(length=64), nullable=False),
+    sa.Column('payload', sa.JSON(), nullable=False),
+    sa.Column('is_builtin', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.Integer(), nullable=False),
+    sa.Column('updated_at', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('idx_theme_is_builtin', 'themes', ['is_builtin'], unique=False)
     op.create_table('devices',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('host_id', sa.String(), nullable=False),
@@ -179,6 +189,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_devices_host_id'), table_name='devices')
     op.drop_index('idx_device_type', table_name='devices')
     op.drop_table('devices')
+    op.drop_index('idx_theme_is_builtin', table_name='themes')
+    op.drop_table('themes')
     op.drop_table('resample_state')
     op.drop_index(op.f('ix_hosts_host_id'), table_name='hosts')
     op.drop_table('hosts')
