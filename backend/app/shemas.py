@@ -452,6 +452,50 @@ class ThemeFont(StrictModel):
     contentWeight: int = Field(ge=100, le=900, multiple_of=100)
 
 
+class ThemeLayoutPadding(StrictModel):
+    """Edge padding of the dashboard grid, in whole pixels."""
+
+    top: int = Field(ge=0, le=200)
+    right: int = Field(ge=0, le=200)
+    bottom: int = Field(ge=0, le=200)
+    left: int = Field(ge=0, le=200)
+
+
+class ThemeLayout(StrictModel):
+    """Grid geometry. These drive the layout engine, not CSS, so they are
+    plain pixel integers rather than the CSS lengths used elsewhere.
+
+    Every field is required: a client that sends a partial layout has a bug.
+    Documents written before the theme owned the grid are handled by the
+    default_factory on ThemePayload.layout, not by loosening this model.
+    """
+
+    rowHeight: int = Field(ge=10, le=300)
+    widgetGap: int = Field(ge=0, le=50)
+    containerRowHeight: int = Field(ge=10, le=300)
+    containerGapOnBorders: bool
+    padding: ThemeLayoutPadding
+
+
+class ThemeLayoutDefaults(StrictModel):
+    """Not used as a type: just keeps the default numbers in one place so the
+    payload default and the tests cannot drift apart."""
+
+    rowHeight: int = 30
+    widgetGap: int = 10
+    containerRowHeight: int = 25
+    containerGapOnBorders: bool = True
+    padding: ThemeLayoutPadding = Field(
+        default_factory=lambda: ThemeLayoutPadding(top=16, right=16, bottom=16, left=16)
+    )
+
+    def as_layout(self) -> ThemeLayout:
+        return ThemeLayout(**self.model_dump())
+
+
+THEME_LAYOUT_DEFAULTS = ThemeLayoutDefaults()
+
+
 class ThemePalette(StrictModel):
     """Flat colors. No header colors here: ThemeHeader owns those now."""
 
@@ -477,6 +521,9 @@ class ThemePayload(StrictModel):
     border: ThemeBorder
     shadow: ThemeShadow
     font: ThemeFont
+    layout: ThemeLayout = Field(
+        default_factory=lambda: THEME_LAYOUT_DEFAULTS.as_layout()
+    )
 
     @field_validator("id", mode="before")
     @classmethod
