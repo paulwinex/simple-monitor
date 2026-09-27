@@ -43,33 +43,35 @@
           @moved="movedEvent"
         >
           <div class="widget-wrapper">
-            <component :is="renderWidget(getWidget(item.i))" />
-            <div v-if="isEditMode && getWidget(item.i)?.type !== 'gridContainer'" class="widget-actions">
-              <q-btn
-                flat
-                dense
-                round
-                size="sm"
-                icon="edit"
-                @click.stop="openEditWidget(item.i)"
-              />
-              <q-btn
-                flat
-                dense
-                round
-                size="sm"
-                icon="content_copy"
-                @click.stop="duplicateWidget(item.i)"
-                title="Duplicate Widget"
-              />
-              <q-btn
-                flat
-                dense
-                round
-                size="sm"
-                icon="close"
-                @click.stop="removeWidget(item.i)"
-              />
+            <div class="widget-inner-content">
+              <component :is="renderWidget(getWidget(item.i))" />
+              <div v-if="isEditMode && getWidget(item.i)?.type !== 'gridContainer'" class="widget-actions">
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="sm"
+                  icon="edit"
+                  @click.stop="openEditWidget(item.i)"
+                />
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="sm"
+                  icon="content_copy"
+                  @click.stop="duplicateWidget(item.i)"
+                  title="Duplicate Widget"
+                />
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="sm"
+                  icon="close"
+                  @click.stop="removeWidget(item.i)"
+                />
+              </div>
             </div>
           </div>
         </GridItem>
@@ -367,8 +369,13 @@ function updateContainerWidget(containerId, updates) {
   background: transparent;
 }
 
-.vue-grid-item .vue-resizable-handle {
+/* The handle is rendered by the grid library, so it only picks up this component's
+   scope id through its ancestor, not on itself: `:deep` is what makes it match. */
+:deep(.vue-grid-item > .vue-resizable-handle) {
   z-index: 10;
+  /* The card is padded off the item box by the widget gap, so the handle has to move
+     up with it, otherwise it hangs below the bottom-right corner of the widget. */
+  transform: translateY(calc(0px - var(--widget-gap, 0px)));
 }
 
 /* Отключаем выделение текста при ресайзе */
@@ -382,21 +389,42 @@ function updateContainerWidget(containerId, updates) {
 .widget-wrapper {
   height: 100%;
   box-sizing: border-box;
-  /* Widget gap lives here, not in the grid margin, so it cannot inflate row height. */
+  display: flex;
+  flex-direction: column;
+  /* Widget gap lives here, not in the grid margin, so it cannot inflate row height.
+     The actions overlay is a descendant of the box below instead of a sibling,
+     otherwise this padding would shift its centre down. */
   padding-bottom: var(--widget-gap, 0px);
+}
+
+.widget-inner-content {
+  flex: 1;
   position: relative;
+  min-height: 0;
 }
 
 .widget-actions {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 100;
   display: flex;
   gap: 4px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 50px;
   padding: 4px;
+  /* Hidden until the widget is hovered: pointer-events keeps the invisible buttons
+     from swallowing the drag that starts in the middle of the widget. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.widget-wrapper:hover .widget-actions,
+.widget-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .widget-actions .q-btn {

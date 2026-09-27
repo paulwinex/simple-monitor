@@ -1,5 +1,5 @@
 <template>
-  <div ref="containerRef" class="grid-container-outer">
+  <div class="grid-container-outer">
     <div v-if="showHeader && title" class="grid-container-header">
       <span class="widget-title">{{ title }}</span>
     </div>
@@ -57,43 +57,40 @@
             :w="item.w"
             :h="item.h"
             :i="item.i"
+            :style="{ '--widget-gap': `${itemGap(item)}px` }"
           >
-            <div class="widget-content-wrapper" :style="contentWrapperStyle(item)">
+            <div class="widget-content-wrapper">
               <div class="widget-inner-content">
                 <component :is="renderWidget(getWidget(item.i))" />
-              </div>
-              <div
-                v-if="isEditing"
-                class="widget-actions"
-                :class="{ 'widget-actions-centered': isWidgetInTopRightCorner(item.i) }"
-              >
-                <q-btn
-                  flat
-                  dense
-                  round
-                  size="xs"
-                  icon="edit"
-                  @click.stop="editWidget(item.i)"
-                  title="Edit"
-                />
-                <q-btn
-                  flat
-                  dense
-                  round
-                  size="xs"
-                  icon="content_copy"
-                  @click.stop="duplicateWidget(item.i)"
-                  title="Duplicate Widget"
-                />
-                <q-btn
-                  flat
-                  dense
-                  round
-                  size="xs"
-                  icon="close"
-                  @click.stop="removeWidget(item.i)"
-                  title="Remove"
-                />
+                <div v-if="isEditing" class="widget-actions">
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    size="xs"
+                    icon="edit"
+                    @click.stop="editWidget(item.i)"
+                    title="Edit"
+                  />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    size="xs"
+                    icon="content_copy"
+                    @click.stop="duplicateWidget(item.i)"
+                    title="Duplicate Widget"
+                  />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    size="xs"
+                    icon="close"
+                    @click.stop="removeWidget(item.i)"
+                    title="Remove"
+                  />
+                </div>
               </div>
             </div>
           </GridItem>
@@ -145,7 +142,6 @@ const emit = defineEmits([
 ])
 
 const layoutChanged = ref(false)
-const containerRef = ref(null)
 
 // Computed properties for internal widgets and layout - directly reference store for reactivity
 const internalWidgets = computed(() => {
@@ -217,48 +213,14 @@ const lastRowBottom = computed(() =>
   internalLayout.value.reduce((max, item) => Math.max(max, item.y + item.h), 0)
 )
 
-function contentWrapperStyle(item) {
-  // Without the edge inset there is no gap below the last row of widgets either.
+// Painted bottom gap of a single item. It is set on the grid item itself so both the
+// widget wrapper and the resize handle follow the same value; without the edge inset
+// there is no gap below the last row of widgets either.
+function itemGap(item) {
   if (!gapOnBorders.value && item.y + item.h >= lastRowBottom.value) {
-    return { paddingBottom: '0px' }
+    return 0
   }
-  return null
-}
-
-// Check if widget overlaps with parent container's action buttons
-// Parent buttons are in top-right corner, so check if widget is near that area
-// Uses PIXEL-based calculation: if widget's right edge is within 80px of
-// the container's right edge, shift the widget action buttons down
-function isWidgetInTopRightCorner(widgetId) {
-  const layoutItem = internalLayout.value.find(item => item.i === widgetId)
-
-  if (!layoutItem || !containerRef.value) return false
-
-  // Get container width in pixels
-  const containerWidth = containerRef.value.offsetWidth
-
-  // Get the number of columns for this container
-  const colNum = internalGridColNum.value
-
-  // Widget's RIGHT edge position in grid units
-  const widgetRightEdge = layoutItem.x + layoutItem.w
-
-  // Calculate distance from widget's right edge to container's right edge in grid units
-  const distanceInGridUnits = colNum - widgetRightEdge
-
-  // Convert grid units to pixels: (distanceInGridUnits / colNum) * containerWidth
-  const distanceInPixels = (distanceInGridUnits / colNum) * containerWidth
-
-  // Threshold in pixels (80px from right edge)
-  const PIXEL_THRESHOLD = 80
-
-  // Widget must be at the top (y === 0)
-  const isAtTop = layoutItem.y === 0
-
-  // Widget's right edge must be within threshold distance from container's right edge
-  const isNearRightEdge = distanceInPixels <= PIXEL_THRESHOLD && distanceInPixels >= 0
-
-  return isAtTop && isNearRightEdge
+  return internalGap.value
 }
 
 // Watch for exit from edit mode - save layout changes only when editing stops
@@ -507,6 +469,17 @@ defineExpose({
   background: rgba(0, 0, 0, 0.3);
   border-radius: 50px;
   padding: 4px;
+  /* Hidden until the container is hovered. A nested widget lives inside this box, so
+     hovering one reveals its buttons and the container's at the same time. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.grid-container-widget:hover .container-actions,
+.container-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .container-actions .q-btn {
@@ -533,7 +506,10 @@ defineExpose({
 .widget-content-wrapper {
   height: 100%;
   box-sizing: border-box;
-  /* Widget gap lives here, not in the grid margin, so it cannot inflate row height. */
+  /* Widget gap lives here, not in the grid margin, so it cannot inflate row height.
+     The value comes from the grid item (see itemGap), the last row has none when the
+     edge inset is off. The actions overlay is a descendant of the box below instead of
+     a sibling, otherwise this padding would shift its centre down. */
   padding-bottom: var(--widget-gap, 0px);
   position: relative;
   display: flex;
@@ -548,19 +524,26 @@ defineExpose({
 
 .widget-actions {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 100;
   display: flex;
   gap: 4px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 50px;
   padding: 4px;
-  transition: all 0.2s ease;
+  /* Hidden until the widget is hovered: pointer-events keeps the invisible buttons
+     from swallowing the drag that starts in the middle of the widget. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
 }
 
-.widget-actions-centered {
-  top: 40px;
+.widget-content-wrapper:hover .widget-actions,
+.widget-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .widget-actions .q-btn {
@@ -572,8 +555,11 @@ defineExpose({
   background: rgba(255, 255, 255, 0.3);
 }
 
-:deep(.vue-grid-item .vue-resizable-handle) {
+:deep(.vue-grid-item > .vue-resizable-handle) {
   z-index: 10;
+  /* The card is padded off the item box by the widget gap, so the handle has to move
+     up with it, otherwise it hangs below the bottom-right corner of the widget. */
+  transform: translateY(calc(0px - var(--widget-gap, 0px)));
 }
 
 /* Отключаем выделение текста при ресайзе */
