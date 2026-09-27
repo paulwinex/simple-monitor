@@ -101,7 +101,7 @@
     <DashboardSettingsDialog v-model="showDashboardSettings" @edit-theme="openThemeEditor" />
 
     <!-- Theme Editor -->
-    <ThemeEditorDialog v-model="showThemeEditor" :theme-id="themeEditorId" />
+    <ThemeEditorDialog ref="themeEditorRef" v-model="showThemeEditor" :theme-id="themeEditorId" />
 
     <!-- Dashboard Manager Dialog -->
     <DashboardManagerDialog
@@ -175,8 +175,10 @@ function openThemeEditor(themeId) {
 }
 const showOpenManager = ref(false)
 const dashboardManagerRef = ref(null)
+const themeEditorRef = ref(null)
 const showExitConfirm = ref(false)
-// Which action the exit-confirm dialog drives: 'exit' | 'switch' | 'delete-current'
+// Which action the exit-confirm dialog drives:
+// 'exit' | 'switch' | 'delete-current' | 'theme'
 const exitConfirmMode = ref('exit')
 const pendingSwitch = ref(null)
 const pendingDelete = ref(null)
@@ -194,23 +196,30 @@ let lastCursorY = 0
 const isEditMode = computed(() => uiStore.isEditMode)
 const isDark = computed(() => $q.dark.mode === true || $q.dark.mode === 'true')
 
-const exitTitle = computed(() =>
-  exitConfirmMode.value === 'delete-current' ? 'Delete Dashboard?' : 'Discard Changes?'
-)
+const exitTitle = computed(() => {
+  if (exitConfirmMode.value === 'delete-current') return 'Delete Dashboard?'
+  if (exitConfirmMode.value === 'theme') return 'Unsaved Theme Changes?'
+  return 'Discard Changes?'
+})
 const exitMessage = computed(() => {
   if (exitConfirmMode.value === 'delete-current') {
     return 'You have unsaved changes on this dashboard. How do you want to proceed?'
+  }
+  if (exitConfirmMode.value === 'theme') {
+    return 'The theme being edited has unsaved changes. How do you want to proceed?'
   }
   return 'You have unsaved changes. How do you want to proceed?'
 })
 const saveActionLabel = computed(() => {
   if (exitConfirmMode.value === 'switch') return 'Save and Switch'
   if (exitConfirmMode.value === 'delete-current') return 'Save and Delete'
+  if (exitConfirmMode.value === 'theme') return 'Save Theme and Exit'
   return 'Save and Exit'
 })
 const discardActionLabel = computed(() => {
   if (exitConfirmMode.value === 'switch') return 'Discard and Switch'
   if (exitConfirmMode.value === 'delete-current') return 'Discard and Delete'
+  if (exitConfirmMode.value === 'theme') return 'Discard and Exit'
   return 'Discard'
 })
 
@@ -267,6 +276,9 @@ watch(isEditMode, (editing) => {
   if (!editing) {
     // Same as the widget dialogs: they must not stay open in view mode
     showDashboardSettings.value = false
+    // The editor answers for itself: its own guard asks about the draft when
+    // there is one, and closes straight away when there is not.
+    themeEditorRef.value?.requestClose()
     evaluateVisibility()
   }
 }, { flush: 'post' })
@@ -287,13 +299,38 @@ function handlePencilClick() {
 // Confirm before canceling edit mode (discard changes)
 // Only show dialog if there are actual changes
 function confirmCancelEditMode() {
+  if (themeEditorRef.value?.hasUnsavedChanges) {
+    // The theme is asked about first: it is the thing at risk, and the
+    // dashboard's own question comes after this one is answered.
+    exitConfirmMode.value = 'theme'
+    showExitConfirm.value = true
+    return
+  }
+  proceedExitEditMode()
+}
+
+function proceedExitEditMode() {
   if (!uiStore.hasDashboardChanges()) {
     // No changes - just exit edit mode without reloading from the DB
     uiStore.exitEditMode()
     return
   }
 
+  exitConfirmMode.value = 'exit'
   showExitConfirm.value = true
+}
+
+async function saveThemeAndExitEditMode() {
+  showExitConfirm.value = false
+  // A failed save leaves the editor on screen with the changes still in it.
+  if (!(await themeEditorRef.value?.saveDraft())) return
+  proceedExitEditMode()
+}
+
+function discardThemeAndExitEditMode() {
+  showExitConfirm.value = false
+  themeEditorRef.value?.discardAndClose()
+  proceedExitEditMode()
 }
 
 async function saveAndExitEditMode() {
@@ -315,12 +352,14 @@ async function discardAndExit() {
 function handleSaveAction() {
   if (exitConfirmMode.value === 'switch') return saveAndSwitch()
   if (exitConfirmMode.value === 'delete-current') return saveAndDeleteCurrent()
+  if (exitConfirmMode.value === 'theme') return saveThemeAndExitEditMode()
   return saveAndExitEditMode()
 }
 
 function handleDiscardAction() {
   if (exitConfirmMode.value === 'switch') return discardAndSwitch()
   if (exitConfirmMode.value === 'delete-current') return discardAndDeleteCurrent()
+  if (exitConfirmMode.value === 'theme') return discardThemeAndExitEditMode()
   return discardAndExit()
 }
 

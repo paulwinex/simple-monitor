@@ -1,0 +1,322 @@
+{
+  "presets": [
+    {
+      "id": "light",
+      "name": "Light",
+      "is_builtin": true,
+      "payload": {
+        "id": "light",
+        "name": "Light",
+        "version": 1,
+        "palette": {
+          "appBackground": "#f5f5f5",
+          "appText": "#333333",
+          "widgetBackground": "#ffffff",
+          "widgetBorderColor": "#e0e0e0",
+          "alertColor": "#c10015"
+        },
+        "header": {
+          "background": "#f5f5f5",
+          "titleColor": "#424242",
+          "titleFont": {
+            "family": "Roboto, 'Segoe UI', sans-serif",
+            "size": "14px",
+            "weight": 600,
+            "letterSpacing": "0"
+          },
+          "padding": {
+            "x": "12px",
+            "y": "8px"
+          },
+          "height": "auto",
+          "align": "left"
+        },
+        "border": {
+          "width": "1px",
+          "style": "solid",
+          "radius": "4px"
+        },
+        "shadow": {
+          "widget": {
+            "x": "0",
+            "y": "1px",
+            "blur": "3px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.12
+          },
+          "text": {
+            "x": "0",
+            "y": "1px",
+            "blur": "2px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.15
+          }
+        },
+        "font": {
+          "family": "Roboto, 'Segoe UI', sans-serif",
+          "contentSize": "13px",
+          "contentWeight": 400
+        },
+        "layout": {
+          "rowHeight": 30,
+          "widgetGap": 10,
+          "containerRowHeight": 25,
+          "containerGapOnBorders": true,
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          }
+        }
+      }
+    },
+    {
+      "id": "dark",
+      "name": "Dark",
+      "is_builtin": true,
+      "payload": {
+        "id": "dark",
+        "name": "Dark",
+        "version": 1,
+        "palette": {
+          "appBackground": "#303030",
+          "appText": "#bdbdbd",
+          "widgetBackground": "#424242",
+          "widgetBorderColor": "#616161",
+          "alertColor": "#ff5252"
+        },
+        "header": {
+          "background": "#545454",
+          "titleColor": "#e0e0e0",
+          "titleFont": {
+            "family": "Roboto, 'Segoe UI', sans-serif",
+            "size": "14px",
+            "weight": 600,
+            "letterSpacing": "0"
+          },
+          "padding": {
+            "x": "12px",
+            "y": "8px"
+          },
+          "height": "auto",
+          "align": "left"
+        },
+        "border": {
+          "width": "1px",
+          "style": "solid",
+          "radius": "4px"
+        },
+        "shadow": {
+          "widget": {
+            "x": "0",
+            "y": "2px",
+            "blur": "8px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.4
+          },
+          "text": {
+            "x": "0",
+            "y": "1px",
+            "blur": "3px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.6
+          }
+        },
+        "font": {
+          "family": "Roboto, 'Segoe UI', sans-serif",
+          "contentSize": "13px",
+          "contentWeight": 400
+        },
+        "layout": {
+          "rowHeight": 30,
+          "widgetGap": 10,
+          "containerRowHeight": 25,
+          "containerGapOnBorders": true,
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          }
+        }
+      }
+    },
+    {
+      "id": "midnight",
+      "name": "Midnight",
+      "is_builtin": true,
+      "payload": {
+        "id": "midnight",
+        "name": "Midnight",
+        "version": 1,
+        "palette": {
+          "appBackground": "#0d1117",
+          "appText": "#c9d1d9",
+          "widgetBackground": "#161b22",
+          "widgetBorderColor": "#30363d",
+          "alertColor": "#f85149"
+        },
+        "header": {
+          "background": {
+            "type": "linear",
+            "angle": 180,
+            "stops": [
+              {
+                "color": "#1c2128",
+                "offset": 0
+              },
+              {
+                "color": "#161b22",
+                "offset": 100
+              }
+            ]
+          },
+          "titleColor": "#e6edf3",
+          "titleFont": {
+            "family": "Roboto, 'Segoe UI', sans-serif",
+            "size": "14px",
+            "weight": 600,
+            "letterSpacing": "0.3px"
+          },
+          "padding": {
+            "x": "14px",
+            "y": "9px"
+          },
+          "height": "auto",
+          "align": "left"
+        },
+        "border": {
+          "width": "1px",
+          "style": "solid",
+          "radius": "8px"
+        },
+        "shadow": {
+          "widget": {
+            "x": "0",
+            "y": "2px",
+            "blur": "10px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.45
+          },
+          "text": {
+            "x": "0",
+            "y": "1px",
+            "blur": "3px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.7
+          }
+        },
+        "font": {
+          "family": "Roboto, 'Segoe UI', sans-serif",
+          "contentSize": "13px",
+          "contentWeight": 400
+        },
+        "layout": {
+          "rowHeight": 34,
+          "widgetGap": 12,
+          "containerRowHeight": 28,
+          "containerGapOnBorders": true,
+          "padding": {
+            "top": 20,
+            "right": 20,
+            "bottom": 20,
+            "left": 20
+          }
+        }
+      }
+    },
+    {
+      "id": "nord",
+      "name": "Nord",
+      "is_builtin": true,
+      "payload": {
+        "id": "nord",
+        "name": "Nord",
+        "version": 1,
+        "palette": {
+          "appBackground": "#2e3440",
+          "appText": "#d8dee9",
+          "widgetBackground": "#3b4252",
+          "widgetBorderColor": "#4c566a",
+          "alertColor": "#bf616a"
+        },
+        "header": {
+          "background": {
+            "type": "linear",
+            "angle": 180,
+            "stops": [
+              {
+                "color": "#434c5e",
+                "offset": 0
+              },
+              {
+                "color": "#3b4252",
+                "offset": 100
+              }
+            ]
+          },
+          "titleColor": "#eceff4",
+          "titleFont": {
+            "family": "Roboto, 'Segoe UI', sans-serif",
+            "size": "14px",
+            "weight": 600,
+            "letterSpacing": "0.5px"
+          },
+          "padding": {
+            "x": "14px",
+            "y": "8px"
+          },
+          "height": "auto",
+          "align": "left"
+        },
+        "border": {
+          "width": "1px",
+          "style": "solid",
+          "radius": "6px"
+        },
+        "shadow": {
+          "widget": {
+            "x": "0",
+            "y": "2px",
+            "blur": "6px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.3
+          },
+          "text": {
+            "x": "0",
+            "y": "1px",
+            "blur": "2px",
+            "spread": "0",
+            "color": "#000000",
+            "opacity": 0.5
+          }
+        },
+        "font": {
+          "family": "Roboto, 'Segoe UI', sans-serif",
+          "contentSize": "13px",
+          "contentWeight": 400
+        },
+        "layout": {
+          "rowHeight": 30,
+          "widgetGap": 10,
+          "containerRowHeight": 25,
+          "containerGapOnBorders": false,
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          }
+        }
+      }
+    }
+  ]
+}

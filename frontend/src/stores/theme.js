@@ -46,7 +46,9 @@ export const useThemeStore = defineStore('theme', () => {
   /**
    * The document the UI is actually showing: the editor's draft while a preview
    * runs, the committed one otherwise. Colours reach CSS through the tokens,
-   * but layout is read by components, so it has to come from here.
+   * but layout is read by components, so it has to come from here. While a
+   * preview runs a leaf may hold a value the user is still typing, so read
+   * layout through `layout` (or normalizeTheme) rather than straight off it.
    */
   const activeDocument = computed(
     () => previewDocument.value || documents.value[currentThemeId.value] || normalizeTheme(FALLBACK_THEME)
@@ -126,10 +128,12 @@ export const useThemeStore = defineStore('theme', () => {
 
   /**
    * Live preview: apply a draft without touching the catalog. Used by the
-   * editor on every change; Cancel re-applies the saved document.
+   * editor on every change; Cancel re-applies the saved document. Lenient, so
+   * a value the user is still typing survives the round trip; the tokens are
+   * built from a strict pass, so only valid values reach the CSS.
    */
   function preview(themeOrDocument) {
-    previewDocument.value = normalizeTheme(themeOrDocument)
+    previewDocument.value = normalizeTheme(themeOrDocument, 'lenient')
     appliedRevision.value = applyThemeTokens(previewDocument.value)
   }
 
@@ -146,24 +150,35 @@ export const useThemeStore = defineStore('theme', () => {
     appliedRevision.value = applyThemeTokens(documents.value[id] || FALLBACK_THEME)
   }
 
-  async function create(name, payload) {
+  /**
+   * Add a theme to the catalog.
+   *
+   * `apply: false` writes the row and stops there: `currentThemeId` stays where
+   * the dashboard left it and no tokens are written, so the editor's Save can
+   * persist a theme the dashboard is not using without re-pointing the
+   * dashboard or killing the live preview.
+   */
+  async function create(name, payload, { apply: shouldApply = true } = {}) {
     const created = await createThemeApi(name, payload)
     const document = normalizeTheme(created.payload)
     documents.value = { ...documents.value, [created.id]: document }
     themes.value = [...themes.value, { id: created.id, name: created.name, is_builtin: created.is_builtin }]
-    currentThemeId.value = created.id
-    appliedRevision.value = applyThemeTokens(document)
+    if (shouldApply) {
+      currentThemeId.value = created.id
+      appliedRevision.value = applyThemeTokens(document)
+    }
     return created
   }
 
-  async function update(themeId, name, payload) {
+  /** Replace a theme in full. See `create` for what `apply: false` skips. */
+  async function update(themeId, name, payload, { apply: shouldApply = true } = {}) {
     const saved = await updateThemeApi(themeId, name, payload)
     const document = normalizeTheme(saved.payload)
     documents.value = { ...documents.value, [themeId]: document }
     themes.value = themes.value.map((theme) =>
       theme.id === themeId ? { ...theme, name: saved.name } : theme
     )
-    appliedRevision.value = applyThemeTokens(document)
+    if (shouldApply) appliedRevision.value = applyThemeTokens(document)
     return saved
   }
 

@@ -185,9 +185,12 @@ const NAMED_COLORS = new Set(
     .filter(Boolean)
 )
 // Every alternative is anchored at both ends. An unanchored "^name" would
-// accept "not a color at all" on its first word.
+// accept "not a color at all" on its first word. The argument may nest
+// parentheses, because the backend validator allows them: rejecting
+// `color-mix(in oklch, var(--x) 40%, #fff)` here would drop a value the server
+// is happy to store.
 const COLOR_FUNCTION_RE =
-  /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|var|color-mix|light-dark|color-contrast)\([^()]*\)$/
+  /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|var|color-mix|light-dark|color-contrast)\(\S[\s\S]*\)$/
 
 /** Structural color check, mirroring the backend validator. */
 export function isCssColor(value) {
@@ -287,19 +290,33 @@ export function shadowToCss(shadow) {
 // Normalization
 // --------------------------------------------------------------------------- //
 
-function color(value, fallback) {
+/**
+ * Lenient mode's test for "the user is still typing this number": null is what
+ * an emptied number field writes, and a finite number is a value that has not
+ * been range-checked yet. Both are kept as authored, so the control does not
+ * rewrite what was typed into it.
+ */
+function isPendingNumber(value) {
+  return value === null || (typeof value === 'number' && Number.isFinite(value))
+}
+
+function color(value, fallback, mode) {
+  if (mode === 'lenient' && typeof value === 'string') return value
   return isCssColor(value) ? value : fallback
 }
 
-function length(value, fallback) {
+function length(value, fallback, mode) {
+  if (mode === 'lenient' && typeof value === 'string') return value
   return isCssLength(value) ? value : fallback
 }
 
-function height(value, fallback) {
+function height(value, fallback, mode) {
+  if (mode === 'lenient' && typeof value === 'string') return value
   return isHeaderHeight(value) ? value : fallback
 }
 
-function family(value, fallback) {
+function family(value, fallback, mode) {
+  if (mode === 'lenient' && typeof value === 'string') return value
   if (typeof value !== 'string') return fallback
   if (!value.trim()) return fallback
   if (/[;{}<>\\\n\r]/.test(value)) return fallback
@@ -311,7 +328,8 @@ function weight(value, fallback) {
   return isFontWeight(numeric) ? numeric : fallback
 }
 
-function letterSpacing(value, fallback) {
+function letterSpacing(value, fallback, mode) {
+  if (mode === 'lenient' && typeof value === 'string') return value
   if (typeof value === 'string') {
     const keyword = value.trim().toLowerCase()
     if (['normal', 'inherit', 'initial', 'unset', 'revert'].includes(keyword)) return value
@@ -320,7 +338,8 @@ function letterSpacing(value, fallback) {
 }
 
 /** Clamp a numeric field into range; `fallback` only when it is not a number. */
-function clamp(value, min, max, fallback) {
+function clamp(value, min, max, fallback, mode) {
+  if (mode === 'lenient' && isPendingNumber(value)) return value
   const numeric = typeof value === 'string' ? Number(value) : value
   if (typeof numeric !== 'number' || Number.isNaN(numeric)) return fallback
   return Math.min(max, Math.max(min, numeric))
@@ -335,27 +354,57 @@ function bool(value, fallback) {
 }
 
 /** One grid number, rounded and clamped to the range the backend accepts. */
-function layoutValue(value, key, fallback) {
+function layoutValue(value, key, fallback, mode) {
   const range = LAYOUT_RANGES[key]
   if (!range) return fallback
-  return clamp(Math.round(Number(value)), range.min, range.max, fallback)
+  if (value === undefined) return fallback
+  // An emptied number field is not a zero: `Number(null)` and `Number('')` are
+  // both 0, which would silently collapse the padding.
+  if (value === null || value === '') return mode === 'lenient' ? null : fallback
+  if (mode === 'lenient' && typeof value === 'number') return value
+  return clamp(Math.round(Number(value)), range.min, range.max, fallback, mode)
 }
 
 /** Edge padding, same treatment with the wider padding range. */
-function paddingValue(value, side, fallback) {
+function paddingValue(value, side, fallback, mode) {
+  if (value === undefined) return fallback
+  if (value === null || value === '') return mode === 'lenient' ? null : fallback
+  if (mode === 'lenient' && typeof value === 'number') return value
   return clamp(
     Math.round(Number(value)),
     PADDING_RANGE.min,
     PADDING_RANGE.max,
-    fallback
+    fallback,
+    mode
   )
 }
 
 /** Normalize one gradient, keeping only well-formed stops. */
-function gradient(value, fallback) {
+function gradient(value, fallback, mode) {
   if (!isGradient(value)) return fallback
 
   const stops = Array.isArray(value.stops) ? value.stops : []
+
+  // A stop colour the user is halfway through typing is still the truth, so
+  // lenient drops a stop only when its colour is absent, never when it is
+  // merely invalid. Offsets and the angle are kept as typed.
+  if (mode === 'lenient') {
+    const pending = stops
+      .filter((stop) => isPlainObject(stop) && typeof stop.color === 'string')
+      .map((stop) => ({
+        color: stop.color,
+        offset: isPendingNumber(stop.offset) ? stop.offset : 0
+      }))
+    if (pending.length < MIN_GRADIENT_STOPS) return fallback
+    const capped = pending.slice(0, MAX_GRADIENT_STOPS)
+    if (value.type === 'radial') return { type: 'radial', stops: capped }
+    return {
+      type: 'linear',
+      angle: isPendingNumber(value.angle) ? value.angle : 90,
+      stops: capped
+    }
+  }
+
   const cleaned = stops
     .filter((stop) => isPlainObject(stop) && isCssColor(stop.color))
     .map((stop) => ({ color: stop.color, offset: clamp(stop.offset, 0, 100, 0) }))
@@ -372,22 +421,30 @@ function gradient(value, fallback) {
   return { type, angle: clamp(value.angle, 0, 360, 180), stops: capped }
 }
 
-function paint(value, fallback) {
+function paint(value, fallback, mode) {
+  if (mode === 'lenient' && typeof value === 'string') return value
   if (typeof value === 'string' && isCssColor(value)) return value
-  if (isGradient(value)) return gradient(value, fallback)
+  if (isGradient(value)) return gradient(value, fallback, mode)
   return fallback
 }
 
-function shadow(value, fallback) {
+function shadow(value, fallback, mode) {
   if (!isPlainObject(value)) return cloneTheme(fallback)
   return {
-    x: length(value.x, fallback.x),
-    y: length(value.y, fallback.y),
-    blur: length(value.blur, fallback.blur),
-    spread: length(value.spread, fallback.spread),
-    color: color(value.color, fallback.color),
-    opacity: clamp(value.opacity, 0, 1, fallback.opacity)
+    x: length(value.x, fallback.x, mode),
+    y: length(value.y, fallback.y, mode),
+    blur: length(value.blur, fallback.blur, mode),
+    spread: length(value.spread, fallback.spread, mode),
+    color: color(value.color, fallback.color, mode),
+    opacity: clamp(value.opacity, 0, 1, fallback.opacity, mode)
   }
+}
+
+/** A present string is kept as authored; a blank one is the editor's "not set
+ *  yet" marker in lenient mode, and the fallback everywhere else. */
+function text(value, fallback, mode) {
+  if (typeof value === 'string' && value.trim()) return value
+  return mode === 'lenient' ? '' : fallback
 }
 
 /**
@@ -397,8 +454,20 @@ function shadow(value, fallback) {
  * out-of-range values are replaced. That is what makes a partially broken
  * document from an older build or a hand-edited import renderable instead of
  * blank.
+ *
+ * `mode` decides what happens to a value that is present but not valid yet:
+ *  - 'strict' (the default) replaces it, which is what a stored or imported
+ *    document needs;
+ *  - 'lenient' keeps it as authored, so the half-typed '#1a' in a colour field
+ *    is not snapped back to the fallback on the keystroke that produced it.
+ *    This is what a live editor preview needs. Every consumer of a lenient
+ *    document normalizes it strictly again before it reaches CSS, so nothing
+ *    invalid escapes: lenient only decides what the draft holds.
  */
-export function normalizeTheme(raw) {
+export function normalizeTheme(raw, mode = 'strict') {
+  if (mode !== 'strict' && mode !== 'lenient') {
+    throw new Error(`normalizeTheme: unknown mode "${mode}"`)
+  }
   const base = FALLBACK_THEME
   const source = isPlainObject(raw) ? raw : {}
 
@@ -413,66 +482,68 @@ export function normalizeTheme(raw) {
   const layoutPaddingSource = isPlainObject(layoutSource.padding) ? layoutSource.padding : {}
 
   return {
-    id: typeof source.id === 'string' && source.id.trim() ? source.id : base.id,
-    name: typeof source.name === 'string' && source.name.trim() ? source.name : base.name,
+    id: text(source.id, base.id, mode),
+    name: text(source.name, base.name, mode),
     version: THEME_VERSION,
     palette: {
-      appBackground: color(paletteSource.appBackground, base.palette.appBackground),
-      appText: color(paletteSource.appText, base.palette.appText),
-      widgetBackground: color(paletteSource.widgetBackground, base.palette.widgetBackground),
-      widgetBorderColor: color(paletteSource.widgetBorderColor, base.palette.widgetBorderColor),
-      alertColor: color(paletteSource.alertColor, base.palette.alertColor)
+      appBackground: color(paletteSource.appBackground, base.palette.appBackground, mode),
+      appText: color(paletteSource.appText, base.palette.appText, mode),
+      widgetBackground: color(paletteSource.widgetBackground, base.palette.widgetBackground, mode),
+      widgetBorderColor: color(paletteSource.widgetBorderColor, base.palette.widgetBorderColor, mode),
+      alertColor: color(paletteSource.alertColor, base.palette.alertColor, mode)
     },
     header: {
-      background: paint(headerSource.background, base.header.background),
-      titleColor: color(headerSource.titleColor, base.header.titleColor),
+      background: paint(headerSource.background, base.header.background, mode),
+      titleColor: color(headerSource.titleColor, base.header.titleColor, mode),
       titleFont: {
-        family: family(titleFontSource.family, base.header.titleFont.family),
-        size: length(titleFontSource.size, base.header.titleFont.size),
+        family: family(titleFontSource.family, base.header.titleFont.family, mode),
+        size: length(titleFontSource.size, base.header.titleFont.size, mode),
         weight: weight(titleFontSource.weight, base.header.titleFont.weight),
         letterSpacing: letterSpacing(
           titleFontSource.letterSpacing,
-          base.header.titleFont.letterSpacing
+          base.header.titleFont.letterSpacing,
+          mode
         )
       },
       padding: {
-        x: length(paddingSource.x, base.header.padding.x),
-        y: length(paddingSource.y, base.header.padding.y)
+        x: length(paddingSource.x, base.header.padding.x, mode),
+        y: length(paddingSource.y, base.header.padding.y, mode)
       },
-      height: height(headerSource.height, base.header.height),
+      height: height(headerSource.height, base.header.height, mode),
       align: oneOf(headerSource.align, HEADER_ALIGNMENTS, base.header.align)
     },
     border: {
-      width: length(borderSource.width, base.border.width),
+      width: length(borderSource.width, base.border.width, mode),
       style: oneOf(borderSource.style, BORDER_STYLES, base.border.style),
-      radius: length(borderSource.radius, base.border.radius)
+      radius: length(borderSource.radius, base.border.radius, mode)
     },
     shadow: {
-      widget: shadow(shadowSource.widget, base.shadow.widget),
-      text: shadow(shadowSource.text, base.shadow.text)
+      widget: shadow(shadowSource.widget, base.shadow.widget, mode),
+      text: shadow(shadowSource.text, base.shadow.text, mode)
     },
     font: {
-      family: family(fontSource.family, base.font.family),
-      contentSize: length(fontSource.contentSize, base.font.contentSize),
+      family: family(fontSource.family, base.font.family, mode),
+      contentSize: length(fontSource.contentSize, base.font.contentSize, mode),
       contentWeight: weight(fontSource.contentWeight, base.font.contentWeight)
     },
     layout: {
-      rowHeight: layoutValue(layoutSource.rowHeight, 'rowHeight', base.layout.rowHeight),
-      widgetGap: layoutValue(layoutSource.widgetGap, 'widgetGap', base.layout.widgetGap),
+      rowHeight: layoutValue(layoutSource.rowHeight, 'rowHeight', base.layout.rowHeight, mode),
+      widgetGap: layoutValue(layoutSource.widgetGap, 'widgetGap', base.layout.widgetGap, mode),
       containerRowHeight: layoutValue(
         layoutSource.containerRowHeight,
         'containerRowHeight',
-        base.layout.containerRowHeight
+        base.layout.containerRowHeight,
+        mode
       ),
       containerGapOnBorders: bool(
         layoutSource.containerGapOnBorders,
         base.layout.containerGapOnBorders
       ),
       padding: {
-        top: paddingValue(layoutPaddingSource.top, 'top', base.layout.padding.top),
-        right: paddingValue(layoutPaddingSource.right, 'right', base.layout.padding.right),
-        bottom: paddingValue(layoutPaddingSource.bottom, 'bottom', base.layout.padding.bottom),
-        left: paddingValue(layoutPaddingSource.left, 'left', base.layout.padding.left)
+        top: paddingValue(layoutPaddingSource.top, 'top', base.layout.padding.top, mode),
+        right: paddingValue(layoutPaddingSource.right, 'right', base.layout.padding.right, mode),
+        bottom: paddingValue(layoutPaddingSource.bottom, 'bottom', base.layout.padding.bottom, mode),
+        left: paddingValue(layoutPaddingSource.left, 'left', base.layout.padding.left, mode)
       }
     }
   }
@@ -616,7 +687,11 @@ export function validateTheme(raw) {
 // Tokens
 // --------------------------------------------------------------------------- //
 
-/** Build the full CSS custom property map for a theme document. */
+/**
+ * Build the full CSS custom property map for a theme document. Strict on
+ * purpose: this is the one place a document becomes CSS, so a half-typed value
+ * must never reach a token - it becomes the fallback instead.
+ */
 export function buildThemeTokens(theme) {
   const t = normalizeTheme(theme)
   return {
@@ -729,8 +804,27 @@ export function hasThemePath(source, path) {
 }
 
 /**
+ * The paths whose value differs between two documents, in the order given.
+ *
+ * The editor's "unsaved changes" signal: a diff over the given descriptor paths
+ * only, so a key the user cannot reach is never reported, and a value that was
+ * typed and then typed back is not reported either.
+ */
+export function changedThemePaths(before, after, paths) {
+  const changed = []
+  for (const path of paths) {
+    const from = getThemePath(before, path)
+    const to = getThemePath(after, path)
+    if (from === to) continue
+    if (JSON.stringify(from) !== JSON.stringify(to)) changed.push(path)
+  }
+  return changed
+}
+
+/**
  * The grid geometry of a document, always complete. Layout is not a CSS token:
  * the grid engine takes these as props, so components read them from here.
+ * Strict on purpose: the engine is handed numbers, never a half-typed one.
  */
 export function getThemeLayout(themeOrDocument) {
   return normalizeTheme(themeOrDocument).layout

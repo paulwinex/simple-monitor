@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "comment": "Declarative field descriptors for the theme editor. Every `path` must exist in ThemePayload (backend/app/shemas.py); themes.check.mjs fails the build if it does not.",
+  "sections": [
+    {
+      "id": "palette",
+      "title": "Palette",
+      "icon": "palette",
+      "hint": "Base colours of the dashboard surface.",
+      "fields": [
+        {
+          "path": "palette.appBackground",
+          "label": "Dashboard background",
+          "type": "color"
+        },
+        {
+          "path": "palette.appText",
+          "label": "Text colour",
+          "type": "color"
+        },
+        {
+          "path": "palette.widgetBackground",
+          "label": "Widget background",
+          "type": "color"
+        },
+        {
+          "path": "palette.widgetBorderColor",
+          "label": "Widget border colour",
+          "type": "color"
+        },
+        {
+          "path": "palette.alertColor",
+          "label": "Alert colour",
+          "type": "color"
+        }
+      ]
+    },
+    {
+      "id": "header",
+      "title": "Widget header",
+      "icon": "title",
+      "hint": "The strip at the top of every widget.",
+      "fields": [
+        {
+          "path": "header.background",
+          "label": "Background",
+          "type": "paint"
+        },
+        {
+          "path": "header.titleColor",
+          "label": "Title colour",
+          "type": "color"
+        },
+        {
+          "path": "header.titleFont.family",
+          "label": "Title font",
+          "type": "fontFamily"
+        },
+        {
+          "path": "header.titleFont.size",
+          "label": "Title size",
+          "type": "length"
+        },
+        {
+          "path": "header.titleFont.weight",
+          "label": "Title weight",
+          "type": "weight"
+        },
+        {
+          "path": "header.titleFont.letterSpacing",
+          "label": "Title letter spacing",
+          "type": "lengthOrKeyword"
+        },
+        {
+          "path": "header.padding.x",
+          "label": "Padding X",
+          "type": "length"
+        },
+        {
+          "path": "header.padding.y",
+          "label": "Padding Y",
+          "type": "length"
+        },
+        {
+          "path": "header.height",
+          "label": "Height",
+          "type": "height"
+        },
+        {
+          "path": "header.align",
+          "label": "Alignment",
+          "type": "align"
+        }
+      ]
+    },
+    {
+      "id": "border",
+      "title": "Widget border",
+      "icon": "crop_square",
+      "fields": [
+        {
+          "path": "border.width",
+          "label": "Width",
+          "type": "length"
+        },
+        {
+          "path": "border.style",
+          "label": "Style",
+          "type": "borderStyle"
+        },
+        {
+          "path": "border.radius",
+          "label": "Corner radius",
+          "type": "length"
+        }
+      ]
+    },
+    {
+      "id": "shadow",
+      "title": "Shadows",
+      "icon": "layers",
+      "fields": [
+        {
+          "path": "shadow.widget",
+          "label": "Widget shadow",
+          "type": "shadow"
+        },
+        {
+          "path": "shadow.text",
+          "label": "Title text shadow",
+          "type": "shadow"
+        }
+      ]
+    },
+    {
+      "id": "font",
+      "title": "Content font",
+      "icon": "text_fields",
+      "hint": "Applies to widget content. The title keeps its own font above.",
+      "fields": [
+        {
+          "path": "font.family",
+          "label": "Font stack",
+          "type": "fontFamily"
+        },
+        {
+          "path": "font.contentSize",
+          "label": "Size",
+          "type": "length"
+        },
+        {
+          "path": "font.contentWeight",
+          "label": "Weight",
+          "type": "weight"
+        }
+      ]
+    },
+    {
+      "id": "layout",
+      "title": "Grid spacing",
+      "icon": "grid_on",
+      "hint": "Geometry of the dashboard grid. Stored with the theme, so every dashboard using it gets the same spacing.",
+      "fields": [
+        {
+          "path": "layout.rowHeight",
+          "label": "Row height",
+          "type": "px",
+          "min": 10,
+          "max": 300,
+          "step": 1,
+          "hint": "Height of one grid row. Controls how tall widgets get."
+        },
+        {
+          "path": "layout.widgetGap",
+          "label": "Widget gap",
+          "type": "px",
+          "min": 0,
+          "max": 50,
+          "step": 1,
+          "hint": "Free space between widgets. Does not change row height."
+        },
+        {
+          "path": "layout.containerRowHeight",
+          "label": "Container row height",
+          "type": "px",
+          "min": 10,
+          "max": 300,
+          "step": 1,
+          "hint": "Row height inside container widgets. Containers can override it individually."
+        },
+        {
+          "path": "layout.containerGapOnBorders",
+          "label": "Container gap on borders",
+          "type": "toggle",
+          "hint": "Keeps the widget gap between nested widgets and the container borders."
+        },
+        {
+          "path": "layout.padding.top",
+          "label": "Edge padding top",
+          "type": "px",
+          "min": 0,
+          "max": 200,
+          "step": 1,
+          "group": "padding"
+        },
+        {
+          "path": "layout.padding.right",
+          "label": "Edge padding right",
+          "type": "px",
+          "min": 0,
+          "max": 200,
+          "step": 1,
+          "group": "padding"
+        },
+        {
+          "path": "layout.padding.bottom",
+          "label": "Edge padding bottom",
+          "type": "px",
+          "min": 0,
+          "max": 200,
+          "step": 1,
+          "group": "padding"
+        },
+        {
+          "path": "layout.padding.left",
+          "label": "Edge padding left",
+          "type": "px",
+          "min": 0,
+          "max": 200,
+          "step": 1,
+          "group": "padding"
+        }
+      ]
+    }
+  ]
+}
