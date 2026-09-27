@@ -4,30 +4,12 @@
     title="Dashboard Settings"
     state-key="dashboard-settings"
     :width="560"
-    :height="600"
+    :height="420"
   >
-    <q-tabs
-      v-model="activeTab"
-      class="text-grey"
-      active-color="primary"
-      indicator-color="primary"
-      align="left"
-      narrow-indicator
-      dense
-      no-caps
-      inline-label
-    >
-      <q-tab name="dashboard" label="Dashboard" icon="dashboard" />
-      <q-tab name="widgets" label="Widgets" icon="widgets" />
-    </q-tabs>
-    <q-separator/>
-
-    <q-tab-panels v-model="activeTab" animated class="q-pt-md">
-      <q-tab-panel name="dashboard">
-        <div class="column q-gap-md">
+    <div class="column q-gap-md">
       <SettingsRow
         label="Dashboard theme"
-        hint="Colours of the dashboard itself. Saved with this dashboard."
+        hint="Colours and grid spacing of the dashboard itself. Saved with this dashboard."
       >
         <ThemeSelect
           :model-value="dashboardStore.currentOptions.theme || FALLBACK_THEME.id"
@@ -35,25 +17,12 @@
         />
       </SettingsRow>
 
-      <SettingsRow
-        label="Interface theme"
-        hint="Chrome only: dialogs, menus and panels. The dashboard content follows the dashboard theme."
-      >
-        <q-btn-toggle
-          :model-value="uiThemeStore.preference"
-          :options="uiThemeToggleOptions"
-          unelevated
-          toggle-color="primary"
-          color="grey-3"
-          text-color="grey-8"
-          no-caps
-          dense
-          class="settings-select"
-          @update:model-value="onUiThemeChange"
-        />
-      </SettingsRow>
+      <q-separator />
 
-      <SettingsRow label="Columns" hint="Number of columns in the grid. Higher values give finer control over widget width and snapping.">
+      <SettingsRow
+        label="Columns"
+        hint="Number of columns in the grid. Higher values give finer control over widget width and snapping."
+      >
         <q-input
           :model-value="colNumText"
           type="number"
@@ -95,199 +64,65 @@
         </q-input>
       </SettingsRow>
 
-      <SettingsRow label="Auto-layout" hint="Widgets shift up to fill vertical gaps while editing">
+      <SettingsRow
+        label="Auto-layout"
+        hint="Widgets shift up to fill vertical gaps while editing. Part of the dashboard, not the theme."
+      >
         <div class="row items-center no-wrap q-gap-sm">
           <span class="text-caption">{{ gridOptions.verticalCompact ? 'On' : 'Off' }}</span>
-          <q-toggle v-model="verticalCompact" @update:model-value="onAutoLayoutToggle" />
+          <q-toggle :model-value="gridOptions.verticalCompact" @update:model-value="onAutoLayoutToggle" />
         </div>
       </SettingsRow>
 
-      <SectionSeparator label="Widget spacing" />
-
-      <SettingsRow label="Row height" hint="Height of one grid row in pixels. Controls how tall widgets get">
-        <ValueSlider
-          :model-value="gridOptions.rowHeight ?? 30"
-          :min="10"
-          :max="100"
-          :step="1"
-          suffix="px"
-          @update:model-value="setRowHeight"
-        />
-      </SettingsRow>
-
-      <SettingsRow label="Widget gap" hint="Free space between widgets. Does not change row height or widget height">
-        <ValueSlider
-          :model-value="gap"
-          :min="0"
-          :max="50"
-          :step="1"
-          suffix="px"
-          @update:model-value="setGap"
-        />
-      </SettingsRow>
+      <q-separator />
 
       <SettingsRow
-        label="Container row height"
-        hint="Row height of the grid inside grid container widgets. Containers can override it individually"
+        label="Interface theme"
+        hint="Chrome only: dialogs, menus and panels. The dashboard content follows the dashboard theme."
       >
-        <ValueSlider
-          :model-value="gridOptions.containerRowHeight ?? 25"
-          :min="10"
-          :max="100"
-          :step="1"
-          suffix="px"
-          @update:model-value="setContainerRowHeight"
-        />
-      </SettingsRow>
-
-      <SettingsRow
-        label="Add container gap on borders"
-        hint="Keeps the widget gap between the nested widgets and the container borders. Containers can override it individually"
-      >
-        <div class="row items-center no-wrap q-gap-sm">
-          <span class="text-caption">{{ containerGapOnBorders ? 'On' : 'Off' }}</span>
-          <q-toggle
-            :model-value="containerGapOnBorders"
-            @update:model-value="setContainerGapOnBorders"
-          />
-        </div>
-      </SettingsRow>
-
-      <SectionSeparator label="Edge padding">
-        <q-btn
-          round
-          flat
+        <q-btn-toggle
+          :model-value="uiThemeStore.preference"
+          :options="uiThemeToggleOptions"
+          unelevated
+          toggle-color="primary"
+          color="grey-3"
+          text-color="grey-8"
+          no-caps
           dense
-          :icon="paddingLocked ? 'lock' : 'lock_open'"
-          :title="paddingLocked ? 'Unlock sides (edit separately)' : 'Lock sides to the same value'"
-          @click="togglePaddingLock"
-        />
-      </SectionSeparator>
-      <SettingsRow
-        label="Top"
-        :hint="paddingLocked ? 'Locked to the same value on all sides' : ''"
-      >
-        <ValueSlider
-          :model-value="gridOptions.padding?.top"
-          :min="0"
-          :max="200"
-          :step="1"
-          suffix="px"
-          @update:model-value="setPadding('top', $event)"
+          class="settings-select"
+          @update:model-value="onUiThemeChange"
         />
       </SettingsRow>
-
-      <SettingsRow label="Right">
-        <ValueSlider
-          :model-value="gridOptions.padding?.right"
-          :min="0"
-          :max="200"
-          :step="1"
-          suffix="px"
-          @update:model-value="setPadding('right', $event)"
-        />
-      </SettingsRow>
-
-      <SettingsRow label="Bottom">
-        <ValueSlider
-          :model-value="gridOptions.padding?.bottom"
-          :min="0"
-          :max="200"
-          :step="1"
-          suffix="px"
-          @update:model-value="setPadding('bottom', $event)"
-        />
-      </SettingsRow>
-
-      <SettingsRow label="Left">
-        <ValueSlider
-          :model-value="gridOptions.padding?.left"
-          :min="0"
-          :max="200"
-          :step="1"
-          suffix="px"
-          @update:model-value="setPadding('left', $event)"
-        />
-      </SettingsRow>
-        </div>
-      </q-tab-panel>
-
-      <q-tab-panel name="widgets">
-        <div class="column q-gap-md">
-          <SectionSeparator label="Widget surface" />
-
-          <SettingsRow label="Background opacity" hint="Opacity of the widget background. 0 makes it fully transparent">
-            <ValueSlider
-              :model-value="gridOptions.widgetBackgroundOpacity ?? 100"
-              :min="0"
-              :max="100"
-              :step="1"
-              suffix="%"
-              @update:model-value="setWidgetOpacity('widgetBackgroundOpacity', $event)"
-            />
-          </SettingsRow>
-
-          <SettingsRow label="Header opacity" hint="Opacity of the widget header. 0 makes it fully transparent">
-            <ValueSlider
-              :model-value="gridOptions.widgetHeaderOpacity ?? 100"
-              :min="0"
-              :max="100"
-              :step="1"
-              suffix="%"
-              @update:model-value="setWidgetOpacity('widgetHeaderOpacity', $event)"
-            />
-          </SettingsRow>
-
-          <SettingsRow label="Border opacity" hint="Opacity of the widget border. 0 makes it fully transparent without changing geometry">
-            <ValueSlider
-              :model-value="gridOptions.widgetBorderOpacity ?? 100"
-              :min="0"
-              :max="100"
-              :step="1"
-              suffix="%"
-              @update:model-value="setWidgetOpacity('widgetBorderOpacity', $event)"
-            />
-          </SettingsRow>
-        </div>
-      </q-tab-panel>
-    </q-tab-panels>
+    </div>
   </DraggableDialog>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
 import { useUiThemeStore } from 'stores/uiTheme'
 import { FALLBACK_THEME } from 'src/utils/themes'
 import DraggableDialog from './DraggableDialog.vue'
-import SectionSeparator from './SectionSeparator.vue'
 import SettingsRow from './SettingsRow.vue'
 import ThemeSelect from './ThemeSelect.vue'
-import ValueSlider from "components/common/ValueSlider.vue";
 
 const props = defineProps({
   modelValue: Boolean
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'edit-theme'])
 
-const $q = useQuasar()
 const dashboardStore = useDashboardStore()
 const uiThemeStore = useUiThemeStore()
-
-const PADDING_LOCK_STORAGE_KEY = 'sm-dashboard-padding-lock'
 
 const dialogVisible = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
 
-const activeTab = ref('dashboard')
-
+// Grid spacing (row height, gaps, edge padding) is not here: it belongs to the
+// theme, so it is edited and saved with the theme in the theme editor.
 const gridOptions = computed(() => dashboardStore.gridOptions)
-const gap = computed(() => gridOptions.value.margin?.x ?? 10)
-const containerGapOnBorders = computed(() => gridOptions.value.containerGapOnBorders !== false)
 
 const COL_NUM_PRESETS = [2, 4, 8, 12, 16, 20, 32]
 const colNumText = ref(String(gridOptions.value.colNum ?? 12))
@@ -340,60 +175,11 @@ function onEditTheme(themeId) {
   emit('edit-theme', themeId)
 }
 
-const verticalCompact = computed({
-  get: () => !!gridOptions.value.verticalCompact,
-  set: (value) => dashboardStore.updateGridOptions({ verticalCompact: value })
-})
-
-const paddingLocked = ref(localStorage.getItem(PADDING_LOCK_STORAGE_KEY) === '1')
-
-function togglePaddingLock() {
-  paddingLocked.value = !paddingLocked.value
-  localStorage.setItem(PADDING_LOCK_STORAGE_KEY, paddingLocked.value ? '1' : '0')
-}
-
 function onAutoLayoutToggle(value) {
   dashboardStore.updateGridOptions({ verticalCompact: value })
   if (value) {
     dashboardStore.recompactGrid()
   }
-}
-
-function setGap(value) {
-  const parsed = Math.max(0, Math.min(50, Math.round(value) || 0))
-  dashboardStore.updateGridOptions({ margin: { x: parsed, y: parsed } })
-}
-
-function setRowHeight(value) {
-  const parsed = Math.max(10, Math.min(300, Math.round(value) || 30))
-  dashboardStore.updateGridOptions({ rowHeight: parsed })
-}
-
-function setContainerRowHeight(value) {
-  const parsed = Math.max(10, Math.min(300, Math.round(value) || 25))
-  dashboardStore.updateGridOptions({ containerRowHeight: parsed })
-}
-
-function setContainerGapOnBorders(value) {
-  dashboardStore.updateGridOptions({ containerGapOnBorders: value })
-}
-
-function setPadding(side, value) {
-  const parsed = Math.max(0, Math.round(value) || 0)
-  const padding = { ...(gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }) }
-  padding[side] = parsed
-  if (paddingLocked.value) {
-    padding.top = parsed
-    padding.right = parsed
-    padding.bottom = parsed
-    padding.left = parsed
-  }
-  dashboardStore.updateGridOptions({ padding })
-}
-
-function setWidgetOpacity(key, value) {
-  const parsed = Math.max(0, Math.min(100, Math.round(value) || 0))
-  dashboardStore.updateGridOptions({ [key]: parsed })
 }
 </script>
 

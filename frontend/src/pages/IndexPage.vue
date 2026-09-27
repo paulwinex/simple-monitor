@@ -14,11 +14,13 @@
       </q-banner>
     </div>
 
+    <EmptyDashboardState v-else-if="isEmpty" />
+
     <div v-else :class="'dashboard-grid'" :style="gridStyle">
       <GridLayout
         v-model:layout="dashboardStore.layout"
         :col-num="gridOptions.colNum"
-        :row-height="gridOptions.rowHeight"
+        :row-height="themeLayout.rowHeight"
         :is-draggable="isEditMode"
         :is-resizable="isEditMode"
         :vertical-compact="gridOptions.verticalCompact"
@@ -81,6 +83,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useQuasar } from 'quasar'
 import { useDashboardStore } from 'stores/dashboard'
+import { useThemeStore } from 'stores/theme'
 import { useUIStore } from 'stores/ui'
 import { dataRefreshService } from 'src/services/dataRefreshService'
 import { gridWidgetGap } from 'src/utils/grid'
@@ -91,12 +94,14 @@ import NumberChartWidget from 'components/widgets/NumberChartWidget.vue'
 import MultiChartWidget from 'components/widgets/MultiChartWidget.vue'
 import GridContainerWidget from 'components/widgets/GridContainerWidget.vue'
 import EditModeButton from 'components/common/EditModeButton.vue'
+import EmptyDashboardState from 'components/common/EmptyDashboardState.vue'
 import { useWidgetWindowsStore } from 'stores/widgetWindows'
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const dashboardStore = useDashboardStore()
+const themeStore = useThemeStore()
 const uiStore = useUIStore()
 const widgetWindows = useWidgetWindowsStore()
 
@@ -149,18 +154,22 @@ onUnmounted(() => {
 })
 
 const isEditMode = computed(() => uiStore.isEditMode)
+// A dashboard with no widgets gets a placeholder with an add button instead of
+// an empty grid. Hidden in edit mode: the toolbar there already offers
+// "Add Widget", and the grid has to stay mounted for the first widget.
+const isEmpty = computed(() => !uiStore.isEditMode && dashboardStore.widgets.length === 0)
 const gridOptions = computed(() => dashboardStore.gridOptions)
-const gridMargin = computed(() => {
-  const m = gridOptions.value.margin || { x: 10, y: 10 }
-  return [m.x, 0]
-})
+// Geometry comes from the theme, so a theme switch (or an editor preview)
+// resizes the grid without touching the dashboard.
+const themeLayout = computed(() => themeStore.layout)
+const gridMargin = computed(() => [themeLayout.value.widgetGap, 0])
 // Vertical gap is painted inside the grid item (see .widget-wrapper) instead of being
 // handed to the grid, which would otherwise add it to every row of every widget.
-const widgetGap = computed(() => gridWidgetGap(gridMargin.value[0], gridOptions.value.rowHeight))
+const widgetGap = computed(() => gridWidgetGap(themeLayout.value.widgetGap, themeLayout.value.rowHeight))
 // Layout only: every colour comes from the --sm-* tokens the theme store writes
 // to :root, so switching themes never has to re-render the grid.
 const gridStyle = computed(() => {
-  const p = gridOptions.value.padding || { top: 16, right: 16, bottom: 16, left: 16 }
+  const p = themeLayout.value.padding
   return {
     // The top gap of the root layout is always applied, so it is not part of the
     // edge padding settings below.
@@ -175,6 +184,18 @@ function getDashboardIdFromQuery() {
     return Number(value)
   }
   return null
+}
+
+// The id in the URL can point at a dashboard that is not there (deleted, or the
+// database was reset): the store falls back to the default one, so the stale id
+// is dropped from the URL instead of being requested again on every reload.
+async function openDashboardFromUrl(id) {
+  await dashboardStore.loadDashboard(id)
+  if (id != null && dashboardStore.currentDashboardId !== id) {
+    const query = { ...route.query }
+    delete query.dashboard
+    router.replace({ query })
+  }
 }
 
 // Keep the URL in sync with the currently open dashboard: edit the address
@@ -196,12 +217,12 @@ watch(
   (value) => {
     const id = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : null
     if (id == null || id === dashboardStore.currentDashboardId) return
-    dashboardStore.loadDashboard(id)
+    openDashboardFromUrl(id)
   }
 )
 
 onMounted(() => {
-  dashboardStore.loadDashboard(getDashboardIdFromQuery())
+  openDashboardFromUrl(getDashboardIdFromQuery())
   dataRefreshService.init(dashboardStore)
 })
 
@@ -329,8 +350,8 @@ function updateContainerWidget(containerId, updates) {
 /* The dashboard page follows the dashboard theme; every other page keeps the
    chrome theme. That separation is the whole point of uiTheme. */
 .dashboard-page {
-  background: var(--sm-app-bg, #f5f5f5);
-  color: var(--sm-app-text, #333333);
+  background: var(--sm-app-bg, #303030);
+  color: var(--sm-app-text, #bdbdbd);
   font-family: var(--sm-font-family, Roboto, 'Segoe UI', sans-serif);
   font-size: var(--sm-font-size, 13px);
 }

@@ -2,25 +2,25 @@
 
 // Static dashboard theme tokens.
 //
-// These are the pre-application defaults: they match the `light` built-in
+// These are the pre-application defaults: they match the `dark` built-in
 // preset and the FALLBACK_THEME document in utils/themes.js, so the first
 // paint is already correct and a failed theme load changes nothing visually.
 //
 // utils/themes.js overwrites all of them on <body> when a theme is applied.
 // The list there (THEME_TOKEN_NAMES) and this block must stay in sync.
 :root {
-  --sm-app-bg: #f5f5f5;
-  --sm-app-text: #333333;
+  --sm-app-bg: #303030;
+  --sm-app-text: #bdbdbd;
 
-  --sm-widget-bg: #ffffff;
-  --sm-widget-border-color: #e0e0e0;
+  --sm-widget-bg: #424242;
+  --sm-widget-border-color: #616161;
   --sm-widget-border-width: 1px;
   --sm-widget-border-style: solid;
   --sm-widget-radius: 4px;
-  --sm-widget-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12);
+  --sm-widget-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.4);
 
-  --sm-header-bg: #f5f5f5;
-  --sm-header-color: #424242;
+  --sm-header-bg: #545454;
+  --sm-header-color: #e0e0e0;
   --sm-header-font-family: Roboto, 'Segoe UI', sans-serif;
   --sm-header-font-size: 14px;
   --sm-header-font-weight: 600;
@@ -34,6 +34,6 @@
   --sm-font-size: 13px;
   --sm-font-weight: 400;
 
-  --sm-text-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
-  --sm-alert-color: #c10015;
+  --sm-text-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.6);
+  --sm-alert-color: #ff5252;
 }

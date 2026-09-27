@@ -25,7 +25,7 @@
       label="Row height"
       :hint="rowHeightEnabled
         ? 'Height of one row of the widgets inside this container'
-        : `Using the dashboard setting (${dashboardRowHeight}px)`"
+        : `Using the theme setting (${themeRowHeight}px)`"
     >
       <ValueSlider
         :model-value="rowHeight"
@@ -49,7 +49,7 @@
       label="Border gap"
       :hint="gapOnBordersEnabled
         ? 'Keeps the widget gap between the nested widgets and the container borders'
-        : `Using the dashboard setting (${dashboardGapOnBorders ? 'on' : 'off'})`"
+        : `Using the theme setting (${themeGapOnBorders ? 'on' : 'off'})`"
     >
       <q-toggle v-model="gapOnBorders" :disable="!gapOnBordersEnabled" />
     </SettingsRow>
@@ -58,7 +58,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useDashboardStore } from 'stores/dashboard'
+import { useThemeStore } from 'stores/theme'
 import ValueSlider from 'components/common/ValueSlider.vue'
 import SettingsRow from 'components/common/SettingsRow.vue'
 
@@ -72,12 +72,14 @@ const props = defineProps({
 
 const emit = defineEmits(['update:widget-options'])
 
-const dashboardStore = useDashboardStore()
+const themeStore = useThemeStore()
 
 const DEFAULT_ROW_HEIGHT = 25
 
-const dashboardRowHeight = computed(() => dashboardStore.gridOptions?.containerRowHeight ?? DEFAULT_ROW_HEIGHT)
-const dashboardGapOnBorders = computed(() => dashboardStore.gridOptions?.containerGapOnBorders !== false)
+// The inherited values now live in the theme, so the hint names it instead of
+// the dashboard settings.
+const themeRowHeight = computed(() => themeStore.layout.containerRowHeight ?? DEFAULT_ROW_HEIGHT)
+const themeGapOnBorders = computed(() => themeStore.layout.containerGapOnBorders !== false)
 
 function withDefaults(options) {
   return {
@@ -120,10 +122,10 @@ const gapOnBordersEnabled = computed({
 })
 
 // Until the override is touched, the dashboard value is shown and stays in charge.
-const rowHeight = computed(() => localOptions.value.rowHeight ?? dashboardRowHeight.value)
+const rowHeight = computed(() => localOptions.value.rowHeight ?? themeRowHeight.value)
 
 const gapOnBorders = computed({
-  get: () => localOptions.value.gapOnBorders ?? dashboardGapOnBorders.value,
+  get: () => localOptions.value.gapOnBorders ?? themeGapOnBorders.value,
   set: (value) => {
     localOptions.value.gapOnBorders = value
     emitUpdate()

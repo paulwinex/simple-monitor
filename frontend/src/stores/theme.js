@@ -6,6 +6,7 @@ import {
   applyThemeTokens,
   cloneTheme,
   getAppliedRevision,
+  getThemeLayout,
   normalizeTheme
 } from 'src/utils/themes'
 import {
@@ -31,6 +32,8 @@ export const useThemeStore = defineStore('theme', () => {
   /** id -> full normalized document */
   const documents = ref({})
   const currentThemeId = ref(FALLBACK_THEME.id)
+  /** An uncommitted document from the editor, if a preview is running. */
+  const previewDocument = ref(null)
   const appliedRevision = ref(getAppliedRevision())
   const isLoading = ref(false)
   const loadError = ref(null)
@@ -39,6 +42,18 @@ export const useThemeStore = defineStore('theme', () => {
   const currentTheme = computed(
     () => documents.value[currentThemeId.value] || normalizeTheme(FALLBACK_THEME)
   )
+
+  /**
+   * The document the UI is actually showing: the editor's draft while a preview
+   * runs, the committed one otherwise. Colours reach CSS through the tokens,
+   * but layout is read by components, so it has to come from here.
+   */
+  const activeDocument = computed(
+    () => previewDocument.value || documents.value[currentThemeId.value] || normalizeTheme(FALLBACK_THEME)
+  )
+
+  /** Grid geometry in effect right now, preview included. */
+  const layout = computed(() => getThemeLayout(activeDocument.value))
 
   const themeOptions = computed(() =>
     themes.value.map((theme) => ({ label: theme.name, value: theme.id }))
@@ -97,6 +112,7 @@ export const useThemeStore = defineStore('theme', () => {
   function apply(themeOrDocument, themeId) {
     const id = themeId || themeOrDocument?.id
     const document = normalizeTheme(themeOrDocument)
+    previewDocument.value = null
     if (id) {
       documents.value = { ...documents.value, [id]: document }
       themes.value = themes.value.some((theme) => theme.id === id)
@@ -113,7 +129,8 @@ export const useThemeStore = defineStore('theme', () => {
    * editor on every change; Cancel re-applies the saved document.
    */
   function preview(themeOrDocument) {
-    appliedRevision.value = applyThemeTokens(themeOrDocument)
+    previewDocument.value = normalizeTheme(themeOrDocument)
+    appliedRevision.value = applyThemeTokens(previewDocument.value)
   }
 
   /** Re-apply the committed document for the given (or current) theme. */
@@ -171,6 +188,9 @@ export const useThemeStore = defineStore('theme', () => {
     documents,
     currentThemeId,
     currentTheme,
+    activeDocument,
+    previewDocument,
+    layout,
     themeOptions,
     hasThemes,
     appliedRevision,

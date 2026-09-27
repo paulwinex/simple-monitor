@@ -112,6 +112,7 @@
 import { ref, h, watch, computed } from 'vue'
 import { GridLayout, GridItem } from 'vue-grid-layout-v3'
 import { useDashboardStore } from 'stores/dashboard'
+import { useThemeStore } from 'stores/theme'
 import { useWidgetWindowsStore } from 'stores/widgetWindows'
 import NumberWidget from './NumberWidget.vue'
 import ChartWidget from './ChartWidget.vue'
@@ -134,6 +135,7 @@ const props = defineProps({
 })
 
 const dashboardStore = useDashboardStore()
+const themeStore = useThemeStore()
 const widgetWindows = useWidgetWindowsStore()
 
 const emit = defineEmits([
@@ -183,9 +185,11 @@ const internalRowHeight = computed(() => {
   if (options?.rowHeightEnabled && Number.isFinite(options.rowHeight)) {
     return options.rowHeight
   }
-  return dashboardStore.gridOptions?.containerRowHeight ?? DEFAULT_INTERNAL_ROW_HEIGHT
+  return themeStore.layout.containerRowHeight ?? DEFAULT_INTERNAL_ROW_HEIGHT
 })
-const dashboardGap = computed(() => dashboardStore.gridOptions?.margin?.x ?? 10)
+// Inherited from the theme, like the root grid: a theme switch resizes nested
+// grids too, and each container can still override the values individually.
+const dashboardGap = computed(() => themeStore.layout.widgetGap ?? 10)
 const internalGap = computed(() => gridWidgetGap(dashboardGap.value, internalRowHeight.value))
 const internalMargin = computed(() => [dashboardGap.value, 0])
 
@@ -194,7 +198,7 @@ const internalMargin = computed(() => [dashboardGap.value, 0])
 // appears between widgets and they sit flush with the borders.
 const gapOnBorders = computed(() => {
   const options = parentWidget.value?.options
-  const dashboardValue = dashboardStore.gridOptions?.containerGapOnBorders !== false
+  const dashboardValue = themeStore.layout.containerGapOnBorders !== false
   if (options?.gapOnBordersEnabled && typeof options.gapOnBorders === 'boolean') {
     return options.gapOnBorders
   }

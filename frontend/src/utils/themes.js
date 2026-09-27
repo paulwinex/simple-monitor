@@ -57,24 +57,53 @@ export const MIN_GRADIENT_STOPS = 2
 export const MAX_GRADIENT_STOPS = 5
 
 /**
- * Static fallback, mirroring the backend's `light` preset. Used before the
- * catalog loads and when the API is unreachable, so the dashboard is never
- * unstyled.
+ * Grid geometry lives in the theme, but as plain pixel integers: these values
+ * are handed to the layout engine as props, not rendered as CSS. The ranges
+ * are the backend's `ThemeLayout` bounds, so the editor cannot offer a value
+ * the API would reject.
+ */
+export const LAYOUT_RANGES = Object.freeze({
+  rowHeight: Object.freeze({ min: 10, max: 300, step: 1 }),
+  widgetGap: Object.freeze({ min: 0, max: 50, step: 1 }),
+  containerRowHeight: Object.freeze({ min: 10, max: 300, step: 1 })
+})
+
+export const PADDING_RANGE = Object.freeze({ min: 0, max: 200, step: 1 })
+
+/** Clamp a layout number into the range the backend accepts. */
+export function clampLayoutValue(key, value) {
+  const range = LAYOUT_RANGES[key]
+  if (!range) return value
+  const parsed = Math.round(Number(value))
+  if (Number.isNaN(parsed)) return FALLBACK_LAYOUT[key]
+  return Math.min(range.max, Math.max(range.min, parsed))
+}
+
+export function clampPaddingValue(side, value) {
+  const parsed = Math.round(Number(value))
+  if (Number.isNaN(parsed)) return FALLBACK_LAYOUT.padding[side]
+  return Math.min(PADDING_RANGE.max, Math.max(PADDING_RANGE.min, parsed))
+}
+
+/**
+ * Static fallback, mirroring the backend's `dark` preset - the default theme
+ * of a fresh installation. Used before the catalog loads and when the API is
+ * unreachable, so the dashboard is never unstyled and never flashes white.
  */
 export const FALLBACK_THEME = Object.freeze({
-  id: 'light',
-  name: 'Light',
+  id: 'dark',
+  name: 'Dark',
   version: THEME_VERSION,
   palette: {
-    appBackground: '#f5f5f5',
-    appText: '#333333',
-    widgetBackground: '#ffffff',
-    widgetBorderColor: '#e0e0e0',
-    alertColor: '#c10015'
+    appBackground: '#303030',
+    appText: '#bdbdbd',
+    widgetBackground: '#424242',
+    widgetBorderColor: '#616161',
+    alertColor: '#ff5252'
   },
   header: {
-    background: '#f5f5f5',
-    titleColor: '#424242',
+    background: '#545454',
+    titleColor: '#e0e0e0',
     titleFont: {
       family: "Roboto, 'Segoe UI', sans-serif",
       size: '14px',
@@ -87,15 +116,25 @@ export const FALLBACK_THEME = Object.freeze({
   },
   border: { width: '1px', style: 'solid', radius: '4px' },
   shadow: {
-    widget: { x: '0', y: '1px', blur: '3px', spread: '0', color: '#000000', opacity: 0.12 },
-    text: { x: '0', y: '1px', blur: '2px', spread: '0', color: '#000000', opacity: 0.15 }
+    widget: { x: '0', y: '2px', blur: '8px', spread: '0', color: '#000000', opacity: 0.4 },
+    text: { x: '0', y: '1px', blur: '3px', spread: '0', color: '#000000', opacity: 0.6 }
   },
   font: {
     family: "Roboto, 'Segoe UI', sans-serif",
     contentSize: '13px',
     contentWeight: 400
+  },
+  layout: {
+    rowHeight: 30,
+    widgetGap: 10,
+    containerRowHeight: 25,
+    containerGapOnBorders: true,
+    padding: { top: 16, right: 16, bottom: 16, left: 16 }
   }
 })
+
+/** The grid geometry of the fallback theme, i.e. the defaults for a new theme. */
+export const FALLBACK_LAYOUT = FALLBACK_THEME.layout
 
 // --------------------------------------------------------------------------- //
 // Small helpers
@@ -291,6 +330,27 @@ function oneOf(value, allowed, fallback) {
   return allowed.includes(value) ? value : fallback
 }
 
+function bool(value, fallback) {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+/** One grid number, rounded and clamped to the range the backend accepts. */
+function layoutValue(value, key, fallback) {
+  const range = LAYOUT_RANGES[key]
+  if (!range) return fallback
+  return clamp(Math.round(Number(value)), range.min, range.max, fallback)
+}
+
+/** Edge padding, same treatment with the wider padding range. */
+function paddingValue(value, side, fallback) {
+  return clamp(
+    Math.round(Number(value)),
+    PADDING_RANGE.min,
+    PADDING_RANGE.max,
+    fallback
+  )
+}
+
 /** Normalize one gradient, keeping only well-formed stops. */
 function gradient(value, fallback) {
   if (!isGradient(value)) return fallback
@@ -349,6 +409,8 @@ export function normalizeTheme(raw) {
   const borderSource = isPlainObject(source.border) ? source.border : {}
   const shadowSource = isPlainObject(source.shadow) ? source.shadow : {}
   const fontSource = isPlainObject(source.font) ? source.font : {}
+  const layoutSource = isPlainObject(source.layout) ? source.layout : {}
+  const layoutPaddingSource = isPlainObject(layoutSource.padding) ? layoutSource.padding : {}
 
   return {
     id: typeof source.id === 'string' && source.id.trim() ? source.id : base.id,
@@ -393,6 +455,25 @@ export function normalizeTheme(raw) {
       family: family(fontSource.family, base.font.family),
       contentSize: length(fontSource.contentSize, base.font.contentSize),
       contentWeight: weight(fontSource.contentWeight, base.font.contentWeight)
+    },
+    layout: {
+      rowHeight: layoutValue(layoutSource.rowHeight, 'rowHeight', base.layout.rowHeight),
+      widgetGap: layoutValue(layoutSource.widgetGap, 'widgetGap', base.layout.widgetGap),
+      containerRowHeight: layoutValue(
+        layoutSource.containerRowHeight,
+        'containerRowHeight',
+        base.layout.containerRowHeight
+      ),
+      containerGapOnBorders: bool(
+        layoutSource.containerGapOnBorders,
+        base.layout.containerGapOnBorders
+      ),
+      padding: {
+        top: paddingValue(layoutPaddingSource.top, 'top', base.layout.padding.top),
+        right: paddingValue(layoutPaddingSource.right, 'right', base.layout.padding.right),
+        bottom: paddingValue(layoutPaddingSource.bottom, 'bottom', base.layout.padding.bottom),
+        left: paddingValue(layoutPaddingSource.left, 'left', base.layout.padding.left)
+      }
     }
   }
 }
@@ -500,6 +581,29 @@ export function validateTheme(raw) {
       problems.push({ path, message: `expected one of ${FONT_WEIGHTS.join(', ')}` })
     }
   })
+
+  // Layout: the whole group is optional for stored documents (the backend fills
+  // it in), but a value that is present has to be an in-range whole number.
+  const checkLayoutNumber = (value, path, range) => {
+    if (value === undefined) return
+    const numeric = typeof value === 'string' ? Number(value) : value
+    if (typeof numeric !== 'number' || !Number.isInteger(numeric)) {
+      problems.push({ path, message: 'expected a whole number of pixels' })
+      return
+    }
+    if (numeric < range.min || numeric > range.max) {
+      problems.push({ path, message: `expected ${range.min}..${range.max}` })
+    }
+  }
+  Object.entries(LAYOUT_RANGES).forEach(([key, range]) => {
+    checkLayoutNumber(raw.layout?.[key], `layout.${key}`, range)
+  })
+  ;['top', 'right', 'bottom', 'left'].forEach((side) => {
+    checkLayoutNumber(raw.layout?.padding?.[side], `layout.padding.${side}`, PADDING_RANGE)
+  })
+  if (raw.layout?.containerGapOnBorders !== undefined && typeof raw.layout.containerGapOnBorders !== 'boolean') {
+    problems.push({ path: 'layout.containerGapOnBorders', message: 'expected true or false' })
+  }
 
   if (raw.version !== undefined && raw.version !== THEME_VERSION) {
     problems.push({ path: 'version', message: `expected ${THEME_VERSION}` })
@@ -622,6 +726,14 @@ export function setThemePath(source, path, value) {
 
 export function hasThemePath(source, path) {
   return getThemePath(source, path) !== undefined
+}
+
+/**
+ * The grid geometry of a document, always complete. Layout is not a CSS token:
+ * the grid engine takes these as props, so components read them from here.
+ */
+export function getThemeLayout(themeOrDocument) {
+  return normalizeTheme(themeOrDocument).layout
 }
 
 // --------------------------------------------------------------------------- //

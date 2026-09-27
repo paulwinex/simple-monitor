@@ -6,14 +6,24 @@ import { useThemeStore } from 'stores/theme'
 import { FALLBACK_THEME } from 'src/utils/themes'
 import { compact } from 'src/utils/layout'
 
+// Grid geometry (row height, gaps, padding) belongs to the theme, not here:
+// switching theme restyles the grid, and the values travel with the theme.
+// What stays on the dashboard is how *its* grid is built and edited.
 const DEFAULT_GRID_OPTIONS = {
   colNum: 12,
-  rowHeight: 30,
-  containerRowHeight: 25,
-  containerGapOnBorders: true,
-  verticalCompact: true,
-  margin: { x: 10, y: 10 },
-  padding: { top: 16, right: 16, bottom: 16, left: 16 }
+  verticalCompact: true
+}
+
+/** Only these keys are read back, so a stored dashboard drops the retired ones. */
+const GRID_OPTION_KEYS = Object.keys(DEFAULT_GRID_OPTIONS)
+
+function pickGridOptions(stored) {
+  const source = stored && typeof stored === 'object' ? stored : {}
+  const picked = { ...DEFAULT_GRID_OPTIONS }
+  for (const key of GRID_OPTION_KEYS) {
+    if (source[key] !== undefined) picked[key] = source[key]
+  }
+  return picked
 }
 
 const CURRENT_DASHBOARD_ID_KEY = 'sm-current-dashboard-id'
@@ -39,27 +49,47 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const hasError = computed(() => error.value !== null)
 
   function setCurrentDashboard(id, name, options) {
-    currentDashboardId.value = Number(id) || 1
-    currentDashboardName.value = name || `Dashboard ${currentDashboardId.value}`
+    // A dashboard without an id is not in the database yet (the empty default on
+    // a fresh database), so there is nothing to remember: it is not pinned in
+    // localStorage and gets no id in the URL. The first save creates it and the
+    // store adopts the id the backend assigned.
+    const parsedId = id == null ? null : Number(id) || null
+    currentDashboardId.value = parsedId
+    currentDashboardName.value = name || (parsedId ? `Dashboard ${parsedId}` : 'My Dashboard')
     currentOptions.value = options || {}
-    localStorage.setItem(CURRENT_DASHBOARD_ID_KEY, String(currentDashboardId.value))
+    if (parsedId) {
+      localStorage.setItem(CURRENT_DASHBOARD_ID_KEY, String(parsedId))
+    } else {
+      localStorage.removeItem(CURRENT_DASHBOARD_ID_KEY)
+    }
   }
 
   const themeStore = useThemeStore()
 
   async function fetchDashboardFromApi(dashboardId = null) {
-    const targetId = dashboardId ?? currentDashboardId.value ?? 1
+    // No dashboard has been chosen yet (no ?dashboard= and nothing stored):
+    // ask for the default one instead of guessing id 1, which answers 404 as
+    // long as the database has no such row.
+    const targetId = dashboardId ?? currentDashboardId.value
     try {
       let response
-      try {
-        response = await getDashboard(targetId)
-      } catch (err) {
-        // Fall back to the default dashboard if the requested id no longer exists
+      if (targetId == null) {
         response = await getDefaultDashboard()
+      } else {
+        try {
+          response = await getDashboard(targetId)
+        } catch (err) {
+          // The stored dashboard is gone (deleted, or the database was reset):
+          // fall back to the default one. It comes back without an id when it
+          // does not exist either, which drops the stale id from the store.
+          response = await getDefaultDashboard()
+        }
       }
       const dashboard = response.dashboard
 
-      setCurrentDashboard(response.id, dashboard.name, dashboard.options || {})
+      // dashboard.id is null for a dashboard that is not stored yet, unlike the
+      // response envelope id, which is always 1 for the default endpoint.
+      setCurrentDashboard(dashboard.id ?? null, dashboard.name, dashboard.options || {})
       // The catalog has to be in memory before a dashboard theme can be
       // resolved, so it is loaded once and only re-fetched if it is empty.
       if (!themeStore.hasThemes) await themeStore.loadThemes()
@@ -157,7 +187,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       return {
         layout: layoutArray,
         widgets: transformedWidgets,
-        gridOptions: { ...DEFAULT_GRID_OPTIONS, ...(dashboard.grid_options || {}) }
+        gridOptions: pickGridOptions(dashboard.grid_options)
       }
     } catch (error) {
       console.error('Failed to load dashboard from API, using empty layout:', error)
@@ -213,7 +243,14 @@ export const useDashboardStore = defineStore('dashboard', () => {
       updated_at: Math.floor(Date.now() / 1000)
     }
 
-    await saveDashboardApi(currentDashboardId.value ?? 'default', payload)
+    const saved = await saveDashboardApi(currentDashboardId.value ?? 'default', payload)
+
+    // The open page was not in the database yet, so the save created it: adopt
+    // the assigned id, otherwise the next startup would ask for the default
+    // again instead of this dashboard.
+    if (currentDashboardId.value == null && saved?.id != null) {
+      setCurrentDashboard(saved.id, currentDashboardName.value, payload.options)
+    }
   }
 
   async function loadHosts() {
@@ -256,7 +293,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       const data = await fetchDashboardFromApi(id)
       layout.value = data.layout
       widgets.value = data.widgets
-      gridOptions.value = { ...DEFAULT_GRID_OPTIONS, ...(data.gridOptions || {}) }
+      gridOptions.value = pickGridOptions(data.gridOptions)
       captureSavedSnapshot()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load dashboard'
